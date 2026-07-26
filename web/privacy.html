@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy notice — AgreementAtlas</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="legal-page">
+  <main class="legal-shell">
+    <a href="/">← Back to AgreementAtlas</a>
+    <article>
+      <span class="eyebrow">DEPLOYMENT PRIVACY NOTICE</span>
+      <h1>How this copy handles information</h1>
+      <p><strong>Last updated:</strong> 26 July 2026 · <strong>Mode:</strong> {{APP_MODE}}</p>
+      <p class="notice">This notice describes the safeguards built into this deployment template. A public operator must review it against their actual hosting, subprocessors and legal obligations before inviting uploads. It is not a certification of GDPR compliance.</p>
+
+      <h2>Who is responsible</h2>
+      <p>This copy is operated by <strong>{{OPERATOR_NAME}}</strong>. Privacy questions and rights requests can be sent to <strong>{{PRIVACY_EMAIL}}</strong>.</p>
+
+      <h2>What the service processes</h2>
+      <ul>
+        <li>Agreement files you choose to upload, including text and metadata contained in them.</li>
+        <li>A random, first-party session identifier stored in a strictly necessary cookie.</li>
+        <li>Your network address temporarily in memory for abuse and rate-limit controls. AgreementAtlas does not write it into an application analytics database.</li>
+        <li>Generated clauses, legal rules, graph relationships, model answers and cited evidence.</li>
+      </ul>
+      <p>Agreements may themselves contain names, signatures, contact details or other personal data. Do not upload material unless you are authorised and have a lawful basis to process it.</p>
+
+      <h2>Purpose and model processing</h2>
+      <p>The information is used only to provide the requested document conversion, graph extraction, retrieval, local model enrichment and question-answering service; protect the service from abuse; and delete the session. This release sends model prompts only to the operator-controlled LM Studio endpoint. It does not send agreement content to Kimi, OpenAI or another cloud model.</p>
+
+      <h2>Retention and deletion</h2>
+      <p>The application assigns an absolute {{RETENTION_HOURS}}-hour expiry when a session is created. It automatically removes the uploaded originals and all generated session data after expiry. “Delete my documents” requests immediate removal. The application does not create backups of session workspaces; an operator must disclose separately if their infrastructure does.</p>
+
+      <h2>Recipients and transfers</h2>
+      <p>In local mode, processing remains on the machine running AgreementAtlas and LM Studio. A public deployment may also involve its hosting or network-security provider, which the operator must identify here. Cloud inference must remain disabled until the operator has documented a suitable processor agreement, retention position and any required international-transfer safeguard.</p>
+
+      <h2>Cookies</h2>
+      <p>AgreementAtlas uses one first-party, HTTP-only session cookie to keep each visitor’s workspace separate. It expires with the session and is not used for advertising or analytics. The service cannot safely provide isolated uploads without it.</p>
+
+      <h2>Your choices and rights</h2>
+      <p>You can avoid processing by not uploading, and erase the session with the deletion control. Depending on applicable law, you may also have rights of access, rectification, restriction, objection or complaint to a supervisory authority. Contact the operator above. UK users may complain to the Information Commissioner’s Office at <a href="https://ico.org.uk/make-a-complaint/">ico.org.uk</a>.</p>
+
+      <h2>Security and incidents</h2>
+      <p>The template uses isolated random workspaces, upload quotas, type checks, restrictive browser headers, rate limits, short retention and content-safe rendering. No internet service is risk-free. Do not put confidential, privileged, security-sensitive or special-category personal data into a demonstration deployment. Operators must maintain an incident-response and breach-assessment process.</p>
+    </article>
+  </main>
+</body>
+</html>

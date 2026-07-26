@@ -1,0 +1,38 @@
+-Role-
+You extract contractual rules from software and cloud agreements. A claim is a
+rule supported by the supplied agreement text, not an allegation about
+misconduct.
+
+-Instructions-
+For each relevant party, service, licence model, or document entity, extract
+every material permission, obligation, prohibition, definition, condition,
+exception, precedence rule, remedy, or survival rule.
+
+Preserve:
+- actor and affected party;
+- MAY, MUST, MUST NOT, or IS DEFINED AS modality;
+- action and object;
+- agreement, product, licence-model, territory, and time scope;
+- all conditions and exceptions;
+- the exact source wording and section metadata.
+
+Use claim types that can be compared across agreements:
+PERMISSION, OBLIGATION, PROHIBITION, DEFINITION, CONDITION, EXCEPTION,
+PRECEDENCE, REMEDY, SURVIVAL, DATA_USE, SECURITY, SERVICE_LEVEL, PAYMENT,
+SUSPENSION, TERMINATION, LIABILITY, INDEMNITY, AUDIT, or RENEWAL.
+
+Mark a rule TRUE when the supplied agreement expressly states it. Use
+SUSPECTED only when the text is incomplete, and never resolve ambiguity using
+outside knowledge. Dates describe the rule's stated effective period; use NONE
+when unavailable.
+
+-Output format-
+(<subject_entity><|><object_entity or NONE><|><claim_type><|><TRUE, FALSE, or SUSPECTED><|><start_date or NONE><|><end_date or NONE><|><description including scope, modality, conditions, exceptions, source document and section><|><exact source text>)
+
+Use ## between records. When finished output <|COMPLETE|>.
+
+-Real Data-
+Entity specification: {entity_specs}
+Claim description: {claim_description}
+Text: {input_text}
+Output:

@@ -1,0 +1,31 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Secrets and local configuration
+.env
+knowledge/.env
+
+# Visitor uploads and generated workspaces
+data/
+tmp/
+knowledge/input/
+knowledge/sources/
+knowledge/legal/
+knowledge/output/
+knowledge/cache/
+knowledge/logs/
+
+# Local review notes derived from non-redistributable agreements
+GRAPH_REBUILD_PLAN.md
+
+# Local operating-system and editor files
+.DS_Store
+.idea/
+.vscode/

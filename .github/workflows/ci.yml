@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Static checks
+        run: |
+          ruff format --check .
+          ruff check .
+          node --check web/app.js
+          python -m py_compile app.py evaluation.py legal_schema.py legal_ingest.py legal_graph_service.py lmstudio_client.py session_store.py
+
+      - name: Tests
+        run: python -m unittest discover -s tests -v

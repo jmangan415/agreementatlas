@@ -1,0 +1,71 @@
+[
+  {
+    "id": "instrument-classification",
+    "question": "Which instruments are master terms, orders, addenda, amendments and policies?",
+    "expects": {
+      "instrument_types": ["MSA", "DPA", "ORDER_SCHEDULE", "AMENDMENT", "SLA"]
+    }
+  },
+  {
+    "id": "chapeau-negation",
+    "question": "May Customer share administrator credentials or reverse engineer the service?",
+    "expects": {
+      "source": "acme-cloud-master-agreement.md",
+      "evidence_contains": "Customer shall not",
+      "effect": "PROHIBITION",
+      "polarity": "NEGATIVE"
+    }
+  },
+  {
+    "id": "streamflow-affiliate",
+    "question": "Can Customer allocate StreamFlow access to an Affiliate?",
+    "expects": {
+      "source": "acme-streamflow-order-schedule.md",
+      "evidence_contains": "may not allocate StreamFlow access",
+      "status": "CONTROLLING"
+    }
+  },
+  {
+    "id": "dpa-precedence",
+    "question": "Which agreement controls a conflict about processing Personal Data?",
+    "expects": {
+      "source": "acme-data-processing-addendum.md",
+      "evidence_contains": "prevails and controls",
+      "relationship": "CONTROLS_FOR_DEFINED_SCOPE"
+    }
+  },
+  {
+    "id": "controlling-definition",
+    "question": "Who is an Authorised User for InsightHub?",
+    "expects": {
+      "source": "acme-insighthub-order-schedule.md",
+      "evidence_contains": "named Customer employee",
+      "relationship": "CONTROLLING_DEFINITION"
+    }
+  },
+  {
+    "id": "sla-exclusion",
+    "question": "Does announced maintenance count against StreamFlow availability?",
+    "expects": {
+      "source": "acme-streamflow-service-level-agreement.md",
+      "evidence_contains": "announced maintenance",
+      "effect": "EXCLUSION"
+    }
+  },
+  {
+    "id": "current-amendment",
+    "question": "What must Customer do about account credentials today?",
+    "expects": {
+      "source": "acme-cloud-master-amendment-1.md",
+      "evidence_contains": "multi-factor authentication",
+      "relationship": "AMENDS"
+    }
+  },
+  {
+    "id": "unsupported",
+    "question": "What insurance coverage must Customer maintain?",
+    "expects": {
+      "status": "UNRESOLVED"
+    }
+  }
+]

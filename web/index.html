@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore software and cloud agreements as evidence-backed legal knowledge graphs using a local language model.">
+  <title>AgreementAtlas — Agreement Intelligence</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="AgreementAtlas home">
+      <span class="brand-mark" aria-hidden="true">A</span>
+      <span><strong>AgreementAtlas</strong><small>Agreement Intelligence</small></span>
+    </a>
+    <div class="product-promise">
+      <span class="eyebrow">LOCAL-FIRST LEGAL RAG</span>
+      <span>Map obligations, permissions, scope and precedence to exact clauses.</span>
+    </div>
+    <div class="runtime">
+      <span id="modePill" class="pill">Local processing</span>
+      <span id="lmDot" class="status-dot"></span>
+      <span id="lmSummary">Checking LM Studio…</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="source-panel" aria-label="Agreement family">
+      <section id="libraryCard" class="library-card" hidden>
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">LIBRARY</span>
+            <h1>Agreement families</h1>
+          </div>
+          <button id="newFamilyButton" class="text-button">+ New</button>
+        </div>
+        <div id="familyList" class="family-list" aria-live="polite"></div>
+      </section>
+
+      <div class="panel-heading">
+        <div>
+          <span class="eyebrow">AGREEMENT FAMILY</span>
+          <h1 id="familyHeading">Source documents</h1>
+        </div>
+        <span id="fileCount" class="count">0 / 12</span>
+      </div>
+
+      <label class="drop-zone" id="dropZone">
+        <input id="fileInput" type="file" multiple accept=".pdf,.txt,.md,.csv,.xls,.xlsx,.docx,.pptx">
+        <span class="upload-mark" aria-hidden="true">↑</span>
+        <strong>Add agreements</strong>
+        <span>Master terms, orders, addenda, DPAs and schedules</span>
+        <small>Up to 12 files · 50 MB total</small>
+      </label>
+      <label id="publicConfirm" class="confirm-row" hidden>
+        <input id="uploadConsent" type="checkbox">
+        <span>I am authorised to upload these files and understand this is a temporary public demonstration.</span>
+      </label>
+      <p id="uploadStatus" class="inline-status" role="status"></p>
+
+      <div id="documentList" class="document-list" aria-live="polite"></div>
+      <div class="usage">
+        <div><span>Session storage</span><span id="usageText">0 MB / 50 MB</span></div>
+        <div class="meter"><span id="usageBar"></span></div>
+      </div>
+
+      <section class="model-card">
+        <div class="card-title">
+          <span>Local AI enrichment</span>
+          <span id="enrichState" class="mini-pill">Not started</span>
+        </div>
+        <label for="modelSelect">LM Studio model</label>
+        <select id="modelSelect" aria-label="LM Studio model">
+          <option value="">No local model available</option>
+        </select>
+        <button id="enrichButton" class="primary-button" disabled>Enrich legal rules</button>
+        <div class="progress-track" aria-hidden="true"><span id="enrichProgress"></span></div>
+        <p id="enrichMessage" class="inline-status">Deterministic rules appear immediately; AI enrichment is optional.</p>
+      </section>
+
+      <section class="privacy-card">
+        <div><strong id="retentionTitle">Temporary by design</strong><span id="expiryText">Deleted within 6 hours</span></div>
+        <p id="retentionNote">AgreementAtlas uses a strictly necessary session cookie to isolate your files. Local mode does not send agreement text to a cloud model.</p>
+        <p id="buildProvenance" class="inline-status"></p>
+        <div class="privacy-links">
+          <a href="/privacy.html">Privacy</a>
+          <a href="/terms.html">Terms</a>
+          <button id="deleteButton" class="text-button danger">Delete my documents</button>
+        </div>
+      </section>
+    </aside>
+
+    <main class="graph-panel">
+      <div class="graph-toolbar">
+        <div>
+          <span class="eyebrow">LEGAL RELATIONSHIP MAP</span>
+          <h2>Knowledge graph</h2>
+        </div>
+        <div class="view-switch" role="group" aria-label="Graph detail">
+          <button class="active" data-view="overview">Overview</button>
+          <button data-view="detail">Rule detail</button>
+        </div>
+        <label class="graph-search">
+          <span aria-hidden="true">⌕</span>
+          <input id="graphSearch" type="search" placeholder="Find a clause, party or rule" aria-label="Search graph">
+        </label>
+      </div>
+      <div id="typeFilters" class="type-filters" aria-label="Node type filters"></div>
+
+      <div id="graphStage" class="graph-stage">
+        <canvas id="graphCanvas" aria-label="Interactive agreement knowledge graph"></canvas>
+        <div id="graphEmpty" class="graph-empty">
+          <span class="constellation" aria-hidden="true">⌁</span>
+          <h3>Build an agreement family</h3>
+          <p>Upload related terms, order schedules and addenda. AgreementAtlas will map their legal rules without a model call.</p>
+        </div>
+        <div class="canvas-controls" aria-label="Graph controls">
+          <button id="zoomIn" aria-label="Zoom in">+</button>
+          <button id="zoomOut" aria-label="Zoom out">−</button>
+          <button id="resetView" aria-label="Fit graph">Fit</button>
+        </div>
+        <div class="graph-legend">
+          <span><i class="family"></i>Family</span>
+          <span><i class="document"></i>Agreement</span>
+          <span><i class="rule"></i>Rule</span>
+          <span><i class="precedence"></i>Precedence</span>
+          <span><i class="definition"></i>Definition</span>
+        </div>
+      </div>
+
+      <section id="nodeInspector" class="node-inspector" aria-live="polite">
+        <div class="inspector-placeholder">
+          <span class="eyebrow">EVIDENCE + CLAUSE ANATOMY</span>
+          <p>Select a rule to inspect its effect, modality, polarity and exact source spans.</p>
+        </div>
+      </section>
+    </main>
+
+    <aside class="answer-panel" aria-label="Agreement questions">
+      <div class="answer-heading">
+        <div>
+          <span class="eyebrow">EVIDENCE-GROUNDED CHAT</span>
+          <h2>Ask the family</h2>
+        </div>
+        <span class="shield" title="Local model; exact clauses remain the source of truth">◇</span>
+      </div>
+      <p class="answer-intro">Answers use retrieved legal rules and exact clauses. Product-specific limits are kept separate from general permissions.</p>
+
+      <div id="chat" class="chat" aria-live="polite">
+        <div id="chatEmpty" class="chat-empty">
+          <strong>Try a focused question</strong>
+          <button class="suggestion">What licence rights are granted, and under what conditions?</button>
+          <button class="suggestion">Which document takes precedence if terms conflict?</button>
+          <button class="suggestion">What security and data-processing duties apply?</button>
+        </div>
+      </div>
+
+      <form id="askForm" class="composer">
+        <label for="question" class="sr-only">Ask about the uploaded agreements</label>
+        <textarea id="question" rows="3" maxlength="2000" placeholder="Ask about rights, restrictions, renewal, data, service levels…" required></textarea>
+        <div>
+          <span id="questionHint">Requires a loaded LM Studio model</span>
+          <button id="askButton" type="submit" disabled>Ask AgreementAtlas <span aria-hidden="true">→</span></button>
+        </div>
+      </form>
+      <p class="legal-hint">AI-assisted document interpretation, not legal advice. Verify every conclusion against the cited text.</p>
+    </aside>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

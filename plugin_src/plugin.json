@@ -1,0 +1,18 @@
+{
+  "name": "graphrag-chat",
+  "version": "0.1.0",
+  "description": "Query local GraphRAG knowledge bases using your Codex subscription.",
+  "author": {
+    "name": "John Mangan"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "GraphRAG Chat",
+    "shortDescription": "Ask Codex questions about your local knowledge graph.",
+    "longDescription": "Retrieves evidence from local Microsoft GraphRAG tables and uploaded source text, then lets Codex reason over it without a separate query API key.",
+    "developerName": "John Mangan",
+    "category": "Productivity",
+    "capabilities": ["Local GraphRAG retrieval", "Document evidence search"],
+    "defaultPrompt": "Query my local GraphRAG knowledge base and answer with evidence from my documents."
+  }
+}

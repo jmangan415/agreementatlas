@@ -1,0 +1,226 @@
+{
+  "_comment": [
+    "Expected precedence, taken from each vendor's own stated ordering.",
+    "This is external ground truth: none of it was authored by the tool or by",
+    "whoever wrote the parser, which is the point. Filenames only -- no licensed",
+    "agreement text belongs in this file.",
+    "'higher' outranks 'lower' on conflict. 'absent' documents are named by the",
+    "clause but not published by the vendor (order forms, transaction documents),",
+    "so no rule can be expected for them."
+  ],
+  "families": [
+    {
+      "vendor": "01_opentext",
+      "basis": "License Model Schedule s.1: definitions in the LMS control over the EULA",
+      "expected": [
+        {
+          "higher": "02-SCHEDULE_License-Model-Schedule_v3.0_2024-04.pdf",
+          "lower": "01-BASE_EULA_UK-Ireland.pdf"
+        }
+      ],
+      "absent": [
+        "Transaction Document"
+      ]
+    },
+    {
+      "vendor": "02_microfocus",
+      "basis": "EULA s.h: Product Order, then the applicable ALA, then this Agreement",
+      "expected": [
+        {
+          "higher": "02-SCHEDULE_ALA_AccuRev.pdf",
+          "lower": "01-BASE_Micro-Focus-EULA.pdf"
+        },
+        {
+          "higher": "03-SCHEDULE_ALA_ACUCOBOL-extend.pdf",
+          "lower": "01-BASE_Micro-Focus-EULA.pdf"
+        },
+        {
+          "higher": "04-SCHEDULE_ALA_Analytics-Database.pdf",
+          "lower": "01-BASE_Micro-Focus-EULA.pdf"
+        }
+      ],
+      "absent": [
+        "Product Order"
+      ]
+    },
+    {
+      "vendor": "03_oracle",
+      "basis": "OMA s.9: a Schedule takes precedence over the General Terms",
+      "expected": [
+        {
+          "higher": "02-SCHEDULE_License-Definitions-and-Rules_v091524.pdf",
+          "lower": "01-BASE_Online-Transactional-OMA_US_v070124.pdf"
+        }
+      ],
+      "absent": [
+        "order"
+      ]
+    },
+    {
+      "vendor": "04_redhat",
+      "basis": "Appendix 3: on conflict with the base agreement, the Product Appendix controls",
+      "expected": [
+        {
+          "higher": "04-APPENDIX-3_Professional-Services_20251001.pdf",
+          "lower": "01-BASE_Enterprise-Agreement_NA-English_20211109.pdf"
+        }
+      ],
+      "absent": [
+        "Exhibit"
+      ]
+    },
+    {
+      "vendor": "05_broadcom_vmware",
+      "basis": "EUA s.12.3 ladder: Transaction Document, DPA, SPD, Module, Foundation Agreement",
+      "expected": [
+        {
+          "higher": "04-ADDENDUM_Data-Processing-Addendum.pdf",
+          "lower": "01-BASE_End-User-Agreement_English.pdf"
+        }
+      ],
+      "absent": [
+        "Transaction Document",
+        "Specific Program Documentation"
+      ]
+    },
+    {
+      "vendor": "06_sap",
+      "basis": "No cross-instrument ordering is stated; composition is enumerated only",
+      "expected": [],
+      "absent": [
+        "Order Form",
+        "Software Support Schedule"
+      ]
+    },
+    {
+      "vendor": "07_ibm",
+      "basis": "IPAA: an Attachment prevails over the IPAA, and a TD over both",
+      "expected": [
+        {
+          "higher": "02-ATTACHMENT_IBM-Appliances_PAA-IAAS-01_2020-10.pdf",
+          "lower": "01-BASE_Intl-Passport-Advantage-Agreement_Z125-5831-12_2024-08.pdf"
+        }
+      ],
+      "absent": [
+        "Transaction Document"
+      ]
+    },
+    {
+      "vendor": "08_cloudsoftwaregroup",
+      "basis": "EUA s.15.4 ladder: Order, Business Unit Terms, End User Agreement; DPA controls on conflict",
+      "expected": [
+        {
+          "higher": "02-SCHEDULE_Business-Unit-Terms.pdf",
+          "lower": "01-BASE_End-User-Agreement_v2.3.pdf"
+        },
+        {
+          "higher": "03-ADDENDUM_Partner-Data-Processing.pdf",
+          "lower": "01-BASE_End-User-Agreement_v2.3.pdf"
+        }
+      ],
+      "absent": [
+        "Order"
+      ]
+    },
+    {
+      "vendor": "09_siemens",
+      "basis": "UCA 1.1 inverted precedence: Supplemental Terms prevail over the UCA; VTS 1.1 ranks Order > Product-Specific Supplemental > DS Terms > UCA",
+      "expected": [
+        {
+          "higher": "02-SCHEDULE_UCA-Digital-Solutions-Supplemental-Terms.pdf",
+          "lower": "01-BASE_Universal-Customer-Agreement_v1.4_2024-03-19.pdf"
+        },
+        {
+          "higher": "02-SCHEDULE_UCA-Digital-Solutions-Supplemental-Terms.pdf",
+          "lower": "04-BASE-PRIOR_Universal-Customer-Agreement_v1.1.pdf"
+        },
+        {
+          "higher": "02-SCHEDULE_UCA-Digital-Solutions-Supplemental-Terms.pdf",
+          "lower": "05-BASE-PRIOR_Universal-Customer-Agreement_v1.0.pdf"
+        },
+        {
+          "higher": "03-SCHEDULE_VTS-Cloud-Supplemental-Terms-for-UCA.pdf",
+          "lower": "01-BASE_Universal-Customer-Agreement_v1.4_2024-03-19.pdf"
+        },
+        {
+          "higher": "03-SCHEDULE_VTS-Cloud-Supplemental-Terms-for-UCA.pdf",
+          "lower": "04-BASE-PRIOR_Universal-Customer-Agreement_v1.1.pdf"
+        },
+        {
+          "higher": "03-SCHEDULE_VTS-Cloud-Supplemental-Terms-for-UCA.pdf",
+          "lower": "05-BASE-PRIOR_Universal-Customer-Agreement_v1.0.pdf"
+        },
+        {
+          "higher": "03-SCHEDULE_VTS-Cloud-Supplemental-Terms-for-UCA.pdf",
+          "lower": "02-SCHEDULE_UCA-Digital-Solutions-Supplemental-Terms.pdf"
+        }
+      ],
+      "absent": [
+        "Order"
+      ]
+    },
+    {
+      "vendor": "10_cisco",
+      "basis": "General Terms 13.17 highest-to-lowest: Regional, Data Processing, Offer Descriptions, other Supplemental, General Terms, policies",
+      "expected": [
+        {
+          "higher": "04-SUPPLEMENTAL_Regional-Terms.pdf",
+          "lower": "02-SCHEDULE_Offer-Description_Meraki.pdf"
+        },
+        {
+          "higher": "04-SUPPLEMENTAL_Regional-Terms.pdf",
+          "lower": "03-SCHEDULE_Offer-Description_Cisco-Cloud-Observability.pdf"
+        },
+        {
+          "higher": "04-SUPPLEMENTAL_Regional-Terms.pdf",
+          "lower": "05-SUPPLEMENTAL_Baseline-API-Terms.pdf"
+        },
+        {
+          "higher": "04-SUPPLEMENTAL_Regional-Terms.pdf",
+          "lower": "06-SUPPLEMENTAL_EA3-Program-Terms-End-Users.pdf"
+        },
+        {
+          "higher": "04-SUPPLEMENTAL_Regional-Terms.pdf",
+          "lower": "01-BASE_Cisco-General-Terms.pdf"
+        },
+        {
+          "higher": "02-SCHEDULE_Offer-Description_Meraki.pdf",
+          "lower": "05-SUPPLEMENTAL_Baseline-API-Terms.pdf"
+        },
+        {
+          "higher": "02-SCHEDULE_Offer-Description_Meraki.pdf",
+          "lower": "06-SUPPLEMENTAL_EA3-Program-Terms-End-Users.pdf"
+        },
+        {
+          "higher": "02-SCHEDULE_Offer-Description_Meraki.pdf",
+          "lower": "01-BASE_Cisco-General-Terms.pdf"
+        },
+        {
+          "higher": "03-SCHEDULE_Offer-Description_Cisco-Cloud-Observability.pdf",
+          "lower": "05-SUPPLEMENTAL_Baseline-API-Terms.pdf"
+        },
+        {
+          "higher": "03-SCHEDULE_Offer-Description_Cisco-Cloud-Observability.pdf",
+          "lower": "06-SUPPLEMENTAL_EA3-Program-Terms-End-Users.pdf"
+        },
+        {
+          "higher": "03-SCHEDULE_Offer-Description_Cisco-Cloud-Observability.pdf",
+          "lower": "01-BASE_Cisco-General-Terms.pdf"
+        },
+        {
+          "higher": "05-SUPPLEMENTAL_Baseline-API-Terms.pdf",
+          "lower": "01-BASE_Cisco-General-Terms.pdf"
+        },
+        {
+          "higher": "06-SUPPLEMENTAL_EA3-Program-Terms-End-Users.pdf",
+          "lower": "01-BASE_Cisco-General-Terms.pdf"
+        }
+      ],
+      "absent": [
+        "Data Processing Terms",
+        "Cisco policy",
+        "Buying Program Offer Description"
+      ]
+    }
+  ]
+}

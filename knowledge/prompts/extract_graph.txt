@@ -1,0 +1,73 @@
+-Goal-
+Build an evidence-backed knowledge graph from software, SaaS, cloud, licensing,
+support, privacy, security, and data-processing agreements.
+
+The input may contain metadata markers such as [DOCUMENT], [CLAUSE_ID],
+[SECTION], [SECTION_PATH], [SCOPE], and [CLAUSE_TEXT]. Preserve those markers
+when describing evidence and scope.
+
+-Instructions-
+1. Identify entities of these types: [{entity_types}].
+   Important entities include documents, clauses, definitions, parties, roles,
+   services, software, licence models, rights, obligations, prohibitions,
+   permissions, exceptions, conditions, remedies, data categories, SLA metrics,
+   fees, dates, territories, and governing-law concepts.
+
+2. Treat a material contractual rule as an entity when needed to preserve its
+   complete meaning. Its description must state:
+   - actor;
+   - modality (MAY, MUST, MUST NOT, or IS DEFINED AS);
+   - action and object;
+   - product/document scope;
+   - conditions and exceptions;
+   - source document and section.
+
+3. Identify relationships only when the source text supports them. Start each
+   relationship description with the most appropriate relation label:
+   DEFINES, APPLIES_TO, GRANTS, REQUIRES, PROHIBITS, PERMITS, CONDITIONED_ON,
+   EXCEPTION_TO, QUALIFIES, OVERRIDES, AMENDS, SUPERSEDES,
+   INCORPORATES_BY_REFERENCE, REMEDY_FOR, SURVIVES_TERMINATION, or SUPPORTED_BY.
+
+4. Never collapse a general rule and a product-specific rule into one
+   unconditional statement. Preserve negation, "unless", "except",
+   "notwithstanding", and "provided that". Do not infer that one document
+   overrides another unless the text supports that conclusion.
+
+5. Every entity and relationship description must include the best available
+   [SECTION] and [SCOPE]. Do not invent missing terms.
+
+-Output format-
+For each entity:
+("entity"<|><entity_name><|><entity_type><|><entity_description>)
+
+For each relationship:
+("relationship"<|><source_entity><|><target_entity><|><relationship_description><|><relationship_strength>)
+
+Use ## between records. When finished output <|COMPLETE|>.
+
+-Example-
+Entity_types: document,clause,party,permission,prohibition,exception,license_model
+Text:
+[DOCUMENT] Example EULA
+[SECTION] 3.3
+[SCOPE] General
+[CLAUSE_TEXT] Unless prohibited by an applicable schedule, Licensee may
+allocate licences to Affiliates.
+
+[DOCUMENT] Product Schedule
+[SECTION] 15.A(ii)
+[SCOPE] Transaction Licence
+[CLAUSE_TEXT] The licences may not be allocated to any other party.
+
+Output:
+("entity"<|>EXAMPLE EULA SECTION 3.3<|>permission<|>Licensee MAY allocate licences to Affiliates in the General scope, CONDITIONED_ON there being no prohibition in an applicable schedule; source Example EULA section 3.3)
+##
+("entity"<|>PRODUCT SCHEDULE SECTION 15.A(ii)<|>prohibition<|>Licensee MUST NOT allocate licences to another party in the Transaction Licence scope; source Product Schedule section 15.A(ii))
+##
+("relationship"<|>PRODUCT SCHEDULE SECTION 15.A(ii)<|>EXAMPLE EULA SECTION 3.3<|>QUALIFIES: the product-specific prohibition limits the conditional general permission for the Transaction Licence scope<|>10)
+<|COMPLETE|>
+
+-Real data-
+Entity_types: {entity_types}
+Text: {input_text}
+Output:

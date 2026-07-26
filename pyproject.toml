@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agreementatlas"
+version = "0.1.0"
+description = "Local-first legal knowledge graphs and evidence-grounded chat for software and cloud agreements"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+  { name = "AgreementAtlas contributors" }
+]
+keywords = [
+  "legal-rag",
+  "knowledge-graph",
+  "software-licensing",
+  "cloud-agreements",
+  "lm-studio",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "markitdown[all]>=0.1.6,<0.2",
+  "python-dotenv>=1.0,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.12,<1",
+]
+graphrag = [
+  "graphrag>=3.1,<4",
+]
+
+[project.scripts]
+agreementatlas = "app:main"
+agreementatlas-evaluate = "evaluation:main"
+
+[project.urls]
+Documentation = "https://github.com/jmangan415/agreementatlas#readme"
+Issues = "https://github.com/jmangan415/agreementatlas/issues"
+
+[tool.setuptools]
+py-modules = [
+  "app",
+  "evaluation",
+  "legal_graph_service",
+  "legal_ingest",
+  "legal_schema",
+  "lmstudio_client",
+  "session_store",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+extend-exclude = [
+  ".venv",
+  "data",
+  "knowledge",
+  "tmp",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
