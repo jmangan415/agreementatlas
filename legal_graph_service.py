@@ -1548,7 +1548,15 @@ def retrieve_evidence(
             if content_terms & set(tokens(records_by_id[record_id]["_search_text"]))
         }
 
-    # Boost only definitions whose actual defined term appears in the question.
+    # Surface the definition of any defined term the question names.
+    #
+    # This used to require the question to be phrased as a lookup -- "what is",
+    # "define", "meaning of". But a contract question almost always turns on a
+    # defined term without asking for it: "is every file read counted as a
+    # Transaction" is decided entirely by what Transaction means, and that
+    # definition was never retrieved because the sentence is not a dictionary
+    # request. The term being named is the signal; the phrasing only says how
+    # much of the answer the definition is.
     definition_intent = bool(
         re.search(
             r"\b(what is|who is|what does .+ mean|define|definition|meaning of)\b",
@@ -1557,23 +1565,26 @@ def retrieve_evidence(
         )
     )
     for search_record in records:
-        if search_record.get("_kind") == "Definition":
-            term = str(search_record.get("term", "")).casefold()
-            if (
-                definition_intent
-                and term
-                and re.search(rf"\b{re.escape(term)}s?\b", question.casefold())
-            ):
-                record_id = str(search_record["id"])
-                if record_id not in fused:
-                    fused[record_id] = 0
-                fused[record_id] += 1
-                if any(
-                    word in question.casefold()
-                    for word in tokens(str(search_record.get("instrument_title", "")))
-                ):
-                    fused[record_id] += 0.5
-                components.setdefault(record_id, {})["exact_term_match"] = 1
+        if search_record.get("_kind") != "Definition":
+            continue
+        term = str(search_record.get("term", ""))
+        if not term:
+            continue
+        named = re.search(rf"\b{re.escape(term)}s?\b", question, re.I)
+        if not named:
+            continue
+        record_id = str(search_record["id"])
+        fused.setdefault(record_id, 0)
+        # Agreements capitalise their defined terms, so a capitalised mention is
+        # strong evidence the question means the defined sense of the word.
+        capitalised = named.group(0)[:1].isupper() and term[:1].isupper()
+        fused[record_id] += 1.0 if (definition_intent or capitalised) else 0.5
+        if any(
+            word in question.casefold()
+            for word in tokens(str(search_record.get("instrument_title", "")))
+        ):
+            fused[record_id] += 0.5
+        components.setdefault(record_id, {})["exact_term_match"] = 1
 
     ranked = [
         evidence_item(records_by_id[record_id], score, components.get(record_id))
@@ -1600,22 +1611,37 @@ def retrieve_evidence(
     controlling_definitions = {
         item["controlling_definition_id"] for item in trace["definition_steps"]
     }
+    # Doubled so a named definition can sit between two bands. A rule the trace
+    # found controlling still leads -- it answers the question, and the
+    # definition only explains a word in it -- but a definition the question
+    # named by name outranks merely applicable material.
     status_rank = {
         "CONTROLLING": 0,
-        "APPLICABLE": 1,
-        "QUALIFIED": 2,
-        "AMENDED": 3,
-        "OVERRIDDEN": 4,
+        "APPLICABLE": 4,
+        "QUALIFIED": 6,
+        "AMENDED": 8,
+        "OVERRIDDEN": 10,
     }
-    selected.sort(
-        key=lambda item: (
-            0
-            if item["id"] in controlling_definitions
-            else status_rank.get(rule_status.get(item["id"], ""), 2),
-            -item["score"],
-            item["id"],
-        )
-    )
+    NAMED_DEFINITION_RANK = 2
+    # A definition the question named by name belongs with the controlling
+    # definitions. Legal status is ranked ahead of relevance here, and that is
+    # right for rules -- but it left the clause that decided the question at
+    # rank 10 behind rules scoring sixty times lower, because a definition that
+    # is not already a controlling one fell to the middle rank by default.
+    named_definitions = {
+        item["id"]
+        for item in selected
+        if item.get("retrieval_components", {}).get("exact_term_match")
+    }
+
+    def band(item: dict) -> int:
+        if item["id"] in controlling_definitions:
+            return 0
+        if item["id"] in named_definitions:
+            return NAMED_DEFINITION_RANK
+        return status_rank.get(rule_status.get(item["id"], ""), 6)
+
+    selected.sort(key=lambda item: (band(item), -item["score"], item["id"]))
     return selected
 
 
