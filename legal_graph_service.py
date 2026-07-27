@@ -1499,6 +1499,26 @@ def evidence_item(record: dict, score: float, components: dict | None = None) ->
             or record.get("definition")
             or record.get("summary", "")
         ),
+        # The structured reading, carried to the answer. Extraction produces all
+        # of this, the graph is built from it, and it was then dropped here: the
+        # model answering the question received the clause text and a source
+        # label, and had to re-read the prose to recover what had already been
+        # determined.
+        "rule": {
+            key: record.get(key)
+            for key in (
+                "effect",
+                "modality",
+                "polarity",
+                "actor",
+                "action",
+                "object",
+                "conditions",
+                "carve_outs",
+            )
+            if record.get(key)
+        },
+        "term": str(record.get("term", "")),
         "retrieval_components": components or {},
     }
 
@@ -1622,6 +1642,15 @@ def retrieve_evidence(
         term
         for term in query_terms(question)
         if term not in generic_query_terms and len(term) > 2
+    }
+    # Vector scores come from an embedding index built when the family was
+    # enriched. A later rebuild gives rules new ids, so the index can name
+    # records that no longer exist -- and every query on a rebuilt enriched
+    # family raised KeyError here rather than degrading.
+    fused = {
+        record_id: score
+        for record_id, score in fused.items()
+        if record_id in records_by_id
     }
     if content_terms:
         fused = {
@@ -2129,6 +2158,38 @@ def compact_graph(root: Path, max_rules: int = 180) -> dict:
     }
 
 
+def evidence_block(index: int, item: dict) -> str:
+    """One evidence entry, with the structured reading above the quote.
+
+    The reading was extracted, validated and used to build the graph, and then
+    the question was answered from the prose anyway. Stating it here means the
+    model is told what the clause does rather than asked to work it out a second
+    time -- and the answer can be checked against the same fields the graph and
+    the interface show.
+    """
+
+    header = (
+        f"[{index}] SOURCE={item['source']} SECTION={item['section']} "
+        f"SCOPE={item['scope']}"
+    )
+    if item.get("term"):
+        header += f" DEFINES={item['term']}"
+    rule = item.get("rule") or {}
+    if rule:
+        parts = [
+            str(rule[key])
+            for key in ("effect", "modality", "polarity", "actor", "action", "object")
+            if rule.get(key)
+        ]
+        if parts:
+            header += "\n    READING: " + " · ".join(parts)
+        for key, label in (("conditions", "CONDITIONS"), ("carve_outs", "CARVE-OUTS")):
+            values = rule.get(key) or []
+            if values:
+                header += f"\n    {label}: " + "; ".join(str(v) for v in values[:3])
+    return f"{header}\n{item['text']}"
+
+
 def answer_question(
     root: Path,
     client: LMStudioClient,
@@ -2172,11 +2233,7 @@ def answer_question(
         }
     resolution_trace = legal_resolution_trace(root, question, evidence)
     context = "\n\n".join(
-        (
-            f"[{index}] SOURCE={item['source']} SECTION={item['section']} "
-            f"SCOPE={item['scope']}\n{item['text']}"
-        )
-        for index, item in enumerate(evidence, start=1)
+        evidence_block(index, item) for index, item in enumerate(evidence, start=1)
     )
     trace_context = json.dumps(resolution_trace, ensure_ascii=False)
     # The previous instruction was "State scope, conditions, exceptions,
