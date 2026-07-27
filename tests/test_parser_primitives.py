@@ -34,11 +34,13 @@ from legal_ingest import (
     paragraph_stream,
     parse_clauses,
     parse_iso_date,
+    printed_section,
     repair_split_words,
     run_in_heading,
     split_definition_block,
     split_list_group,
     subject_key,
+    term_pattern,
     title_block,
     validated_classification,
     vendor_names,
@@ -1200,3 +1202,60 @@ class GovernedPhraseTests(unittest.TestCase):
             ),
             ["the Cloud Master Agreement"],
         )
+
+
+class DefinedTermMatching(unittest.TestCase):
+    """All fixtures are synthetic. Never paste licensed agreement text here."""
+
+    def matches(self, term: str, text: str) -> bool:
+        return bool(term_pattern(term).search(text))
+
+    def test_a_term_matches_its_plural(self) -> None:
+        self.assertTrue(self.matches("Affiliate", "granted to its Affiliates"))
+        self.assertTrue(self.matches("Order Form", "listed in the Order Forms"))
+
+    def test_the_plural_may_fall_inside_the_phrase(self) -> None:
+        # "Software Licenses granted" is two words away from "Software License",
+        # which a trailing "s?" on the whole phrase cannot reach.
+        self.assertTrue(
+            self.matches("Software License", "the Software Licenses granted here")
+        )
+
+    def test_a_y_plural_is_reached_from_either_side(self) -> None:
+        self.assertTrue(self.matches("Third Party", "Third Parties may not access"))
+        self.assertTrue(self.matches("Third Parties", "a Third Party may not access"))
+
+    def test_a_term_defined_in_the_plural_matches_the_singular(self) -> None:
+        self.assertTrue(self.matches("Services", "the Service is provided as-is"))
+
+    def test_case_separates_a_defined_term_from_the_ordinary_word(self) -> None:
+        # The whole reason a term is capitalised. Matching case-insensitively
+        # read "each emulated human user" as the defined term "Users", which
+        # inverts what the sentence says.
+        self.assertFalse(self.matches("Users", "each emulated human user"))
+        self.assertFalse(self.matches("Agreement", "governed by other agreements"))
+        self.assertFalse(self.matches("Software", "the software products shipped"))
+
+    def test_a_shouted_clause_still_carries_its_terms(self) -> None:
+        self.assertTrue(self.matches("Claim", "WITH RESPECT TO ANY AND ALL CLAIMS"))
+
+    def test_a_longer_word_is_not_the_term(self) -> None:
+        self.assertFalse(self.matches("Affiliate", "affiliation between the parties"))
+        self.assertFalse(self.matches("Software License", "the Software Licensee"))
+        self.assertFalse(self.matches("Party", "a partial refund is due"))
+
+
+class PrintedSectionNumber(unittest.TestCase):
+    """All fixtures are synthetic. Never paste licensed agreement text here."""
+
+    def test_a_clause_is_numbered_the_way_it_numbers_itself(self) -> None:
+        self.assertEqual(printed_section("2.3 Personnel. Vendor will be"), "2.3")
+        self.assertEqual(printed_section("12.10 Notice. Unless provided"), "12.10")
+
+    def test_a_bare_number_is_not_taken(self) -> None:
+        # As often a list label or a date as a section number.
+        self.assertEqual(printed_section("29 April 2024"), "")
+        self.assertEqual(printed_section("1. The parties agree"), "")
+
+    def test_a_leading_zero_is_a_page_footer_not_a_section(self) -> None:
+        self.assertEqual(printed_section("04.25 | 271-000001-005 | Vendor"), "")

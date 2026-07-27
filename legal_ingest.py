@@ -49,9 +49,15 @@ SECTION_REF = re.compile(
     r"\b(?:section|clause|paragraph)\s+(?P<section>\d+(?:\.\d+)*(?:\([a-z]\))?)",
     re.I,
 )
+# The closing quote is optional and the opening quote is excluded from the term.
+# PDF extraction drops a closing quote often enough to matter, and when it does,
+# a term greedily runs to the next one it finds: OpenText's most-used defined
+# term, "Software", was swallowed into a term reading 'Reseller means an
+# authorized OT reseller; “Software'. Stopping at the next opening quote ends
+# the term where the run-on begins, and both definitions survive.
 DEFINED_TERM = re.compile(
     # Optional list label: "A)", "A.", or a section number such as "1.1".
-    r'^(?:(?:\d+(?:\.\d+)*|[A-Za-z])[\.\)]?\s+)?\s*[“"](?P<term>[^”"]{1,100})[”"]\s+'
+    r'^(?:(?:\d+(?:\.\d+)*|[A-Za-z])[\.\)]?\s+)?\s*[“"](?P<term>[^”"“]{1,100})[”"]?\s+'
     r"(?:means?|has the meaning)\s+(?P<body>.+)$",
     re.I,
 )
@@ -782,7 +788,7 @@ def split_list_group(paragraph: str) -> tuple[str, list[tuple[str, str]]]:
 
 
 DEFINITION_START = re.compile(
-    r'[“"](?P<term>[^”"]{1,100})[”"]\s+(?:means?|has the meaning)\b', re.I
+    r'[“"](?P<term>[^”"“]{1,100})[”"]?\s+(?:means?|has the meaning)\b', re.I
 )
 
 
@@ -1285,6 +1291,61 @@ def stem_word(word: str) -> str:
                 word = word[: -len(suffix)]
                 break
     return word[:-1] if word.endswith("e") else word
+
+
+def _inflected_word(word: str) -> tuple[str, str]:
+    """A word's stem and the endings that can follow it, as written."""
+
+    lowered = word.casefold()
+    # Both directions have to reach the same pattern: a term defined as "Third
+    # Party" must match "Third Parties", and one defined as "Services" must
+    # match "Service".
+    if lowered.endswith("ies"):
+        return word[:-3], "y|ies"
+    if lowered.endswith("y") and not lowered.endswith(("ay", "ey", "oy", "uy")):
+        return word[:-1], "y|ies"
+    if lowered.endswith(("ches", "shes", "sses", "xes")):
+        return word[:-2], "|es"
+    if lowered.endswith("s") and not lowered.endswith("ss"):
+        return word[:-1], "|s"
+    return word, "|s|es"
+
+
+def _term_alternative(term: str, upper: bool) -> str:
+    parts = []
+    for word in (word for word in re.split(r"\s+", term.strip()) if word):
+        if not re.fullmatch(r"[A-Za-z][A-Za-z-]*", word):
+            parts.append(re.escape(word.upper() if upper else word))
+            continue
+        base, endings = _inflected_word(word)
+        if upper:
+            base, endings = base.upper(), endings.upper()
+        parts.append(f"{re.escape(base)}(?:{endings})")
+    return r"\s+".join(parts)
+
+
+def term_pattern(term: str) -> re.Pattern[str]:
+    """Match a defined term through the inflections agreements actually use.
+
+    A "s?" suffix on the whole phrase catches "Affiliates" against "Affiliate"
+    but not "Third Parties" against "Third Party", nor a term whose plural falls
+    in the middle: "Order Forms" is one word away from "Order Form", but
+    "Software Licenses granted" is two. Giving each word its own inflection
+    covers both without loosening the phrase boundary.
+
+    Case is not ignored, and that is the point: in an agreement a capitalised
+    phrase is a defined term and its lowercase twin is the ordinary English
+    word. Matching case-insensitively read "each emulated human user" as the
+    defined term "Users", and "governed by other agreements" as the defined
+    "Agreement" -- the opposite of what those sentences say. Only one variant is
+    allowed, the all-capitals one, because agreements shout whole clauses:
+    "ANY AND ALL CLAIMS" is the defined term Claim.
+    """
+
+    written = _term_alternative(term, upper=False)
+    shouted = _term_alternative(term, upper=True)
+    body = written if written == shouted else f"(?:{written}|{shouted})"
+    return re.compile(rf"\b{body}\b")
 
 
 def extract_action(text: str) -> str:
@@ -2732,7 +2793,7 @@ def build_relationships(
     for rule in rules:
         for _term, candidates in definitions_by_term.items():
             display_term = candidates[0].term
-            if not re.search(rf"\b{re.escape(display_term)}s?\b", rule.evidence):
+            if not term_pattern(display_term).search(rule.evidence):
                 continue
             local = next(
                 (
