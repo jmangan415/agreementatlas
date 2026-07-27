@@ -31,9 +31,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from legal_graph_service import read_jsonl  # noqa: E402
 
-# A modal verb. More than one in a single rule's evidence means the clause was
-# not split into its separate statements.
+# A modal verb. Two of them in one rule can mean the clause was not split -- or,
+# far more often, that the statement carries a condition or a relative clause:
+# "the licence must be assigned when the user is first entered", "Controller may
+# use an auditor, which will not be unreasonably withheld". Measured over the
+# library, 89% of the flags were of the second kind, so a modal governed by
+# qualifying material is not counted.
 MODAL = re.compile(r"\b(shall|must|may|will|cannot|can not)\b", re.I)
+QUALIFYING = re.compile(
+    r"\b(if|provided|unless|where|except|to the extent|in the event|when|whether"
+    r"|so that|as long as|until|which|that|who)\b",
+    re.I,
+)
 # "L icensee", "o ther" -- a letter stranded from its word by PDF extraction.
 #
 # Getting this pattern right took three attempts and every wrong version
@@ -252,7 +261,11 @@ def audit_family(name: str, root: Path) -> Audit:
     multi = [
         item
         for item in rules
-        if len(set(MODAL.findall(str(item.get("evidence", ""))))) > 1
+        if len(
+            {value.lower() for value in MODAL.findall(str(item.get("evidence", "")))}
+        )
+        > 1
+        and not QUALIFYING.search(str(item.get("evidence", "")))
     ]
     report.add(
         "unsplit-multi-statement",

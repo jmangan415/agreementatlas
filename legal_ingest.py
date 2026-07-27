@@ -1216,7 +1216,9 @@ MODAL_VERB = r"(?:shall|must|may|will|cannot|can\s+not|is\s+not\s+permitted)"
 # one statement rather than starting another, so it must not split.
 PROPOSITION_BREAK = re.compile(
     r"(?<=[a-z\)\"”])[.;]\s+(?=[A-Z“\"(])"
-    rf"|,?\s+(?:and|but|or)\s+(?=(?:\w+\s+){{0,3}}?{MODAL_VERB}\b)",
+    # The conjunction may be followed by its own aside -- "and, upon request,
+    # Customer will provide" -- so allow punctuation between it and the subject.
+    rf"|,?\s+(?:and|but|or)\s*,?\s+(?=(?:[\w'-]+[,\s]+){{0,3}}?{MODAL_VERB}\b)",
     re.I,
 )
 

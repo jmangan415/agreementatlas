@@ -27,6 +27,7 @@ from legal_ingest import (
     ladder_phrases,
     modality_and_polarity,
     names_a_person,
+    operative_propositions,
     paragraph_stream,
     parse_clauses,
     parse_iso_date,
@@ -1072,3 +1073,33 @@ class VendorPartyTests(unittest.TestCase):
     def test_a_sentence_opening_is_not_a_name(self) -> None:
         text = "Your rights end. Your obligations remain. Your data is deleted. " * 4
         self.assertNotIn("Your", vendor_names(text))
+
+
+class ConjunctionAsideTests(unittest.TestCase):
+    """A conjunction may carry an aside before the next statement's subject."""
+
+    def test_a_parenthetical_after_and_does_not_hide_the_split(self) -> None:
+        # "and, upon request, Customer will provide" -- the comma after the
+        # conjunction pushed the subject beyond the lookahead, so two statements
+        # were recorded as one.
+        text = (
+            "Siemens may conduct the necessary checks and, upon request, "
+            "Customer will provide the information."
+        )
+        self.assertEqual(len(operative_propositions(text)), 2)
+
+    def test_a_conjunction_without_a_modal_still_does_not_split(self) -> None:
+        for text in (
+            "Licensee shall not copy, modify or distribute the Software.",
+            "Customer shall pay all fees and charges when due.",
+        ):
+            with self.subTest(text=text[:40]):
+                self.assertEqual(len(operative_propositions(text)), 1)
+
+    def test_a_conditional_is_one_statement(self) -> None:
+        # Two modals, one rule: the first belongs to the condition.
+        text = (
+            "If the Customer cannot automatically upload usage reports, the "
+            "Customer must submit manual reports."
+        )
+        self.assertEqual(len(operative_propositions(text)), 1)
