@@ -743,15 +743,27 @@ def restore_effective_graph(root: Path) -> bool:
     """
 
     legal = root / "legal"
-    resolved_dicts = read_jsonl(legal / "resolved_rules.jsonl")
-    if not resolved_dicts:
+    extracted = read_jsonl(legal / "lm_rules.jsonl")
+    if not extracted:
         return False
-    resolved = [_construct(OperativeRule, item) for item in resolved_dicts]
+    # Only the model's rules are carried. The rest of resolved_rules.jsonl is
+    # deterministic fallback, frozen at the moment enrichment ran, and reusing
+    # it made every later parser fix invisible on an enriched family: the graph
+    # kept serving a stale reading of a clause the rebuild had already corrected.
+    # Fallbacks are regenerated from the current build; extraction is not.
+    enriched_clauses = {str(item.get("clause_id")) for item in extracted}
+    fallback = [
+        item
+        for item in read_jsonl(legal / "operative_rules.jsonl")
+        if str(item.get("clause_id")) not in enriched_clauses
+    ]
+    resolved = [_construct(OperativeRule, item) for item in extracted + fallback]
+    write_jsonl(legal / "resolved_rules.jsonl", [record(item) for item in resolved])
     summary = {
         "provider": "LM Studio",
         "model": "",
-        "rules": len(read_jsonl(legal / "lm_rules.jsonl")),
-        "fallback_rules": 0,
+        "rules": len(extracted),
+        "fallback_rules": len(fallback),
         "clauses_considered": len(resolved),
         "schema_version": SCHEMA_VERSION,
         "build_mode": "deep",
