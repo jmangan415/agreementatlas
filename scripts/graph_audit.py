@@ -69,7 +69,13 @@ EFFECT_MODALITY = {
 GENERIC_ACTIONS = {"govern", "unspecified", ""}
 # The number a clause prints at the head of its own text. When the document says
 # "2.3 SFDC Personnel." that clause is section 2.3, whatever our counter thinks.
-PRINTED_SECTION = re.compile(r"^\s*(\d{1,2}(?:\.\d{1,2}){0,2})[\.\s]")
+#
+# A dot is required, and a leading zero disqualifies. Accepting a bare number
+# made this check report 75 clauses across the library whose "section" was a
+# date ("29 April 2024"), a list label or a quantity -- the check measuring its
+# own definition rather than the parser, which is the mistake the split-word
+# detector already made once.
+PRINTED_SECTION = re.compile(r"^\s*(\d{1,2}(?:\.\d{1,2}){1,3})(?![\d.])[\.\s]")
 
 
 def section_agreement(assigned: str, printed: str) -> str:
@@ -373,7 +379,9 @@ def audit_family(name: str, root: Path) -> Audit:
     drifted = []
     for item in clauses.values():
         match = PRINTED_SECTION.match(str(item.get("text", "")))
-        if not match:
+        if not match or any(
+            part.startswith("0") and part != "0" for part in match.group(1).split(".")
+        ):
             continue
         labelled.append(item)
         if (

@@ -573,6 +573,37 @@ def run_in_heading(value: str) -> str:
     return first if 0 < len(first) <= 90 else ""
 
 
+PRINTED_SECTION = re.compile(r"^\s*(\d{1,2}(?:\.\d{1,2}){1,3})[\.\s]")
+
+
+def printed_section(text: str) -> str:
+    """The section number the clause prints at the head of its own text.
+
+    Where the two paths that assign a number cannot read one -- a hierarchy
+    expressed as font size, a paragraph that repeats a number already used --
+    they synthesise one from a counter, and the counter drifts: we labelled a
+    clause 1.3 that prints "1.2", 12.2.2 that prints "12.3". Worse, a heading
+    that was missed leaves the article itself wrong, so a clause opening "13.10
+    Notice." was filed under a DFARS citation the parser read as a section
+    number. The document's own number is the authority. It is the number a
+    reader sees, the number "subject to Section 5.2" is looking for, and the
+    number the answer cites.
+
+    Only a dotted number is taken. A bare leading "1" is as often a list label
+    or a date ("29 April 2024") as a section. A leading zero excludes the other
+    thing that looks like this, a page footer carrying the month: "04.25 |
+    271-000001-005 | (c) 2025 Open Text".
+    """
+
+    match = PRINTED_SECTION.match(text)
+    if not match:
+        return ""
+    printed = match.group(1)
+    if any(part.startswith("0") and part != "0" for part in printed.split(".")):
+        return ""
+    return printed
+
+
 HEADING_VERB = re.compile(
     r"\b(shall|will|must|means?|includes?|agrees?|applies|are|is|has|have)\b", re.I
 )
@@ -799,10 +830,14 @@ def parse_clauses(
         nonlocal sequence
         sequence += 1
         section_counts[section] += 1
-        display_section = (
+        # A repeat suffix written as "1.2" is indistinguishable from the real
+        # subsection 1.2 the document also has, so it both mislabels this clause
+        # and shadows that one in cross-reference lookup. Parenthesise it: no
+        # agreement numbers a section "1 (2)", so nothing can collide with it.
+        display_section = printed_section(value) or (
             section
             if section_counts[section] == 1
-            else f"{section}.{section_counts[section]}"
+            else f"{section} ({section_counts[section]})"
         )
         clause_id = stable_id(
             "clause", instrument.id, section, kind, list_label, compact(value)
@@ -2226,10 +2261,19 @@ def extract_cross_references(
 ) -> list[CrossReference]:
     by_instrument_section: dict[tuple[str, str], Clause] = {}
     for clause in clauses:
-        base = clause.section_id.split(".", 2)
         by_instrument_section[(clause.document_id, clause.section_id)] = clause
+        # "Section 8" has to find article 8 even when no clause is numbered
+        # plainly "8" -- the article opens at 8.1, and agreements reference the
+        # article far more often than the subsection. Every ancestor is
+        # registered, and setdefault means the earliest clause under an article
+        # answers for it rather than the last one parsed.
+        parts = clause.section_id.split(".")
+        for depth in range(1, len(parts)):
+            by_instrument_section.setdefault(
+                (clause.document_id, ".".join(parts[:depth])), clause
+            )
         by_instrument_section.setdefault(
-            (clause.document_id, ".".join(base[:2])), clause
+            (clause.document_id, clause.section_id), clause
         )
     output: list[CrossReference] = []
     for clause in clauses:
