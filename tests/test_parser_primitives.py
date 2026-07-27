@@ -1103,3 +1103,42 @@ class ConjunctionAsideTests(unittest.TestCase):
             "Customer must submit manual reports."
         )
         self.assertEqual(len(operative_propositions(text)), 1)
+
+
+class SupersededDefinitionTests(unittest.TestCase):
+    """The term means what the edition in force says it means."""
+
+    def instruments(self):
+        return [
+            instrument(id="i:new", source="uca-v1.4.pdf", title="UCA", version="1.4"),
+            instrument(id="i:old", source="uca-v1.0.pdf", title="UCA", version="1.0"),
+        ]
+
+    def test_a_superseded_edition_does_not_control_a_term(self) -> None:
+        # Version chains were recorded and never consulted for definitions, so a
+        # family whose only conflict was between editions resolved nothing.
+        new, old = self.instruments()
+        pairs = {
+            (newer.id, older.id)
+            for chain in version_chains([new, old])
+            for position, newer in enumerate(reversed(chain))
+            for older in list(reversed(chain))[position + 1 :]
+        }
+        self.assertIn(("i:new", "i:old"), pairs)
+        self.assertNotIn(("i:old", "i:new"), pairs)
+
+    def test_every_earlier_edition_is_superseded_not_just_the_previous(self) -> None:
+        editions = [
+            instrument(id="i:1.0", source="a.pdf", title="UCA", version="1.0"),
+            instrument(id="i:1.1", source="b.pdf", title="UCA", version="1.1"),
+            instrument(id="i:1.4", source="c.pdf", title="UCA", version="1.4"),
+        ]
+        pairs = {
+            (newer.id, older.id)
+            for chain in version_chains(editions)
+            for position, newer in enumerate(reversed(chain))
+            for older in list(reversed(chain))[position + 1 :]
+        }
+        self.assertIn(("i:1.4", "i:1.1"), pairs)
+        self.assertIn(("i:1.4", "i:1.0"), pairs)
+        self.assertIn(("i:1.1", "i:1.0"), pairs)

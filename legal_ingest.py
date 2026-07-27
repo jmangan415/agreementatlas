@@ -2382,6 +2382,16 @@ def build_relationships(
 
     for instrument in instruments:
         add(instrument.id, family.id, "BELONGS_TO", "belongs to agreement family")
+    # Every (newer, older) pair in a version chain, not just adjacent editions:
+    # v1.4 supersedes both v1.1 and v1.0, so a definition in either is out of
+    # force. A dict cannot express that -- one edition supersedes several.
+    supersedes = {
+        (newer.id, older.id)
+        for chain in version_chains(instruments)
+        for position, newer in enumerate(reversed(chain))
+        for older in list(reversed(chain))[position + 1 :]
+    }
+
     for chain in version_chains(instruments):
         # Newest first: every later edition supersedes all earlier ones, so a
         # reader landing on any edition can see it is not the operative text.
@@ -2523,6 +2533,20 @@ def build_relationships(
         for candidate in term_definitions:
             for other in term_definitions:
                 if candidate.id == other.id:
+                    continue
+                # A superseded edition's definition cannot control: the term
+                # means what the edition in force says it means. Version chains
+                # were already being recorded and never consulted here, so a
+                # family whose only conflict was between editions of one
+                # document resolved nothing at all.
+                if (candidate.instrument_id, other.instrument_id) in supersedes:
+                    add(
+                        candidate.id,
+                        other.id,
+                        "CONTROLLING_DEFINITION",
+                        "definition controls as the edition in force",
+                        [*candidate.evidence_span_ids, *other.evidence_span_ids],
+                    )
                     continue
                 path = precedence_path(
                     candidate.instrument_id, other.instrument_id, precedence

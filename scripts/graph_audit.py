@@ -379,13 +379,22 @@ def audit_family(name: str, root: Path) -> Audit:
             for edge in graph.get("relationships", [])
             if edge.get("type") == "CONTROLLING_DEFINITION"
         )
-    if competing and not controlling:
+    # Nothing decides between jurisdiction variants: a customer is under the NA
+    # agreement or the EMEA one, never both, so neither definition controls the
+    # other. Flagging that as unresolved asks for a ruling the documents do not
+    # make. Only complain where the family states an ordering that was not used.
+    orderable = bool(precedence) or any(
+        edge.get("type") == "SUPERSEDES"
+        for edge in (graph.get("relationships", []) if graph else [])
+    )
+    if competing and not controlling and orderable:
         report.findings.append(
             Finding(
                 "competing-definitions-unresolved",
                 "WARN",
                 f"{len(competing)} term(s) defined in more than one instrument, "
-                "but no CONTROLLING_DEFINITION edge decides between them",
+                "and the family states an ordering, but no CONTROLLING_DEFINITION "
+                "edge decides between them",
                 ", ".join(sorted(competing)[:4]),
             )
         )
