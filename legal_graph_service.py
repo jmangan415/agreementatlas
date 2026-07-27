@@ -1493,6 +1493,49 @@ def reciprocal_rank_fusion(
     return dict(combined), dict(components)
 
 
+SYNTHETIC_SECTION = re.compile(r"\s*\(\d+\)$")
+NUMBERED_SECTION = re.compile(r"^\d{1,2}(?:\.\d{1,2}){1,3}$")
+
+
+def citation_label(record: dict) -> str:
+    """How to point a reader at this passage in the document they hold.
+
+    Most clauses cannot be cited by number, because most passages are not
+    numbered: a definitions article is an alphabetical list of quoted terms, a
+    list item carries a letter rather than a number, and 81% of the rest have
+    only a heading. Forcing a section number onto them produced "1 (33)", which
+    is honest about being ours and useless to look up -- measured across 575
+    retrievals, only 20% of citations shown were numbers a reader could find.
+
+    So cite whatever the passage actually offers, in the order a reader would
+    use it: the term for a definition, the number when the document prints one,
+    the parent and label for a list item, otherwise the heading.
+    """
+
+    section = str(record.get("section_id", "")).strip()
+    base = SYNTHETIC_SECTION.sub("", section)
+    term = str(record.get("term", "")).strip()
+    if term:
+        return f"“{term}” (Definitions)" if not base else f"§{base} “{term}”"
+    if NUMBERED_SECTION.match(section):
+        return f"§{section}"
+    label = str(record.get("list_label", "")).strip()
+    if label and base:
+        return f"§{base}({label})"
+    # section_path is "<section> <heading>"; the heading is the rest of it.
+    heading = str(record.get("heading", "")).strip()
+    if not heading:
+        path = str(record.get("section_path", "")).strip()
+        heading = path[len(base) :].strip() if path.startswith(base) else path
+    # A run-in heading is sometimes just the opening words of the clause, and a
+    # citation reading "§15 transferred, or reallocated to new individ" points
+    # at nothing. A heading names a thing: short, and starting like a title.
+    usable = 0 < len(heading) <= 60 and (heading[:1].isupper() or heading[:1].isdigit())
+    if usable and base:
+        return f"§{base} {heading}"
+    return f"§{base}" if base else (heading if usable else section)
+
+
 def evidence_item(record: dict, score: float, components: dict | None = None) -> dict:
     kind = str(record.get("_kind", "Record"))
     return {
@@ -1503,6 +1546,7 @@ def evidence_item(record: dict, score: float, components: dict | None = None) ->
         ),
         "source": str(record.get("source", "")),
         "section": str(record.get("section_id", "")),
+        "citation": citation_label(record),
         "scope": scope_label(record.get("scope")),
         "score": round(score, 6),
         "text": str(

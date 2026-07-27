@@ -458,7 +458,11 @@ function evidenceHeading(item, index) {
   const graphReason = item.relationship
     ? ` · graph: ${item.relationship.replaceAll("_", " ").toLowerCase()}`
     : "";
-  return `[${index + 1}] ${item.source} · ${item.section || "Unnumbered"}${graphReason}`;
+  // Prefer the citation the server built. Most passages cannot be cited by
+  // number, and a synthetic one a reader cannot find in the PDF is worse than
+  // the heading or defined term that actually locates it.
+  const where = item.citation || item.section || "Unnumbered";
+  return `[${index + 1}] ${item.source} · ${where}${graphReason}`;
 }
 
 function addMessage(role, text, evidence = []) {
