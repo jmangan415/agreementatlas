@@ -10,6 +10,7 @@ use `scripts/parse_health.py` against `knowledge/sources` for real documents.
 
 from __future__ import annotations
 
+import re
 import unittest
 
 from legal_ingest import (
@@ -28,6 +29,7 @@ from legal_ingest import (
     paragraph_stream,
     parse_clauses,
     parse_iso_date,
+    repair_split_words,
     run_in_heading,
     split_definition_block,
     split_list_group,
@@ -970,3 +972,50 @@ class ClauseIdentityTests(unittest.TestCase):
         for span in spans:
             self.assertIn(span.clause_id, by_clause)
         self.assertEqual(len({span.id for span in spans}), len(spans))
+
+
+class SplitWordRepairTests(unittest.TestCase):
+    """PDF text layers that contain literal spaces inside words.
+
+    No extractor recovers these: the spaces are in the file, and x_tolerance has
+    no effect on them. The document is used as its own dictionary, so a join is
+    only made when the joined form is better attested than the fragment.
+    """
+
+    # The join is only made when the word is attested, so the fixture has to
+    # contain the words the damaged fragments should become.
+    CONTEXT = " Licensee shall deliver Documentation under common control of OT. " * 6
+
+    def repair(self, damaged: str) -> str:
+        # Damaged PDFs double their spaces, so compare on collapsed whitespace.
+        return re.sub(r"\s+", " ", repair_split_words(damaged + self.CONTEXT))
+
+    def test_a_stray_capital_is_rejoined(self) -> None:
+        self.assertIn("Licensee notifying", self.repair("(a) L  icensee  notifying"))
+
+    def test_punctuation_on_the_fragment_survives_the_join(self) -> None:
+        # "L icensee's" -- the apostrophe made the fragment non-alphabetic and
+        # the join was skipped, leaving the commonest damage in place.
+        self.assertIn("Licensee’s", self.repair("monitor L  icensee’s use"))
+
+    def test_a_chain_of_splits_is_rejoined(self) -> None:
+        self.assertIn(
+            "under common control", self.repair("or u nder c ommon contr ol with")
+        )
+
+    def test_two_real_words_are_never_welded(self) -> None:
+        text = "may under stand the terms" + " under the terms " * 8
+        self.assertIn("under stand", repair_split_words(text))
+
+    def test_the_article_a_is_left_alone(self) -> None:
+        repaired = self.repair("a party to the EULA and a majority of shares")
+        self.assertIn("a party", repaired)
+        self.assertIn("a majority", repaired)
+
+    def test_an_unattested_join_is_refused(self) -> None:
+        # Nothing in the document says "zqx", so no join may be invented.
+        self.assertIn("z qx", repair_split_words("z qx and more words here"))
+
+    def test_text_without_damage_is_returned_unchanged(self) -> None:
+        clean = "Licensee shall deliver the Documentation to OT within 10 days."
+        self.assertEqual(repair_split_words(clean), clean)

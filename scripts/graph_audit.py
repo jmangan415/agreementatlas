@@ -35,7 +35,16 @@ from legal_graph_service import read_jsonl  # noqa: E402
 # not split into its separate statements.
 MODAL = re.compile(r"\b(shall|must|may|will|cannot|can not)\b", re.I)
 # "L icensee", "o ther" -- a letter stranded from its word by PDF extraction.
-SPLIT_WORD = re.compile(r"\b[A-Za-z]\s[a-z]{2,}\b")
+#
+# Getting this pattern right took three attempts and every wrong version
+# misdirected the work. Matching a single \s missed the damage entirely, because
+# the publishers that break words also double their spaces. Not excluding the
+# article "a" reported "a party" and "a majority" as corruption, which inflated
+# the count more than tenfold. And a stray letter beside a lowercase fragment is
+# still usually innocent: "M in", "B is" are list labels, and German text trips
+# it constantly. So a match is only counted when joining the two actually
+# produces a word this family uses elsewhere -- the same test the repair applies.
+SPLIT_CANDIDATE = re.compile(r"(?<![A-Za-z'\u2019])(?![aAI]\s)([A-Za-z])\s+([a-z]{2,})")
 # Titles that are page furniture rather than the name of an instrument.
 TITLE_FURNITURE = re.compile(
     r"^(?:v(?:ersion)?\.?\s*\d|page\s+\d|\d{1,2}\.?$|"
@@ -253,9 +262,19 @@ def audit_family(name: str, root: Path) -> Audit:
         first(multi, lambda r: r["evidence"][:110]),
     )
 
-    damaged = [
-        item for item in rules if SPLIT_WORD.search(str(item.get("evidence", "")))
-    ]
+    family_words = Counter(
+        word.lower()
+        for item in clauses.values()
+        for word in re.findall(r"\b[A-Za-z]{2,}\b", str(item.get("text", "")))
+    )
+
+    def really_split(text: str) -> bool:
+        return any(
+            family_words[(match.group(1) + match.group(2)).lower()] > 0
+            for match in SPLIT_CANDIDATE.finditer(text)
+        )
+
+    damaged = [item for item in rules if really_split(str(item.get("evidence", "")))]
     report.add(
         "split-word-damage",
         "WARN",

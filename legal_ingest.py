@@ -90,10 +90,77 @@ def compact(value: str) -> str:
     return normalise_text(value)
 
 
+# A letter stranded from its word: "L icensee", "o ther". The article "a" and
+# the pronoun "I" are excluded or ordinary English reads as corruption, and the
+# lookbehind drops the possessive so "Software's ability" is left alone.
+STRANDED_LETTER = re.compile(r"(?<![A-Za-z'’])(?![aAI]\s)([A-Za-z])\s+([a-z]{2,})\b")
+# A word broken in two: "contr act", "Docu mentation".
+BROKEN_WORD = re.compile(r"\b([A-Za-z]{2,})\s+([a-z]{2,})\b")
+# Hyphenation surviving a line break: "informa- tion".
+BROKEN_HYPHEN = re.compile(r"\b([A-Za-z]{2,})-\s+([a-z]{2,})\b")
+
+
+def repair_split_words(text: str) -> str:
+    """Rejoin words that PDF extraction broke apart.
+
+    Some publishers emit literal spaces inside words, so no extractor and no
+    tolerance setting recovers them -- the spaces are in the text layer.
+
+    The document is its own dictionary: a pair is rejoined only when the joined
+    form already appears in the same document as a whole word. That guard is
+    what makes it safe to consider every pair, including ones beginning with
+    "a": "a definition" is left alone because "adefinition" is not a word,
+    while "a nd" becomes "and" because it is.
+    """
+
+    # Counts, not just membership. The vocabulary is drawn from the damaged text,
+    # so the broken fragments are themselves in it -- "informa" is a token of
+    # this document. What separates a fragment from a word is how often each
+    # form appears: "information" occurs throughout while "informa" occurs once,
+    # whereas "under" occurs constantly and "understand" rarely.
+    counts = Counter(word.lower() for word in re.findall(r"\b[A-Za-z]{2,}\b", text))
+    if not counts:
+        return text
+    # Keep the separators so the text can be rebuilt exactly as it was, minus
+    # the joins. Evidence is quoted verbatim, so stray edits would break it.
+    pieces = re.split(r"(\s+)", text)
+    output: list[str] = []
+    index = 0
+    while index < len(pieces):
+        piece = pieces[index]
+        head = piece.rstrip("-")
+        following = pieces[index + 2] if index + 2 < len(pieces) else ""
+        # A fragment often carries punctuation it never lost: "icensee's",
+        # "ontrol.". Join the letters and keep the tail exactly as it was.
+        tail_match = re.match(r"([a-z]{2,})(.*)$", following, re.S)
+        tail = tail_match.group(1) if tail_match else ""
+        trailing = tail_match.group(2) if tail_match else ""
+        merged = f"{head}{tail}"
+        joinable = (
+            head
+            and tail
+            and head.isalpha()
+            and counts[merged.lower()] > 0
+            # A single stray letter is never a word. Otherwise the joined form
+            # has to be better attested than the fragment, which is what stops
+            # "under stand" being welded in a document that says "under" often.
+            and (len(head) == 1 or counts[merged.lower()] > counts[head.lower()])
+        )
+        if joinable:
+            pieces[index + 2] = f"{merged}{trailing}"
+            index += 2
+            continue
+        output.append(piece)
+        index += 1
+    return "".join(output)
+
+
 def extract_source_text(path: Path) -> str:
     if path.suffix.lower() in {".txt", ".md"}:
         return path.read_text(encoding="utf-8", errors="replace")
-    return MarkItDown(enable_plugins=False).convert(path).text_content
+    return repair_split_words(
+        MarkItDown(enable_plugins=False).convert(path).text_content
+    )
 
 
 # Dot-leader table-of-contents rows repeat every heading and must not be mistaken
