@@ -67,6 +67,25 @@ EFFECT_MODALITY = {
     "PERMISSION": {"MAY", "CAN", "OTHER"},
 }
 GENERIC_ACTIONS = {"govern", "unspecified", ""}
+# The number a clause prints at the head of its own text. When the document says
+# "2.3 SFDC Personnel." that clause is section 2.3, whatever our counter thinks.
+PRINTED_SECTION = re.compile(r"^\s*(\d{1,2}(?:\.\d{1,2}){0,2})[\.\s]")
+
+
+def section_agreement(assigned: str, printed: str) -> str:
+    """Whether our section label and the document's own number can both be right.
+
+    They disagree far more often than they conflict. A clause labelled section 2
+    whose text opens "2.1" is nested, not mislabelled, and the same holds
+    wherever one number is a prefix of the other. What matters is the remainder:
+    a clause we call 1.3 that prints "1.2", or call 13.7.14 that prints "1".
+    """
+
+    if assigned == printed:
+        return "exact"
+    if printed.startswith(f"{assigned}.") or assigned.startswith(f"{printed}."):
+        return "nested"
+    return "drift"
 
 
 @dataclass
@@ -341,6 +360,55 @@ def audit_family(name: str, root: Path) -> Audit:
         edges[higher].add(lower)
     cycles = find_cycles(edges)
     report.add("precedence-cycle", "ERROR", cycles, len(pairs) or 1, first(cycles))
+
+    # --- section numbering and the cross-references built on it ----------------
+    #
+    # `extract_cross_references` resolves "subject to Section 5.2" by looking up
+    # 5.2 among our section_ids. So a label that has drifted from the number the
+    # document prints does not merely fail to resolve -- it can resolve onto a
+    # neighbouring clause, and the answer then cites the wrong text with the
+    # tool's full evidence-backed authority. Measured on the held-out corpus
+    # this is the single most widespread defect in the library.
+    labelled = []
+    drifted = []
+    for item in clauses.values():
+        match = PRINTED_SECTION.match(str(item.get("text", "")))
+        if not match:
+            continue
+        labelled.append(item)
+        if (
+            section_agreement(str(item.get("section_id", "")), match.group(1))
+            == "drift"
+        ):
+            drifted.append((item, match.group(1)))
+    report.add(
+        "section-id-drift",
+        "ERROR",
+        drifted,
+        len(labelled),
+        first(
+            drifted,
+            lambda pair: (
+                f"we call it {pair[0].get('section_id')!r}, "
+                f"the text prints {pair[1]!r}: {str(pair[0].get('text', ''))[:60]}"
+            ),
+        ),
+    )
+
+    references = read_jsonl(legal / "cross_references.jsonl")
+    numbered = [
+        item
+        for item in references
+        if item.get("relationship_type") in {"CROSS_REFERENCES", "SUBJECT_TO"}
+    ]
+    unresolved = [item for item in numbered if item.get("status") != "RESOLVED"]
+    report.add(
+        "cross-reference-unresolved",
+        "WARN",
+        unresolved,
+        len(numbered),
+        first(unresolved, lambda i: str(i.get("reference_text", ""))),
+    )
 
     # --- instruments and definitions -------------------------------------------
     furniture = [

@@ -157,17 +157,22 @@ def probe(client: LMStudioClient, model: str, sentence: str) -> dict | None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path("data/library"))
-    parser.add_argument("--family", default="", help="restrict to one family name")
+    parser.add_argument(
+        "--family",
+        default="",
+        help="comma-separated family names; omit for the whole library",
+    )
     parser.add_argument("--sentences", type=int, default=60, help="per family")
     parser.add_argument("--model", default="google/gemma-4-26b-a4b-qat")
     parser.add_argument("--seed", type=int, default=11)
     parser.add_argument("--json", type=Path, help="write the full record here")
     args = parser.parse_args()
 
+    wanted = {name.strip() for name in args.family.split(",") if name.strip()}
     families = [
         item
         for item in LibraryStore(args.root).list()
-        if not args.family or item.name == args.family
+        if not wanted or item.name in wanted
     ]
     if not families:
         print(f"no families under {args.root}", file=sys.stderr)
