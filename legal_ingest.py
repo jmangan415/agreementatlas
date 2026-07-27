@@ -22,6 +22,7 @@ from legal_schema import (
     DefinedTerm,
     EvidenceSpan,
     Instrument,
+    Offering,
     OperativeRule,
     PartyRole,
     PrecedenceRule,
@@ -1619,6 +1620,138 @@ def build_rule(
         evidence=evidence,
         summary=summary,
     )
+
+
+# "A. Standard Named User License Model", "Analytics Database Premium Edition".
+# The kind word is what makes a heading a licensable thing rather than a legal
+# topic: a section called "Termination" names no offering.
+OFFERING_HEADING = re.compile(
+    r"^(?:[A-Z][\.\)]\s+)?(?P<name>[A-Z][^\n]{2,68}?)\s+"
+    r"(?P<kind>Licen[sc]e Model|Licen[sc]e Type|Edition|Subscription Terms"
+    r"|Offering|Plan|Package)\s*$",
+    re.I,
+)
+# A heading about the concept rather than an instance of it.
+OFFERING_META = re.compile(
+    r"^(?:definition|description|overview|summary|table)\b", re.I
+)
+# What the offering counts. Ordered longest-first so "Named User" wins over "User".
+OFFERING_METRICS = (
+    "Concurrent Session",
+    "Program Instance",
+    "Named User",
+    "Anonymous User",
+    "Concurrent User",
+    "Work Unit",
+    "Logical CPU",
+    "Employee File",
+    "Transaction",
+    "Page",
+    "Server",
+    "Instance",
+    "Cluster",
+    "Session",
+    "Request",
+    "Client",
+    "Core",
+    "CPU",
+    "User",
+)
+# "The terms applicable to the Occasional Named User License Model are identical
+# to those that apply to Software licensed under the Standard Named User License
+# Model except that: (i) ..." -- a stated edge, with its own carve-outs.
+OFFERING_INHERITS = re.compile(
+    r"identical to\s+(?:those\s+)?(?:that\s+)?(?:apply\s+to\s+)?[^.]{0,90}?"
+    r"under\s+(?:the|a)\s+(?P<parent>[A-Z][^.]{2,60}?)\s+Licen[sc]e Model"
+    r"(?P<rest>[^.]{0,400})",
+    re.I,
+)
+OFFERING_EXCEPT = re.compile(
+    r"(?:except that|with the exception that|other than that|save that)\s*:?\s*(?P<body>.+)",
+    re.I,
+)
+OFFERING_BASIS = re.compile(
+    r"licen[sc]ed\s+on\s+an?\s+(?P<basis>per\s[^.]{3,90})", re.I
+)
+
+
+def offering_name(heading: str) -> str:
+    """The offering's name, without its list label or its kind word."""
+
+    match = OFFERING_HEADING.match(compact(heading))
+    if not match:
+        return ""
+    name = compact(match.group("name"))
+    return "" if OFFERING_META.match(name) else name
+
+
+def offering_metric(name: str, body: str) -> str:
+    for metric in OFFERING_METRICS:
+        if re.search(rf"\b{re.escape(metric)}s?\b", name, re.I):
+            return metric
+    for metric in OFFERING_METRICS:
+        if re.search(rf"\bper\s+{re.escape(metric)}s?\b", body, re.I):
+            return metric
+    return ""
+
+
+def extract_offerings(family_id: str, clauses: Sequence[Clause]) -> list[Offering]:
+    """The licensable configurations a family sells, and how they inherit.
+
+    A licence model is named by a schedule heading, not by a "means" sentence,
+    so `extract_definitions` never saw one: OpenText has 53 of them and had
+    none. Everything else here follows from that heading -- the clauses under it
+    are its terms, and a sentence declaring it identical to another model except
+    for a list is the only place its full terms are stated.
+    """
+
+    by_section: defaultdict[tuple[str, str], list[Clause]] = defaultdict(list)
+    named: dict[tuple[str, str], str] = {}
+    for clause in clauses:
+        key = (clause.document_id, str(clause.section_id).split(" (")[0])
+        by_section[key].append(clause)
+        name = offering_name(clause.heading)
+        if name and key not in named:
+            named[key] = name
+
+    output: list[Offering] = []
+    for key, name in named.items():
+        members = by_section[key]
+        body = compact(" ".join(item.text for item in members))
+        anchor = members[0]
+        parent = ""
+        exceptions: list[str] = []
+        inherit = OFFERING_INHERITS.search(body)
+        if inherit:
+            parent = compact(inherit.group("parent"))
+            carve = OFFERING_EXCEPT.search(inherit.group("rest"))
+            if carve:
+                exceptions = [
+                    compact(part)
+                    for part in re.split(
+                        r"\((?:i{1,3}|iv|v|vi{1,3}|[a-z])\)\s*", carve.group("body")
+                    )
+                    if len(compact(part)) > 12
+                ][:6]
+        basis = OFFERING_BASIS.search(body)
+        output.append(
+            Offering(
+                id=stable_id("offering", anchor.document_id, name),
+                family_id=family_id,
+                instrument_id=anchor.document_id,
+                clause_id=anchor.id,
+                name=name,
+                metric=offering_metric(name, body),
+                basis=compact(basis.group("basis"))[:160] if basis else "",
+                inherits_from=parent,
+                exceptions=exceptions,
+                summary=body[:400],
+                evidence_span_ids=[
+                    span for item in members[:3] for span in item.evidence_span_ids
+                ],
+            )
+        )
+    return sorted(output, key=lambda item: item.name)
 
 
 def extract_definitions(family_id: str, clauses: Sequence[Clause]) -> list[DefinedTerm]:

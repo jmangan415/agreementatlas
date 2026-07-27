@@ -954,24 +954,56 @@ function diagramSentence(text, node, usedRoles) {
   const fragment = document.createDocumentFragment();
   if (!text) return fragment;
 
-  let marks = [
+  // Two bands, and the distinction is the whole diagram. Actor, modality,
+  // action, object and limit are constituents: a few words each, naming a part
+  // of the sentence. A condition or carve-out is a clause, and is regularly the
+  // entire sentence -- "Unless prohibited under the applicable License Document,
+  // the Licensee may allocate Software Licenses to its Affiliates, provided".
+  //
+  // Resolving purely by length let that clause win and swallow every
+  // constituent inside it, so the sentence rendered as one flat carve-out band
+  // with none of the parts marked. Constituents are placed first and the coarse
+  // spans fill in around them.
+  const constituents = [
     ...collectMatches(text, MODAL_PATTERN, "modality"),
     ...collectMatches(text, LIMIT_PATTERN, "limit"),
     ...literalMatches(text, node.actor, "actor"),
     ...literalMatches(text, node.object, "object"),
     ...literalMatches(text, node.action, "action"),
   ];
-  for (const value of node.conditions || []) marks.push(...literalMatches(text, value, "condition"));
-  for (const value of node.carve_outs || []) marks.push(...literalMatches(text, value, "carveout"));
+  const clauses = [];
+  for (const value of node.conditions || []) clauses.push(...literalMatches(text, value, "condition"));
+  for (const value of node.carve_outs || []) clauses.push(...literalMatches(text, value, "carveout"));
 
-  // Longest first, then drop anything that overlaps a mark already taken, so a
-  // word is never claimed by two roles at once.
-  marks.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start);
-  const taken = [];
-  for (const mark of marks) {
-    if (taken.some((other) => mark.start < other.end && other.start < mark.end)) continue;
-    taken.push(mark);
+  // Within a band, longest first, then drop overlaps so no word has two roles.
+  const place = (candidates, taken) => {
+    candidates.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start);
+    for (const mark of candidates) {
+      if (taken.some((other) => mark.start < other.end && other.start < mark.end)) continue;
+      taken.push(mark);
+    }
+    return taken;
+  };
+  const taken = place(constituents, []);
+
+  // A clause keeps the words the constituents did not claim, as one or more
+  // fragments, so "Unless prohibited ..." still reads as the condition while
+  // "the Licensee" inside it still reads as the actor.
+  const fragments = [];
+  for (const mark of clauses) {
+    let cursor = mark.start;
+    const inside = taken
+      .filter((other) => other.start < mark.end && mark.start < other.end)
+      .sort((a, b) => a.start - b.start);
+    for (const other of inside) {
+      if (other.start > cursor) fragments.push({ start: cursor, end: other.start, role: mark.role });
+      cursor = Math.max(cursor, other.end);
+    }
+    if (cursor < mark.end) fragments.push({ start: cursor, end: mark.end, role: mark.role });
   }
+  // Ignore slivers left between adjacent constituents; a two-character
+  // highlight reads as a rendering fault rather than a role.
+  place(fragments.filter((item) => item.end - item.start >= 3), taken);
   taken.sort((a, b) => a.start - b.start);
 
   let cursor = 0;

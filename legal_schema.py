@@ -128,6 +128,43 @@ class DefinedTerm:
 
 
 @dataclass
+class Offering:
+    """A named, licensable configuration: a licence model, edition or plan.
+
+    The ontology described instruments, clauses, rules and defined terms -- a
+    legal-document ontology, correct and incomplete. The questions a licensing
+    reader actually asks turn on a thing it had no node for. "What is a Named
+    User" is not a definition lookup; OpenText licenses Standard, Occasional,
+    Actuate, Concurrent, ECD, LiquidOffice and Exceed onDemand Named Users on
+    materially different terms, and the answer is "which one is on your order".
+
+    Nor are these written as definitions. They are sections of a licence model
+    schedule, and they inherit: "The license model terms and limitations
+    applicable to the Occasional Named User License Model are identical to those
+    that apply to Software licensed under the Standard Named User License Model
+    except that: (i) ...". That sentence is an edge, and storing it as prose
+    threw away the only statement of what an Occasional Named User actually is.
+
+    `metric` is what is counted -- a user, a CPU, a transaction, a page.
+    `basis` is what one unit is measured per. `inherits_from` names another
+    offering, and `exceptions` holds what this one changes about it.
+    """
+
+    id: str
+    family_id: str
+    instrument_id: str
+    clause_id: str
+    name: str
+    metric: str = ""
+    basis: str = ""
+    inherits_from: str = ""
+    exceptions: list[str] = field(default_factory=list)
+    summary: str = ""
+    evidence_span_ids: list[str] = field(default_factory=list)
+    schema_version: str = SCHEMA_VERSION
+
+
+@dataclass
 class OperativeRule:
     id: str
     family_id: str
