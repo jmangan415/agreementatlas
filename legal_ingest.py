@@ -56,6 +56,11 @@ DEFINED_TERM = re.compile(
     re.I,
 )
 ROLE_NAMES = (
+    # Vendors write second person as often as they write "Customer": Oracle, Cisco and
+    # Red Hat all say "You". Leaving it out left the commonest party in the
+    # corpus unregistered -- 929 rules whose actor was nobody we knew.
+    "You",
+    "End User",
     "Provider",
     "Customer",
     "Licensee",
@@ -906,6 +911,51 @@ def evidence_for_clause(clause: Clause) -> list[str]:
     return list(clause.evidence_span_ids)
 
 
+# A proper noun that is not at the start of a sentence, so ordinary capitalised
+# openings are not mistaken for names.
+PROPER_NOUN = re.compile(
+    r"(?<![.!?]\s)(?<!^)\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)\b"
+)
+SENTENCE_OPENERS = frozenset(
+    """the this that if in on for a an and or no any all each such where when
+    you your we our us it its not notwithstanding except subject provided upon
+    during to at by
+    with without under over from as is are be been being will shall may must
+    """.split()
+)
+
+
+def vendor_names(scan: str) -> list[str]:
+    """The vendor's own name, as its documents capitalise it.
+
+    Derived rather than listed: whoever uploaded their agreements is the vendor,
+    and the name they repeat throughout is theirs. Titles were tried first and
+    were useless -- a family's titles share "Terms" and "Appendix" far more than
+    they share "Broadcom".
+
+    The vendor is a party to every instrument it publishes but is named rather
+    than given a role word, so ROLE_NAMES never sees it: "Red Hat may modify",
+    "Cisco will provide", "IBM is not responsible".
+    """
+
+    counts: Counter[str] = Counter()
+    for match in PROPER_NOUN.finditer(scan):
+        candidate = match.group(1)
+        if candidate.split()[0].lower() in SENTENCE_OPENERS:
+            continue
+        if NOT_A_PERSON.search(candidate) or DOCUMENT_NOUN.search(candidate):
+            continue
+        if candidate.lower() in {role.lower() for role in ROLE_NAMES}:
+            continue
+        counts[candidate] += 1
+    # Rank by how often the name is used. Preferring the longest form instead
+    # produced "SAP Business" for SAP: the vendor's bare name is always the more
+    # frequent, and a two-word name like "Red Hat" wins on its own count because
+    # the pattern prefers the longer match when both are present.
+    ranked = [name for name, count in counts.most_common(6) if count >= 5]
+    return ranked[:1]
+
+
 def extract_parties(
     family_id: str,
     instruments: Sequence[Instrument],
@@ -916,6 +966,11 @@ def extract_parties(
     by_instrument: defaultdict[str, list[Clause]] = defaultdict(list)
     for clause in clauses:
         by_instrument[clause.document_id].append(clause)
+    # Once for the family, not once per instrument. Per document the commonest
+    # proper noun drifts to whatever that document is about -- "Registered
+    # Capacity", "Cisco API" -- and each of those became a party, which would
+    # then make an actor named after a licence metric look perfectly valid.
+    family_vendors = vendor_names(" ".join(clause.text for clause in clauses))
 
     for instrument in instruments:
         relevant = by_instrument[instrument.id]
@@ -950,6 +1005,13 @@ def extract_parties(
                 ]
             )
         scan = " ".join(clause.text for clause in relevant)
+        # The vendor is a party to every instrument it publishes, but it is
+        # named rather than given a role word, so ROLE_NAMES never sees it:
+        # "Red Hat may modify", "Cisco will provide". house_words already finds
+        # it -- the words shared by most titles in a family are the vendor's.
+        for name in family_vendors:
+            if re.search(rf"\b{re.escape(name)}\b", scan):
+                candidates.append((name, "Provider", False))
         for role in ROLE_NAMES:
             if re.search(rf"\b{re.escape(role)}\b", scan, re.I):
                 candidates.append((role.title(), role.title(), False))
@@ -1042,7 +1104,43 @@ def actor_from_text(text: str, roles: Sequence[PartyRole]) -> str:
         r"(?:shall|must|may|will|can)\b",
         beginning,
     )
-    return compact(subject.group("actor")) if subject else ""
+    if not subject:
+        return ""
+    candidate = compact(subject.group("actor"))
+    # The subject of an operative sentence is not always a person. "Following
+    # restrictions apply", "Redistributions in binary form must retain...",
+    # "This Agreement will control" all put a thing where a party belongs, and
+    # naming it as the actor asserts a duty nobody owes. An actor has to be
+    # someone the agreement could sue.
+    return candidate if names_a_person(candidate) else ""
+
+
+# Words that make a phrase a thing rather than a party. A party is a person, a
+# named entity, or a role; a licence metric, a document or an activity is not.
+NOT_A_PERSON = re.compile(
+    r"\b(agreement|schedule|addendum|annex|appendix|terms|conditions|licen[cs]e"
+    r"|software|documentation|redistributions?|restrictions?|provisions?|clause"
+    r"|section|notice|copyright|warrant(?:y|ies)|liabilit(?:y|ies)|use|access"
+    r"|data|information|service|product|credit|fee|payment|order|instance"
+    r"|server|device|copy|copies|version|content|documents?|offers?|programs?)\b",
+    re.I,
+)
+
+
+def names_a_person(value: str) -> bool:
+    """Whether a phrase could be a party to an agreement."""
+
+    text = compact(value)
+    if not text or len(text.split()) > 5:
+        return False
+    if NOT_A_PERSON.search(text):
+        return False
+    # A party is named or role-titled, so it is capitalised; a sentence that
+    # merely begins with a capital is not enough on its own, but combined with
+    # the exclusions above it separates "Micro Focus" from "Following".
+    return bool(re.match(r"^[A-Z]", text)) and not text.lower().startswith(
+        ("following ", "each ", "any ", "all ", "no ", "such ")
+    )
 
 
 def extract_action(text: str) -> str:

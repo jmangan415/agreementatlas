@@ -26,6 +26,7 @@ from legal_ingest import (
     instruments_for_reference,
     ladder_phrases,
     modality_and_polarity,
+    names_a_person,
     paragraph_stream,
     parse_clauses,
     parse_iso_date,
@@ -35,6 +36,7 @@ from legal_ingest import (
     split_list_group,
     title_block,
     validated_classification,
+    vendor_names,
     version_chains,
 )
 from legal_schema import Instrument, PartyRole
@@ -1019,3 +1021,54 @@ class SplitWordRepairTests(unittest.TestCase):
     def test_text_without_damage_is_returned_unchanged(self) -> None:
         clean = "Licensee shall deliver the Documentation to OT within 10 days."
         self.assertEqual(repair_split_words(clean), clean)
+
+
+class ActorIsAPartyTests(unittest.TestCase):
+    """An actor has to be someone the agreement could sue."""
+
+    def test_a_thing_is_not_a_party(self) -> None:
+        for phrase in (
+            "Following restrictions",
+            "Redistributions in binary form",
+            "This Agreement",
+            "The Software Licenses",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertFalse(names_a_person(phrase))
+
+    def test_people_and_named_entities_are(self) -> None:
+        for phrase in ("Licensee", "Micro Focus", "You", "Red Hat", "The End User"):
+            with self.subTest(phrase=phrase):
+                self.assertTrue(names_a_person(phrase))
+
+    def test_a_non_person_subject_yields_no_actor(self) -> None:
+        self.assertEqual(
+            actor_from_text("Following restrictions shall apply to Licensee.", []), ""
+        )
+
+
+class VendorPartyTests(unittest.TestCase):
+    """The vendor is a party to its own agreement but never role-named."""
+
+    # Sentence-initial occurrences are ignored, so the fixture has to name the
+    # vendor mid-sentence often enough to clear the frequency floor.
+    BODY = (
+        "Customer shall pay Broadcom the fees. "
+        "Nothing here obliges Broadcom to act, and Broadcom retains all rights. "
+        "Support is provided by Broadcom where Broadcom agrees in writing. "
+        "Customer shall indemnify Broadcom against any claim. "
+        "Fees are payable to Broadcom within thirty days. "
+    )
+
+    def test_the_repeated_name_is_recognised(self) -> None:
+        self.assertEqual(vendor_names(self.BODY), ["Broadcom"])
+
+    def test_document_and_thing_nouns_are_not_vendors(self) -> None:
+        # "Transaction Document" and "Cisco Offer" were both picked as vendors
+        # before the thing-nouns were excluded.
+        text = "The Transaction Document governs. " * 8
+        self.assertEqual(vendor_names(text), [])
+
+    def test_a_sentence_opening_is_not_a_name(self) -> None:
+        text = "Your rights end. Your obligations remain. Your data is deleted. " * 4
+        self.assertNotIn("Your", vendor_names(text))
