@@ -245,16 +245,39 @@ class DeepIndexTests(unittest.TestCase):
                 actors={"customer"},
             )
         )
-        invalid_actor = {**base, "actor": "Software"}
-        self.assertIsNone(
-            validate_extracted_rule(
-                invalid_actor,
-                item_clause,
-                clause_lookup=clause_lookup,
-                span_lookup=span_lookup,
-                actors={"customer"},
-            )
+        # An unusable actor now costs the actor, not the rule. Eleven of twelve
+        # rules from real clauses were being discarded on this field alone,
+        # taking their effect, modality, polarity and evidence with them.
+        unknown_actor = validate_extracted_rule(
+            {**base, "actor": "Software"},
+            item_clause,
+            clause_lookup=clause_lookup,
+            span_lookup=span_lookup,
+            actors={"customer"},
         )
+        self.assertIsNotNone(unknown_actor)
+        self.assertEqual(unknown_actor["actor"], "")
+        self.assertEqual(unknown_actor["effect"], "PROHIBITION")
+
+        # "parties" and "party" are the same party.
+        plural = validate_extracted_rule(
+            {**base, "actor": "Customers"},
+            item_clause,
+            clause_lookup=clause_lookup,
+            span_lookup=span_lookup,
+            actors={"customer"},
+        )
+        self.assertEqual(plural["actor"], "Customers")
+
+        # NOT_STATED is a real answer, not a rejection.
+        unnamed = validate_extracted_rule(
+            {**base, "actor": "NOT_STATED"},
+            item_clause,
+            clause_lookup=clause_lookup,
+            span_lookup=span_lookup,
+            actors={"customer"},
+        )
+        self.assertEqual(unnamed["actor"], "")
         invented = {**base, "evidence_spans": ["invented evidence"]}
         self.assertIsNone(
             validate_extracted_rule(
