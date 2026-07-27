@@ -236,11 +236,15 @@ def title_block(lines: Sequence[str]) -> tuple[str, str]:
     evidence = " ".join(meaningful[:8])
     window = [
         line
-        for line in meaningful[:8]
+        for line in meaningful[:20]
         if not TITLE_FURNITURE.match(line)
         and not TITLE_BANNER.match(line)
+        # Two-column PDFs emit the gutter numbers as a block before any text, so
+        # the title can sit ten lines down behind "1." "1.1." "1.2." ... A bare
+        # section number is never the name of a document.
+        and not SECTION_ONLY.match(line)
         and not re.match(r"^effective\b", line, re.I)
-    ]
+    ][:8]
     if not window:
         return meaningful[0], evidence
     if len(window) > 2:
@@ -706,6 +710,7 @@ def parse_clauses(
     clauses: list[Clause] = []
     spans: list[EvidenceSpan] = []
     section_counts: defaultdict[str, int] = defaultdict(int)
+    issued_clause_ids: set[str] = set()
     sequence = 0
 
     def add_clause(
@@ -730,6 +735,28 @@ def parse_clauses(
         clause_id = stable_id(
             "clause", instrument.id, section, kind, list_label, compact(value)
         )
+        if clause_id in issued_clause_ids:
+            # Boilerplate repeats: the same sentence under the same section
+            # number produced the same id twice, and every id-keyed lookup then
+            # resolved to whichever record was written last. Disambiguate the
+            # repeat rather than the first occurrence, so ids already referenced
+            # by extracted rules and enrichment checkpoints stay valid.
+            occurrence = 2
+            while True:
+                candidate = stable_id(
+                    "clause",
+                    instrument.id,
+                    section,
+                    kind,
+                    list_label,
+                    compact(value),
+                    str(occurrence),
+                )
+                if candidate not in issued_clause_ids:
+                    clause_id = candidate
+                    break
+                occurrence += 1
+        issued_clause_ids.add(clause_id)
         span_id = stable_id("span", clause_id, value, "clause")
         clause = Clause(
             id=clause_id,
@@ -1145,6 +1172,21 @@ def build_rule(
     # "Customer shall X and shall not Y" names its subject once; the second
     # statement inherits it rather than being left with no actor.
     actor = actor_from_text(semantic_text, roles) or fallback_actor
+    subject_matter = extract_object(semantic_text)
+    if (
+        actor
+        and subject_matter
+        and actor.strip().lower() == subject_matter.strip().lower()
+    ):
+        # The sentence's subject is the thing the rule is about, not a party
+        # bound by it: "Confidential Information will not include...",
+        # "Agreement will control in the event of any conflict". Naming it as
+        # the actor claims a document owes an obligation to itself.
+        actor = (
+            ""
+            if fallback_actor.strip().lower() == actor.strip().lower()
+            else fallback_actor
+        )
     conditions = fragments(
         evidence_text,
         (
@@ -1190,7 +1232,7 @@ def build_rule(
         polarity=polarity,
         actor=actor,
         action=extract_action(semantic_text),
-        object=extract_object(semantic_text),
+        object=subject_matter,
         scope=clause.scope,
         conditions=conditions,
         carve_outs=carve_outs,

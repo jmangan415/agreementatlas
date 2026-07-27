@@ -79,6 +79,26 @@ class TitleBlockTests(unittest.TestCase):
                 title, _ = title_block([furniture, "Cloud Services Agreement"])
                 self.assertEqual(title, "Cloud Services Agreement")
 
+    def test_gutter_numbers_do_not_hide_the_title(self) -> None:
+        # A two-column PDF emits its gutter numbers as a block before any text,
+        # so the title sits well down the page. SAP's GTC titled itself "1.".
+        title, _ = title_block(
+            [
+                "1.",
+                "1.1.",
+                "1.2.",
+                "1.3.",
+                "1.4.",
+                "1.5.",
+                "1.6.",
+                "1.7.",
+                "1.8.",
+                "1.9.",
+                "GENERAL TERMS AND CONDITIONS FOR SAP SOFTWARE",
+            ]
+        )
+        self.assertEqual(title, "GENERAL TERMS AND CONDITIONS FOR SAP SOFTWARE")
+
     def test_a_normal_first_line_is_still_the_title(self) -> None:
         title, _ = title_block(["Master Subscription Agreement", "between X and Y"])
         self.assertEqual(title, "Master Subscription Agreement")
@@ -878,6 +898,30 @@ class PassiveVoiceActorTests(unittest.TestCase):
             "Licensee",
         )
 
+    def test_a_document_is_not_an_actor(self) -> None:
+        # "Agreement will control..." names the subject of the sentence, not a
+        # party under an obligation. Recording it as the actor claims a document
+        # owes a duty to itself.
+        for text in (
+            "Agreement will control in the event of any conflict.",
+            "Confidential Information will not include information already in "
+            "the possession of the receiving party.",
+        ):
+            with self.subTest(text=text[:40]):
+                clauses, _ = parse_clauses(instrument(), f"1. Terms\n\n{text}\n")
+                for rule in extract_rules("family:test", clauses, []):
+                    self.assertEqual(rule.actor, "")
+
+    def test_a_real_actor_acting_on_a_defined_term_survives(self) -> None:
+        clauses, _ = parse_clauses(
+            instrument(),
+            "1. Terms\n\nLicensee must protect Confidential Information at all "
+            "times.\n",
+        )
+        rules = extract_rules("family:test", clauses, self.roles())
+        self.assertEqual([rule.actor for rule in rules], ["Licensee"])
+        self.assertEqual(rules[0].object, "Confidential Information")
+
     def test_actor_and_object_are_never_the_same_phrase(self) -> None:
         clauses, _ = parse_clauses(
             instrument(),
@@ -889,3 +933,40 @@ class PassiveVoiceActorTests(unittest.TestCase):
         for rule in rules:
             if rule.actor and rule.object:
                 self.assertNotEqual(rule.actor.lower(), rule.object.lower())
+
+
+class ClauseIdentityTests(unittest.TestCase):
+    """Two clause records must never share one id."""
+
+    REPEATED = (
+        "20. Terms\n\n"
+        "The Software may be loaded and executed on an unlimited number of Servers.\n\n"
+        "Some other provision applies to Licensee.\n\n"
+        "The Software may be loaded and executed on an unlimited number of Servers.\n"
+    )
+
+    def test_repeated_text_in_one_section_gets_distinct_ids(self) -> None:
+        # The display section was disambiguated but the id was not, so identical
+        # boilerplate under one section number collided and every id-keyed
+        # lookup resolved to whichever record was written last.
+        clauses, _ = parse_clauses(instrument(), self.REPEATED)
+        ids = [clause.id for clause in clauses]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_the_first_occurrence_keeps_its_original_id(self) -> None:
+        # Ids already referenced by extracted rules and enrichment checkpoints
+        # must survive; only the repeat is renamed.
+        single, _ = parse_clauses(
+            instrument(),
+            "20. Terms\n\nThe Software may be loaded and executed on an "
+            "unlimited number of Servers.\n",
+        )
+        repeated, _ = parse_clauses(instrument(), self.REPEATED)
+        self.assertEqual(repeated[0].id, single[0].id)
+
+    def test_spans_follow_the_disambiguated_clause(self) -> None:
+        clauses, spans = parse_clauses(instrument(), self.REPEATED)
+        by_clause = {clause.id for clause in clauses}
+        for span in spans:
+            self.assertIn(span.clause_id, by_clause)
+        self.assertEqual(len({span.id for span in spans}), len(spans))
