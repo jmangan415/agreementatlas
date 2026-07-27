@@ -18,7 +18,10 @@ from legal_ingest import (
     actor_from_text,
     classify_instrument,
     clean_lines,
+    displaced_instruments,
+    extract_action,
     extract_definitions,
+    extract_object,
     extract_precedence,
     extract_rules,
     family_title,
@@ -35,6 +38,7 @@ from legal_ingest import (
     run_in_heading,
     split_definition_block,
     split_list_group,
+    subject_key,
     title_block,
     validated_classification,
     vendor_names,
@@ -925,7 +929,10 @@ class PassiveVoiceActorTests(unittest.TestCase):
         )
         rules = extract_rules("family:test", clauses, self.roles())
         self.assertEqual([rule.actor for rule in rules], ["Licensee"])
-        self.assertEqual(rules[0].object, "Confidential Information")
+        # The object is read from the sentence now rather than mapped onto one
+        # of ten labels, so it carries the words the clause actually uses.
+        self.assertIn("Confidential Information", rules[0].object)
+        self.assertEqual(rules[0].action, "protect")
 
     def test_actor_and_object_are_never_the_same_phrase(self) -> None:
         clauses, _ = parse_clauses(
@@ -1142,3 +1149,54 @@ class SupersededDefinitionTests(unittest.TestCase):
         self.assertIn(("i:1.4", "i:1.1"), pairs)
         self.assertIn(("i:1.4", "i:1.0"), pairs)
         self.assertIn(("i:1.1", "i:1.0"), pairs)
+
+
+class GovernedPhraseTests(unittest.TestCase):
+    """Action and object come from the sentence, not from a fixed list.
+
+    The closed vocabulary picked the nearest of sixteen labels rather than
+    declining: a clause about press releases became "notify", one about licence
+    counts became "process_data". Measured over 188 real sentences, reading the
+    verb out of the text agrees with the model on 73% of actions where the
+    labels agreed on 37%, and on 49% of objects against 18%.
+    """
+
+    def test_the_verb_is_taken_from_the_sentence(self) -> None:
+        for text, action in (
+            ("OT may refer to Licensee's relationship in a press release.", "refer to"),
+            ("Licensee may physically transfer the Software.", "physically transfer"),
+            ("Customer shall pay all fees when due.", "pay"),
+        ):
+            with self.subTest(text=text[:36]):
+                self.assertEqual(extract_action(text), action)
+
+    def test_the_object_follows_the_verb(self) -> None:
+        self.assertIn(
+            "Software", extract_object("Licensee may physically transfer the Software.")
+        )
+
+    def test_inflections_share_a_pairing_key(self) -> None:
+        # Two rules about one subject must still pair once the words are free
+        # text: "shared" and "share", "Affiliate" and "Affiliates".
+        self.assertEqual(
+            subject_key("shared", "the Affiliates"),
+            subject_key("share", "Affiliate"),
+        )
+
+    def test_purpose_is_not_part_of_the_object_key(self) -> None:
+        self.assertEqual(
+            subject_key("use", "the Cloud Service to process Personal Data")[1],
+            subject_key("use", "Cloud Service")[1],
+        )
+
+    def test_a_carve_out_names_the_instrument_it_displaces(self) -> None:
+        # This replaces a hardcoded pair of vocabulary labels that only matched
+        # because two particular clauses mapped onto them.
+        self.assertEqual(
+            displaced_instruments(
+                "Notwithstanding the Affiliate permission in the Cloud Master "
+                "Agreement, Customer may not allocate access unless named in "
+                "this Order Schedule"
+            ),
+            ["the Cloud Master Agreement"],
+        )
