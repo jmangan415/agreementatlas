@@ -30,6 +30,24 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from legal_graph_service import read_jsonl  # noqa: E402
+from legal_ingest import term_pattern, vendor_names  # noqa: E402
+
+# A capitalised multi-word phrase, which is how agreements write a defined term.
+# Single words are not considered: that is where nearly all the noise lives --
+# "Signature", "Date", "Copyright", a hyphenated word split across a line -- and
+# excluding them takes this from roughly a third useful to roughly three
+# quarters. A phrase has to recur before it is reported, because a term the
+# agreement leans on is used more than once.
+CAPITALISED_PHRASE = re.compile(
+    r"\b([A-Z][a-z]{2,}(?:[ -](?:of|and|or|the)[ ])?(?:[ -]?[A-Z][a-z]{2,}){1,3})\b"
+)
+# Words that open a sentence rather than a term.
+PHRASE_STOPWORD = frozenset(
+    """The This That These Those Any All Each Such Notwithstanding However Except
+    Subject Without Upon During Where When While If For In On At To By No Not Yes
+    Page Section Article Print Signature January February March April May June July
+    August September October November December""".split()
+)
 
 # A modal verb. Two of them in one rule can mean the clause was not split -- or,
 # far more often, that the statement carries a condition or a relative clause:
@@ -439,6 +457,41 @@ def audit_family(name: str, root: Path) -> Audit:
         or str(item.get("title", "")).strip().lower() == "untitled agreement"
     ]
     report.add("title-too-short", "WARN", untitled, len(instruments))
+
+    # A capitalised phrase the family uses repeatedly but never defines is
+    # either a definition the extractor missed or a gap in the agreement, and
+    # both are worth a reviewer's attention: Salesforce uses "Confidential
+    # Information" fifteen times and defines it nowhere. Reported, never fixed
+    # automatically -- deciding which of the two it is needs a reader.
+    patterns = [term_pattern(str(item.get("term", ""))) for item in definitions]
+    vendors = {
+        name.casefold()
+        for name in vendor_names(
+            " ".join(str(item.get("text", "")) for item in list(clauses.values())[:400])
+        )
+    }
+    used: Counter[str] = Counter()
+    for item in clauses.values():
+        for match in CAPITALISED_PHRASE.finditer(str(item.get("text", ""))):
+            phrase = " ".join(match.group(1).split())
+            words = phrase.split()
+            if len(words) < 2 or words[0] in PHRASE_STOPWORD:
+                continue
+            if any(vendor and vendor in phrase.casefold() for vendor in vendors):
+                continue
+            used[phrase] += 1
+    undefined = [
+        phrase
+        for phrase, count in used.most_common()
+        if count >= 5 and not any(pattern.search(phrase) for pattern in patterns)
+    ]
+    report.add(
+        "term-used-but-not-defined",
+        "WARN",
+        undefined,
+        len(used),
+        ", ".join(undefined[:5]),
+    )
 
     by_term: defaultdict[str, set[str]] = defaultdict(set)
     for item in definitions:
