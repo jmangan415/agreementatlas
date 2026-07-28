@@ -159,7 +159,17 @@ _SYNONYM_GROUPS = {
     "allocate": {"allocation", "seat", "named user"},
     "assign": {"assignment", "novate", "novation", "successor", "assigns", "transfer"},
     "transfer": {"assign", "assignment", "novate", "sublicense"},
-    "access": {"use", "permitted", "permission"},
+    "access": {"use", "permitted", "permission", "login", "logged"},
+    # Agreements meter authorisation, readers ask about behaviour. "Do I need a
+    # licence for someone who has never logged in" is answered by "authorized to
+    # access or use the Software (regardless of whether the individual accesses
+    # or uses the Software)", which shares no word with the question -- and that
+    # clause did not retrieve at all, so the answer came back citing a different
+    # provision about undeleted accounts and sounded just as confident.
+    "login": {"access", "use", "logon", "logged"},
+    "logged": {"access", "use", "login"},
+    "person": {"individual", "human", "user", "employee"},
+    "individual": {"person", "human", "user"},
     "availability": {"service", "level", "uptime"},
     "affiliate": {"affiliates", "related", "entity", "subsidiary"},
     # Deliberately not "software": in a licence corpus that matches nearly every
@@ -1385,6 +1395,17 @@ def search_records(root: Path) -> list[dict]:
         item["_search_text"] = " | ".join(
             str(item.get(key, ""))
             for key in (
+                # The heading a rule sits under is its subject, and leaving it
+                # out meant a rule could not be found by the thing it is about.
+                # The obligation to licence "each individual human being who is
+                # authorized to access or use the Software (regardless of
+                # whether the individual accesses or uses the Software)" never
+                # says "Named User" -- the words are in its heading, "A.
+                # Standard Named User License Model". Asked whether a named user
+                # licence is needed for someone who never logged in, retrieval
+                # ranked it nowhere and the answer cited a clause about
+                # undeleted accounts instead, just as confidently.
+                "section_path",
                 "effect",
                 "modality",
                 "polarity",
@@ -1787,6 +1808,50 @@ def directional_expand(
     return sorted(by_id.values(), key=lambda item: (-item["score"], item["id"]))
 
 
+# What kind of provision a question is asking for. Boosting imperatives flatly
+# was the first instinct and the evidence refused it: of the questions that
+# prompted this, two are decided by a definition, one by a prohibition whose
+# modal is "may", and only two by an obligation. So the question's own words
+# choose the category rather than the clause's.
+QUESTION_EFFECT_PATTERNS = (
+    (r"\b(?:do|does|must|need|required|obliged|have to|shall)\b", {"OBLIGATION"}),
+    (
+        r"\b(?:can|could|may|allowed|permitted|entitled|able to)\b",
+        {"PERMISSION", "PROHIBITION"},
+    ),
+    (r"\b(?:prohibited|forbidden|barred|restricted|prevent)\b", {"PROHIBITION"}),
+    (r"\bwhat (?:if|happens)\b", {"OBLIGATION", "PROHIBITION"}),
+)
+# Reciprocal rank fusion scores sit around 1/(60 + rank), so a top hit scores
+# about 0.016. The first version of this used 0.25, which swamped relevance
+# entirely: every value from 0.05 to 0.40 produced the identical ranking,
+# because any of them dwarfed the scores being adjusted. At 0.001 -- roughly a
+# sixteenth of a top score -- it breaks ties and rescues near misses without
+# reordering the field. Measured over the retrieval benchmark the useful range
+# is 0.001 to 0.002; above 0.004 recall falls back.
+DEONTIC_MATCH_BONUS = 0.001
+# Above this share of a family's records, a defined term is furniture rather
+# than a discriminator, and promoting its definition buries the answer. Asked
+# outright what the term means, it is promoted regardless.
+PERVASIVE_TERM_SHARE = 0.25
+
+
+def question_effects(question: str) -> set[str]:
+    """The rule effects a question is asking about, if it says."""
+
+    wanted: set[str] = set()
+    for pattern, effects in QUESTION_EFFECT_PATTERNS:
+        if re.search(pattern, question, re.I):
+            wanted |= effects
+    # A definitional question is answered by a definition, and rules that happen
+    # to share its subject only get in the way.
+    if re.search(
+        r"\b(?:what is|what does|define|definition|meaning of)\b", question, re.I
+    ):
+        return set()
+    return wanted
+
+
 def retrieve_evidence(
     root: Path,
     question: str,
@@ -1850,6 +1915,13 @@ def retrieve_evidence(
             re.I,
         )
     )
+    # A defined term that appears nearly everywhere identifies nothing. In
+    # OpenText "Software" is in 42% of clauses, so any question mentioning
+    # software promoted its definition -- "the software products, Documentation
+    # and Support Software licensed to Licensee" -- to first place, above the
+    # provision that answered the question. The synonym table already refuses
+    # "software" for exactly this reason; the same reasoning belongs here.
+    haystack = [str(item.get("_search_text", "")).casefold() for item in records]
     for search_record in records:
         if search_record.get("_kind") != "Definition":
             continue
@@ -1858,6 +1930,10 @@ def retrieve_evidence(
             continue
         named = re.search(rf"\b{re.escape(term)}s?\b", question, re.I)
         if not named:
+            continue
+        folded = term.casefold()
+        share = sum(1 for text in haystack if folded in text) / max(1, len(haystack))
+        if share > PERVASIVE_TERM_SHARE and not definition_intent:
             continue
         record_id = str(search_record["id"])
         fused.setdefault(record_id, 0)
@@ -1871,6 +1947,23 @@ def retrieve_evidence(
         ):
             fused[record_id] += 0.5
         components.setdefault(record_id, {})["exact_term_match"] = 1
+
+    # A question asks for a kind of provision, and every rule carries the kind
+    # it is. The words that say which -- "do I need", "can I", "what happens if"
+    # -- were being stripped from the query as noise, so "do I need a licence"
+    # and "can I use it" retrieved identically while the effect we extracted,
+    # validated and show in the interface went unused at ranking time.
+    #
+    # Deliberately a nudge rather than a band. Ranking legal category ahead of
+    # relevance is what made a wider candidate pool worse in every measurement:
+    # the category is a weak signal about one clause among many that share it.
+    wanted_effects = question_effects(question)
+    if wanted_effects:
+        for record_id in list(fused):
+            effect = str(records_by_id[record_id].get("effect", "")).upper()
+            if effect and effect in wanted_effects:
+                fused[record_id] += DEONTIC_MATCH_BONUS
+                components.setdefault(record_id, {})["deontic_match"] = 1
 
     ranked = [
         evidence_item(records_by_id[record_id], score, components.get(record_id))
