@@ -1422,6 +1422,32 @@ def search_records(root: Path) -> list[dict]:
             }
         )
         output.append(item)
+    # An offering is retrievable in its own right. "What is a Named User" should
+    # reach the licence models directly rather than hoping a clause under one of
+    # them ranks well, and the answer can then say which of them exist.
+    for item in read_jsonl(legal / "offerings.jsonl"):
+        item = dict(item)
+        clause = clauses.get(str(item.get("clause_id", "")), {})
+        instrument = instruments.get(str(item.get("instrument_id", "")), {})
+        inherits = str(item.get("inherits_from", ""))
+        item.update(
+            {
+                "_kind": "Offering",
+                "_search_text": (
+                    f"{item.get('name', '')} licence model licence type "
+                    f"{item.get('metric', '')} {item.get('basis', '')} "
+                    f"{inherits} {item.get('summary', '')}"
+                ),
+                "document_id": item.get("instrument_id", ""),
+                "source": instrument.get("source", ""),
+                "instrument_title": instrument.get("title", ""),
+                "section_id": clause.get("section_id", ""),
+                "heading": clause.get("heading", ""),
+                "scope": "Licence models",
+                "evidence": item.get("summary", "") or clause.get("text", ""),
+            }
+        )
+        output.append(item)
     for item in clauses.values():
         item = dict(item)
         item["_kind"] = "Clause"
@@ -1435,6 +1461,32 @@ def search_records(root: Path) -> list[dict]:
         )
         output.append(item)
     return output
+
+
+def offerings_matching(root: Path, question: str) -> list[dict]:
+    """The offerings a question is about, from the graph rather than from prose.
+
+    `competing_variants` read the retrieved text with a regex and guessed at
+    capitalised phrases, which found "Actuate Named User Accesses" beside the
+    five real licence models. Now that offerings are extracted, the set is
+    exact: match the question against each offering's name and metric, and
+    follow INHERITS_FROM so a model defined only by its exceptions still carries
+    the terms it inherits.
+    """
+
+    wanted = {word for word in tokens(question) if len(word) > 2} - QUESTION_WORDS
+    if not wanted:
+        return []
+    offerings = read_jsonl(root / "legal" / "offerings.jsonl")
+    matched = []
+    for item in offerings:
+        described = set(tokens(f"{item.get('name', '')} {item.get('metric', '')}"))
+        if wanted <= described:
+            matched.append(item)
+    # A question naming a metric ("named user") matches every model that meters
+    # it; one naming a model exactly matches only that model, and needs no
+    # disambiguation.
+    return matched if len(matched) > 1 else []
 
 
 def load_vectors(root: Path) -> tuple[list[dict], bytes]:
@@ -2366,7 +2418,25 @@ def answer_question(
     # "the data for which is input to ... the Software", it answered
     # "inconclusive". Answer first, qualify second, and only where the text
     # genuinely fails to decide it.
-    variants = competing_variants(question, evidence)
+    # Ask the graph first. It knows the licence models exactly, including their
+    # metric and what each inherits; the text scan is a fallback for families
+    # whose variants are not expressed as offerings.
+    matched = offerings_matching(root, question)
+    variants = [
+        " · ".join(
+            part
+            for part in (
+                str(item.get("name", "")),
+                str(item.get("metric", "")),
+                f"inherits {item['inherits_from']}"
+                if item.get("inherits_from")
+                else "",
+                str(item.get("basis", ""))[:70],
+            )
+            if part
+        )
+        for item in matched
+    ] or competing_variants(question, evidence)
     system = (
         "You are a careful software and cloud agreement analyst. Use only the "
         "provided evidence and the deterministic legal-resolution trace. Document "

@@ -1705,18 +1705,19 @@ def extract_offerings(family_id: str, clauses: Sequence[Clause]) -> list[Offerin
     for a list is the only place its full terms are stated.
     """
 
-    by_section: defaultdict[tuple[str, str], list[Clause]] = defaultdict(list)
-    named: dict[tuple[str, str], str] = {}
+    # Grouped by heading, not by section. A schedule routinely lists sibling
+    # models under one section number -- OpenText puts "A. Standard Anonymous
+    # User" and "B. Standard Named User" both under section 6 -- and keying on
+    # the section kept only the first, which is how Standard Named User came to
+    # be named as a parent by two other models while not existing itself.
+    members_by_name: defaultdict[tuple[str, str], list[Clause]] = defaultdict(list)
     for clause in clauses:
-        key = (clause.document_id, str(clause.section_id).split(" (")[0])
-        by_section[key].append(clause)
         name = offering_name(clause.heading)
-        if name and key not in named:
-            named[key] = name
+        if name:
+            members_by_name[(clause.document_id, name)].append(clause)
 
     output: list[Offering] = []
-    for key, name in named.items():
-        members = by_section[key]
+    for (_document_id, name), members in members_by_name.items():
         body = compact(" ".join(item.text for item in members))
         anchor = members[0]
         parent = ""
@@ -2698,6 +2699,7 @@ def build_relationships(
     precedence: Sequence[PrecedenceRule],
     cross_refs: Sequence[CrossReference],
     amendments: Sequence[Amendment],
+    offerings: Sequence[Offering] = (),
 ) -> list[Relationship]:
     output: list[Relationship] = []
     by_instrument = {item.id: item for item in instruments}
@@ -2944,6 +2946,58 @@ def build_relationships(
                 target_id,
                 "USES_TERM",
                 f"uses defined term {definition.term}",
+                rule.evidence_span_ids,
+            )
+
+    # An offering is defined by the clause its heading sits on, governed by the
+    # rules in its section, and -- where the schedule says so -- identical to
+    # another offering but for a list of exceptions. That last edge is the only
+    # statement of what the inheriting offering's terms actually are.
+    offering_by_name = {item.name.casefold(): item for item in offerings}
+    for offering in offerings:
+        add(
+            offering.clause_id,
+            offering.id,
+            "DEFINES_OFFERING",
+            f"defines the {offering.name} offering",
+            offering.evidence_span_ids,
+        )
+        if not offering.inherits_from:
+            continue
+        parent = offering_by_name.get(offering.inherits_from.casefold())
+        if not parent or parent.id == offering.id:
+            continue
+        detail = (
+            f"identical to {parent.name} except for "
+            f"{len(offering.exceptions)} stated exception(s)"
+            if offering.exceptions
+            else f"identical to {parent.name}"
+        )
+        add(offering.id, parent.id, "INHERITS_FROM", detail, offering.evidence_span_ids)
+
+    for offering in offerings:
+        for rule in rules:
+            if rule.document_id != offering.instrument_id:
+                continue
+            if (
+                str(rule.section_id).split(" (")[0]
+                != str(
+                    next(
+                        (
+                            clause.section_id
+                            for clause in clauses
+                            if clause.id == offering.clause_id
+                        ),
+                        "",
+                    )
+                ).split(" (")[0]
+            ):
+                continue
+            add(
+                offering.id,
+                rule.id,
+                "OFFERING_RULE",
+                f"term of the {offering.name} offering",
                 rule.evidence_span_ids,
             )
 
@@ -3258,6 +3312,7 @@ def rebuild_workspace(
     )
     parties = extract_parties(family_id, instruments, clauses)
     definitions = extract_definitions(family_id, clauses)
+    offerings = extract_offerings(family_id, clauses)
     rules = extract_rules(family_id, clauses, parties, spans)
     precedence = extract_precedence(family_id, instruments, clauses)
     cross_refs = extract_cross_references(family_id, clauses)
@@ -3272,6 +3327,7 @@ def rebuild_workspace(
         precedence,
         cross_refs,
         amendments,
+        offerings,
     )
     graph = canonical_graph(
         family,
@@ -3330,6 +3386,7 @@ def rebuild_workspace(
         "clauses.jsonl": [record(item) for item in clauses],
         "evidence_spans.jsonl": [record(item) for item in spans],
         "defined_terms.jsonl": [record(item) for item in definitions],
+        "offerings.jsonl": [record(item) for item in offerings],
         "operative_rules.jsonl": [record(item) for item in rules],
         "rules.jsonl": compatibility_rules,
         "precedence_rules.jsonl": [record(item) for item in precedence],
