@@ -1463,6 +1463,59 @@ def search_records(root: Path) -> list[dict]:
     return output
 
 
+def offering_evidence(root: Path, offering: dict) -> dict:
+    """An offering as an evidence entry, carrying the clause that defines it.
+
+    The summary is the section's own words, so the quote is real text rather
+    than a rendering of the record.
+    """
+
+    legal = root / "legal"
+    clause = next(
+        (
+            item
+            for item in read_jsonl(legal / "clauses.jsonl")
+            if str(item.get("id", "")) == str(offering.get("clause_id", ""))
+        ),
+        {},
+    )
+    instrument = next(
+        (
+            item
+            for item in read_jsonl(legal / "instruments.jsonl")
+            if str(item.get("id", "")) == str(offering.get("instrument_id", ""))
+        ),
+        {},
+    )
+    inherits = str(offering.get("inherits_from", ""))
+    detail = " · ".join(
+        part
+        for part in (
+            f"metric {offering['metric']}" if offering.get("metric") else "",
+            f"basis {offering['basis']}" if offering.get("basis") else "",
+            f"identical to {inherits} except: "
+            + "; ".join(str(value) for value in offering.get("exceptions", [])[:4])
+            if inherits
+            else "",
+        )
+        if part
+    )
+    return {
+        "kind": "Offering",
+        "id": str(offering.get("id", "")),
+        "document_id": str(offering.get("instrument_id", "")),
+        "source": str(instrument.get("source", "")),
+        "section": str(clause.get("section_id", "")),
+        "citation": f"§{clause.get('section_id', '')} {offering.get('name', '')}".strip(),
+        "scope": "Licence models",
+        "score": 0.0,
+        "text": f"{offering.get('name', '')} — {detail}\n{offering.get('summary', '')}",
+        "rule": {},
+        "term": "",
+        "retrieval_components": {"offering_graph": True},
+    }
+
+
 def offerings_matching(root: Path, question: str) -> list[dict]:
     """The offerings a question is about, from the graph rather than from prose.
 
@@ -2405,6 +2458,17 @@ def answer_question(
                 "schema_version": status["schema_version"],
             },
         }
+    # Where the question is about a licensable thing, every matching offering
+    # joins the evidence whether or not it ranked. Listing five licence models
+    # and then saying "no evidence provided" for three of them is worse than not
+    # listing them: the reader cannot tell an offering with no terms from one
+    # whose terms simply did not retrieve.
+    matched = offerings_matching(root, question)
+    known = {str(item.get("id", "")) for item in evidence}
+    for offering in matched:
+        if str(offering.get("id", "")) in known:
+            continue
+        evidence.append(offering_evidence(root, offering))
     resolution_trace = legal_resolution_trace(root, question, evidence)
     context = "\n\n".join(
         evidence_block(index, item) for index, item in enumerate(evidence, start=1)
@@ -2418,10 +2482,9 @@ def answer_question(
     # "the data for which is input to ... the Software", it answered
     # "inconclusive". Answer first, qualify second, and only where the text
     # genuinely fails to decide it.
-    # Ask the graph first. It knows the licence models exactly, including their
-    # metric and what each inherits; the text scan is a fallback for families
-    # whose variants are not expressed as offerings.
-    matched = offerings_matching(root, question)
+    # The graph knows the licence models exactly, including their metric and
+    # what each inherits; the text scan is a fallback for families whose
+    # variants are not expressed as offerings.
     variants = [
         " · ".join(
             part
