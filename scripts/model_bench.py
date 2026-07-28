@@ -67,13 +67,19 @@ class HybridClient:
 
     # answering path -- cloud
     def chat(self, *, model, system, user, temperature=0.1, max_tokens=1600, **_):
+        # A reasoning model spends the completion budget thinking before it
+        # writes anything. At the 1600 the local path uses, gpt-5 consumed all
+        # 1600 on reasoning and returned an empty string with finish_reason
+        # "length" -- which scored as a bad answer rather than as no answer.
+        # The budget is headroom, not a target: gpt-5 reasons ~770 and answers
+        # in ~450 when given room.
         payload = {
             "model": model,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "max_completion_tokens": max_tokens,
+            "max_completion_tokens": max(max_tokens, 6000),
         }
         request = urllib.request.Request(
             f"{self._base}/chat/completions",
@@ -89,7 +95,53 @@ class HybridClient:
         except Exception as error:
             detail = getattr(error, "read", lambda: b"")()
             raise LMStudioError(f"{error} {detail[:300]!r}") from error
-        return body["choices"][0]["message"]["content"]
+        text = body["choices"][0]["message"]["content"]
+        if not text.strip():
+            reason = body["choices"][0].get("finish_reason", "")
+            raise LMStudioError(f"empty completion (finish_reason={reason})")
+        return text
+
+
+class AnthropicClient(HybridClient):
+    """Anthropic speaks a different wire format, not an OpenAI-compatible one."""
+
+    def chat(self, *, model, system, user, temperature=0.1, max_tokens=1600, **_):
+        payload = {
+            "model": model,
+            "system": system,
+            "messages": [{"role": "user", "content": user}],
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+        request = urllib.request.Request(
+            f"{self._base}/messages",
+            data=json.dumps(payload).encode(),
+            headers={
+                "x-api-key": self._key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self._timeout) as response:
+                body = json.loads(response.read())
+        except Exception as error:
+            detail = getattr(error, "read", lambda: b"")()
+            raise LMStudioError(f"{error} {detail[:300]!r}") from error
+        return "".join(
+            part.get("text", "")
+            for part in body.get("content", [])
+            if isinstance(part, dict)
+        )
+
+
+def list_anthropic_models(api_key: str) -> list[str]:
+    request = urllib.request.Request(
+        "https://api.anthropic.com/v1/models",
+        headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return [item["id"] for item in json.loads(response.read())["data"]]
 
 
 def list_models(base_url: str, api_key: str) -> list[str]:
@@ -108,7 +160,9 @@ CASES = [
         q="Does SFDC warrant that Customer's use of the Free Services will be uninterrupted?",
         opens=("no",),
         must=(),
-        must_not=("sfdc warrants that", "will be uninterrupted, timely"),
+        # Quoting the disclaimed words is how you show the disclaimer, so the
+        # earlier check penalised every model for answering correctly.
+        must_not=("sfdc warrants that",),
     ),
     dict(
         family="Salesforce",
@@ -159,6 +213,11 @@ CASES = [
 
 
 def score(case, text):
+    # A failed call must score nothing. Scoring it against the checks gave the
+    # must-not clauses a vacuous pass, and three models that never loaded came
+    # back at 4/15 apiece, which reads as a weak result rather than no result.
+    if text.startswith("ERROR "):
+        return 0, 0
     low = text.lower()
     points = hits = 0
     if case["opens"]:
@@ -181,6 +240,16 @@ def make_client(model):
     """Local by default; a cloud model keeps local retrieval and only answers."""
     if not model.startswith("cloud:"):
         return LMStudioClient(), model
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    name = model.split(":", 1)[1]
+    # One key field, either vendor. An Anthropic key is recognisable and the
+    # wire format differs, so the client is chosen from the key rather than
+    # asking the caller to keep two settings straight.
+    if key.startswith("sk-ant-"):
+        base = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
+        if not key:
+            raise SystemExit("OPENAI_API_KEY is not set")
+        return AnthropicClient(base, key), name
 
     key = os.environ.get("OPENAI_API_KEY", "")
     base = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
@@ -201,7 +270,7 @@ def run(model, structured):
 
         svc.evidence_block = plain
     client, model = make_client(model)
-    got = total = 0
+    got = total = failures = 0
     seconds = 0.0
     detail = []
     for case in CASES:
@@ -221,12 +290,14 @@ def run(model, structured):
         except Exception as error:
             answer = f"ERROR {error}"
         seconds += time.monotonic() - started
-        p, h = score(case, answer)
-        got += p
-        total += h
-        detail.append((case["q"][:44], p, h, answer[:90].replace("\n", " ")))
+        points, hits = score(case, answer)
+        if not hits:
+            failures += 1
+        got += points
+        total += hits
+        detail.append((case["q"][:44], points, hits, answer[:90].replace("\n", " ")))
     svc.evidence_block = original
-    return got, total, seconds, detail
+    return got, total, seconds, detail, failures
 
 
 def main() -> int:
@@ -241,19 +312,25 @@ def main() -> int:
         if not key:
             print("OPENAI_API_KEY is empty in .env", file=sys.stderr)
             return 2
-        for name in list_models(
-            os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"), key
-        ):
+        names = (
+            list_anthropic_models(key)
+            if key.startswith("sk-ant-")
+            else list_models(
+                os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"), key
+            )
+        )
+        for name in names:
             print(name)
         return 0
 
     print(f"{'model':34} {'reading':>9} {'score':>10} {'seconds':>9}")
     for model in args.models.split(","):
         for structured in (True, False):
-            got, total, seconds, detail = run(model.strip(), structured)
+            got, total, seconds, detail, failures = run(model.strip(), structured)
             print(
                 f"{model.strip()[:34]:34} {'on' if structured else 'off':>9} "
-                f"{got:4}/{total:<5} {seconds:8.0f}",
+                f"{got:4}/{total:<5} {seconds:8.0f}"
+                + (f"   {failures} CALL(S) FAILED" if failures else ""),
                 flush=True,
             )
             if args.verbose:

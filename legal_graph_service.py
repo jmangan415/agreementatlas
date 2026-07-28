@@ -1463,6 +1463,13 @@ def search_records(root: Path) -> list[dict]:
     return output
 
 
+# "what is a named user", "which licence models are there", "how many editions".
+# Not "is X counted as Y", "may X do Z" -- those want an answer, not a menu.
+ASKS_WHICH = re.compile(
+    r"^\W*(?:what|which|how\s+many|list|describe|explain|tell\s+me\s+about)\b", re.I
+)
+
+
 def offering_evidence(root: Path, offering: dict) -> dict:
     """An offering as an evidence entry, carrying the clause that defines it.
 
@@ -1527,6 +1534,13 @@ def offerings_matching(root: Path, question: str) -> list[dict]:
     the terms it inherits.
     """
 
+    # Only a question that asks which one applies wants a menu. "Is every file
+    # read counted as a Transaction?" mentions a metric two licence models
+    # happen to meter, and answering it with a list of those models leaves the
+    # question unanswered -- which is what gpt-5 did, obeying the ambiguity rule
+    # more literally than the local model. A yes/no question wants yes or no.
+    if not ASKS_WHICH.match(question.strip()):
+        return []
     wanted = {word for word in tokens(question) if len(word) > 2} - QUESTION_WORDS
     if not wanted:
         return []
@@ -2499,7 +2513,30 @@ def answer_question(
             if part
         )
         for item in matched
-    ] or competing_variants(question, evidence)
+    ] or (
+        competing_variants(question, evidence)
+        if ASKS_WHICH.match(question.strip())
+        else []
+    )
+    # The rule is supplied only when there is something for it to govern.
+    # Standing in the prompt unconditionally, it taught the model the format:
+    # gpt-5 answered "may Actuate licences be allocated to shared processes"
+    # with a VARIANTS list and no answer, having been told ambiguity comes
+    # first and no variants having been found.
+    ambiguity_rule = (
+        (
+            "AMBIGUITY COMES FIRST. The thing asked about has several named "
+            "variants in this family, listed under VARIANTS below. Do not "
+            "answer for one of them and do not silently choose. Say how many "
+            "there are, name them, give the one line that distinguishes each, "
+            "and end by asking which applies. If the answer is the same for "
+            "all of them, say that once and answer normally. The list is a "
+            "starting point: drop any entry the evidence does not support and "
+            "add any it missed.\n\n"
+        )
+        if len(variants) > 1
+        else ""
+    )
     system = (
         "You are a careful software and cloud agreement analyst. Use only the "
         "provided evidence and the deterministic legal-resolution trace. Document "
@@ -2510,15 +2547,8 @@ def answer_question(
         # the Actuate one and said nothing about the others. Confidently wrong
         # is the worst thing this tool can be, and a licensing question almost
         # always turns on which variant the customer bought.
-        "AMBIGUITY COMES FIRST. When the thing asked about has several named "
-        "variants in this family, or the answer differs depending on which "
-        "instrument governs, do not answer for one of them and do not silently "
-        "choose. Say how many there are, name them, give the one line that "
-        "distinguishes each, and end by asking which applies. If the answer is "
-        "the same for all of them, say that once and answer normally. A "
-        "VARIANTS line below lists what was found; it is a starting point, so "
-        "drop any entry the evidence does not support and add any it missed.\n\n"
-        "Otherwise answer the question asked, in its first sentence. If it is a "
+        + ambiguity_rule
+        + "Answer the question asked, in its first sentence. If it is a "
         "yes/no question, begin with Yes or No. Then give the reason, quoting "
         "the words of the agreement that decide it.\n\n"
         "Read definitions to their limits. A defined term is satisfied if any of "
