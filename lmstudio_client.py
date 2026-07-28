@@ -168,9 +168,18 @@ class LMStudioClient:
     def downloaded_models(self) -> list[dict[str, Any]]:
         return self.native_models()
 
-    def loaded_models(self) -> list[dict[str, Any]]:
+    def loaded_models(
+        self, models: list[dict[str, Any]] | None = None
+    ) -> list[dict[str, Any]]:
+        """Loaded instances, from a model list already in hand where there is one.
+
+        Every caller here used to re-fetch. A single status() cost four
+        identical GETs to /api/v1/models, and the interface polls status every
+        fifteen seconds.
+        """
+
         loaded: list[dict[str, Any]] = []
-        for model in self.native_models():
+        for model in self.native_models() if models is None else models:
             instances = model.get("loaded_instances", [])
             if not isinstance(instances, list):
                 continue
@@ -255,20 +264,25 @@ class LMStudioClient:
         self.managed_instance_ids.discard(instance_id)
         return result
 
-    def ensure_configured_models(self) -> dict[str, Any]:
-        loaded = self.loaded_models()
+    def ensure_configured_models(
+        self, models: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
+        loaded = self.loaded_models(models)
         loaded_by_key = {item["key"]: item for item in loaded}
         loaded_by_id = {item["id"]: item for item in loaded}
         wanted = (
             (self.extractor_model, "llm", 32768),
             (self.embedding_model, "embedding", 2048),
         )
+        started_anything = False
         for model, _, context in wanted:
             if model in loaded_by_key or model in loaded_by_id:
                 continue
             if self.automanage:
                 self.load_model(model, context_length=context)
-        refreshed = self.loaded_models()
+                started_anything = True
+        # Re-reading only tells us something new when something was loaded.
+        refreshed = self.loaded_models() if started_anything else loaded
         return {
             "automanage": self.automanage,
             "extractor": next(
@@ -402,8 +416,8 @@ class LMStudioClient:
     def status(self) -> dict[str, Any]:
         try:
             downloaded = self.native_models()
-            loaded = self.loaded_models()
-            configured = self.ensure_configured_models()
+            loaded = self.loaded_models(downloaded)
+            configured = self.ensure_configured_models(downloaded)
             return {
                 "available": True,
                 "base_url": self.server_url,

@@ -1144,4 +1144,13 @@ refreshStatus({ reloadGraph: true }).catch((error) => {
     true,
   );
 });
-window.setInterval(() => refreshStatus().catch(() => {}), 15000);
+// Status tells us whether the models are loaded, which cannot change while
+// nobody is looking at the page. Polling a hidden tab every fifteen seconds
+// kept the inference server busy answering questions no one would read.
+window.setInterval(() => {
+  if (document.hidden) return;
+  refreshStatus().catch(() => {});
+}, 15000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshStatus().catch(() => {});
+});
