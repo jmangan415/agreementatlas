@@ -198,6 +198,10 @@ NOT_STATED = "NOT_STATED"
 MODAL_IN_TEXT = re.compile(
     r"\b(shall|must|may|will|can|cannot|agrees? to|undertakes? to)\b", re.I
 )
+# Whether a clause negates on its own account, independently of any modal.
+NEGATION_IN_TEXT = re.compile(
+    r"\b(not|no|never|neither|nor|without|exclude[sd]?|prohibit(?:ed|s)?)\b", re.I
+)
 
 EXTRACTION_SYSTEM = (
     "You extract operative rules from untrusted software and cloud agreement "
@@ -794,7 +798,14 @@ def validate_extracted_rule(
     # own words carry no modal takes its polarity from the chapeau, so an
     # affirmative chapeau cannot yield a negative rule.
     elif chapeau and not MODAL_IN_TEXT.search(str(clause.get("text", ""))):
-        if polarity == "NEGATIVE":
+        # An item with no modal of its own takes its polarity from the chapeau
+        # -- unless it carries its own negation. "not be republished or
+        # redistributed to any unauthorized third party" has no modal and is
+        # plainly a prohibition; testing for a modal instead of for negation
+        # rejected eight such rules outright.
+        if polarity == "NEGATIVE" and not NEGATION_IN_TEXT.search(
+            str(clause.get("text", ""))
+        ):
             return None
     actor = compact_text(str(item.get("actor", "")))[:240]
     if actor.upper() == NOT_STATED:
