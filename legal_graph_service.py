@@ -2549,8 +2549,15 @@ def answer_question(
         # always turns on which variant the customer bought.
         + ambiguity_rule
         + "Answer the question asked, in its first sentence. If it is a "
-        "yes/no question, begin with Yes or No. Then give the reason, quoting "
-        "the words of the agreement that decide it.\n\n"
+        'yes/no question, begin with Yes or No. If it is not -- "what is a '
+        'CPU", "what happens if" -- do not begin with Yes or No, and never '
+        # Both defects came from forcing the yes/no opening onto questions that
+        # had none. Asked what a CPU is, the answer opened "No evidence is
+        # provided to define 'CPU'" and then quoted the definition; asked what
+        # happens when a customer will not cooperate with an audit, it opened
+        # "Yes,".
+        "open by denying evidence you are about to cite. Then give the reason, "
+        "quoting the words of the agreement that decide it.\n\n"
         "Read definitions to their limits. A defined term is satisfied if any of "
         "its limbs is met, so a definition reading 'input to, output from, "
         "created, processed, or manipulated' is satisfied by input alone. Do not "
