@@ -424,6 +424,63 @@ class DeepIndexTests(unittest.TestCase):
         self.assertIn("[1]", answer["answer"])
 
 
+class ChapeauEligibilityTests(unittest.TestCase):
+    """A list item must reach the model even though its modal is elsewhere.
+
+    "only be used to support Licensee's use of the Software" carries no modal of
+    its own -- the "may" belongs to the chapeau above it -- so a filter that
+    tests the clause's own text excluded it, and the model was never asked about
+    it at all. The interface then presented the deterministic guess as analysis.
+    """
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.workspace = Path(self.temporary.name)
+        sources = self.workspace / "sources"
+        sources.mkdir()
+        # The list splitter needs parenthesised labels and a prefix ending in a
+        # colon, which is how a numbered agreement actually prints a list.
+        (sources / "chapeau.md").write_text(
+            "1. Copies and Documentation\n\n"
+            "Licensee may make copies of the Software as licensed. "
+            "The Documentation may: (a) only be used to support internal "
+            "business operations; (b) not be published to any third party.\n",
+            encoding="utf-8",
+        )
+        rebuild_workspace(self.workspace)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def test_a_list_item_without_its_own_modal_is_still_offered_to_the_model(
+        self,
+    ) -> None:
+        clauses = read_jsonl(self.workspace / "legal" / "clauses.jsonl")
+        children = [item for item in clauses if item.get("chapeau_clause_id")]
+        self.assertTrue(children, "fixture produced no chapeau children")
+        eligible = {
+            str(item.get("id", "")) for item in substantive_clauses(self.workspace)
+        }
+        missing = [
+            str(item.get("text", ""))
+            for item in children
+            if str(item.get("id", "")) not in eligible
+        ]
+        self.assertEqual(
+            missing,
+            [],
+            "chapeau children excluded from enrichment: " + "; ".join(missing),
+        )
+
+    def test_a_chapeau_itself_is_still_excluded(self) -> None:
+        # The chapeau is extracted through its children; sending it separately
+        # would duplicate every rule the list already produces.
+        eligible = substantive_clauses(self.workspace)
+        self.assertFalse(
+            [item for item in eligible if item.get("clause_kind") == "CHAPEAU"]
+        )
+
+
 class LMStudioManagementTests(unittest.TestCase):
     def test_allowlisted_load_and_managed_only_unload(self) -> None:
         with patch.dict(

@@ -1612,6 +1612,27 @@ def clause_rule(
     return rules[0] if rules else None
 
 
+def governing_chapeau(text: str) -> str:
+    """The one sentence of a chapeau that binds the list beneath it.
+
+    A chapeau is a container, not a unit of meaning. "Licensee shall not:" is a
+    single act and reads correctly whole, but a paragraph that permits, then
+    obliges, then forbids, and only then introduces a list is four acts, and the
+    list continues the last of them. Reading the container gave every item a
+    label assembled from sentences it had nothing to do with.
+
+    A list follows the sentence that introduces it, so the governing act is the
+    final one carrying an effect; a trailing fragment that imposes nothing --
+    a heading, a cross-reference -- is skipped rather than inherited.
+    """
+
+    propositions = operative_propositions(text)
+    for proposition in reversed(propositions):
+        if modality_and_polarity(proposition)[0]:
+            return proposition
+    return propositions[-1] if propositions else text
+
+
 def clause_rules(
     family_id: str,
     clause: Clause,
@@ -1622,7 +1643,19 @@ def clause_rules(
     chapeau = clause_lookup.get(clause.chapeau_clause_id)
     if chapeau:
         # A list item inherits its modality from the chapeau ("Customer shall
-        # not: (a) ...; (b) ..."). Splitting here would strip that inheritance.
+        # not: (a) ...; (b) ..."), so the two are read together rather than the
+        # item alone -- otherwise the negation is stripped and every limb of a
+        # disclaimer becomes a warranty.
+        #
+        # Only the *governing* sentence is inherited, though. A chapeau is often
+        # a whole paragraph: "Licensee may make as many copies ... Each copy
+        # must contain the same notices ... Licensee will not modify the
+        # Documentation. Documentation may" -- four acts, and the list item
+        # continues the last one. Read whole, that item came back as
+        # PROHIBITION/MUST/NEGATIVE with the object of the first act, a label
+        # assembled from three different sentences and describing none of them.
+        # Read against its own governing sentence it is PERMISSION/MAY, which is
+        # what the agreement says.
         return [
             rule
             for rule in [
@@ -1630,7 +1663,7 @@ def clause_rules(
                     family_id,
                     clause,
                     roles,
-                    f"{chapeau.text} {clause.text}",
+                    f"{governing_chapeau(chapeau.text)} {clause.text}",
                     clause.text,
                     chapeau,
                 )
