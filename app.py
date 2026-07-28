@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import html
 import io
 import ipaddress
@@ -21,6 +22,7 @@ from urllib.parse import parse_qs, urlparse
 
 from dotenv import load_dotenv
 
+import conversation
 from legal_graph_service import (
     answer_question,
     compact_graph,
@@ -83,6 +85,9 @@ library_store = LibraryStore(LIBRARY_ROOT) if PERSISTENT else None
 rate_limiter = RateLimiter()
 lm_client = LMStudioClient()
 lm_slots = threading.BoundedSemaphore(env_int("LMSTUDIO_MAX_CONCURRENT_JOBS", 1))
+
+# name -> (mtime_ns, digest). Recomputed only when the file changes.
+ASSET_VERSIONS: dict[str, tuple[int, str]] = {}
 
 job_guard = threading.RLock()
 jobs: dict[str, dict] = {}
@@ -263,6 +268,72 @@ def workspace_store():
     """Whichever store owns workspaces in this mode."""
 
     return library_store if PERSISTENT else session_store
+
+
+DEMO_BUNDLE = Path(
+    os.environ.get("DEMO_BUNDLE", "") or (ROOT / "samples" / "demo_bundle")
+)
+
+
+def demo_manifest() -> dict:
+    """What the bundled sample family contains, or {} if none is installed."""
+
+    manifest = DEMO_BUNDLE / "demo.json"
+    if not manifest.is_file():
+        return {}
+    try:
+        return json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def load_demo_family(visitor) -> dict:
+    """Copy the prebuilt sample family into this visitor's workspace.
+
+    The public demo has no shared library by design, so without this a visitor
+    arrives at an empty workspace inviting them to upload an agreement -- which
+    the terms tell them not to do. Everything the product does was therefore
+    invisible to anyone unwilling to hand over a contract.
+
+    The bundle is already parsed, enriched and embedded, so this is a file copy
+    rather than minutes of model work, and it cannot be used to skip the
+    enrichment rate limit: nothing here calls the model.
+    """
+
+    manifest = demo_manifest()
+    if not manifest:
+        raise APIError(
+            503,
+            "no_demo",
+            "The sample family is not installed on this deployment.",
+        )
+    source = DEMO_BUNDLE / "legal"
+    if not source.is_dir():
+        raise APIError(503, "no_demo", "The sample family is incomplete.")
+
+    # Replace rather than merge. Merging a prebuilt graph into whatever the
+    # visitor already uploaded would produce a family whose precedence rules
+    # span two unrelated agreements and answer questions about neither.
+    for name in ("legal", "sources", "input", "output"):
+        target = visitor.root / name
+        if target.exists():
+            shutil.rmtree(target, ignore_errors=True)
+    for name in ("legal", "sources", "input", "output"):
+        origin = DEMO_BUNDLE / name
+        if origin.is_dir():
+            shutil.copytree(origin, visitor.root / name)
+
+    status = schema_status(visitor.root)
+    return {
+        "loaded": True,
+        "name": manifest.get("name", "Sample family"),
+        "documents": workspace_documents(visitor.root),
+        "clauses": manifest.get("clauses", 0),
+        "definitions": manifest.get("definitions", 0),
+        "enriched": bool(manifest.get("enriched")),
+        "build_mode": status["build_mode"],
+        "schema_version": status["schema_version"],
+    }
 
 
 def ingest_uploads(visitor, uploaded: list[tuple[str, bytes]]) -> dict:
@@ -676,6 +747,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(length))
         self.send_header("Cache-Control", cache)
         self.send_header("X-Content-Type-Options", "nosniff")
+        # Announced only for the public deployment: sent from a local install it
+        # would teach the browser to force HTTPS on 127.0.0.1, which has no
+        # certificate, and lock the developer out of their own copy.
+        if not PERSISTENT:
+            self.send_header(
+                "Strict-Transport-Security", "max-age=15552000; includeSubDomains"
+            )
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")
@@ -777,6 +855,7 @@ class Handler(BaseHTTPRequestHandler):
             "documents": [],
             "graph_ready": False,
             "enriched": False,
+            "sample_family": demo_manifest().get("name", ""),
             "enrichment": {
                 "state": "idle",
                 "stage": "idle",
@@ -831,6 +910,9 @@ class Handler(BaseHTTPRequestHandler):
             "enriched": (
                 visitor.root / "output" / "legal_relationship_graph_enriched.json"
             ).exists(),
+            # Offered only where a bundle is installed, so the interface does
+            # not advertise a button that would fail.
+            "sample_family": demo_manifest().get("name", ""),
             "enrichment": enrichment,
             # Durable, unlike the job dictionary above, which is empty after a
             # restart even for a family that took hours to extract.
@@ -939,6 +1021,10 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 self.json_response(ingest_uploads(visitor, uploaded), 201)
                 return
+            if path == "/api/demo":
+                self.check_rate("demo", visitor, limit=6, window=10 * 60)
+                self.json_response(load_demo_family(visitor), 201)
+                return
             if path == "/api/enrich":
                 self.check_rate("enrich", visitor, limit=2, window=60 * 60)
                 if not workspace_documents(visitor.root):
@@ -970,12 +1056,31 @@ class Handler(BaseHTTPRequestHandler):
                         "model_busy",
                         "The local model is busy. Please try again shortly.",
                     )
+                # The assistant may have ended the previous turn by asking
+                # which variant applies. Without this the reply to that question
+                # arrives as a bare word with nothing to attach it to, and gets
+                # answered as though it were a new question about nothing.
+                history = conversation.load(visitor.root)
+                asked, chosen = conversation.resolve_followup(question, history)
                 try:
-                    result = answer_question(visitor.root, lm_client, model, question)
+                    result = answer_question(
+                        visitor.root, lm_client, model, asked, history=history
+                    )
                 except LMStudioError as exc:
                     raise APIError(502, "model_error", safe_lm_error(exc)) from None
                 finally:
                     lm_slots.release()
+                conversation.append(
+                    visitor.root,
+                    {
+                        "question": asked,
+                        "answer": str(result.get("answer", ""))[:600],
+                        "offered": result.get("offered") or [],
+                    },
+                )
+                if chosen:
+                    result["understood_as"] = asked
+                    result["selected_variant"] = chosen
                 result["disclaimer"] = (
                     "AI-assisted document interpretation, not legal advice. "
                     "Verify conclusions against the cited agreement text."
@@ -1053,6 +1158,30 @@ class Handler(BaseHTTPRequestHandler):
                 500,
             )
 
+    def asset_version(self, name: str) -> str:
+        """A short content hash for a static asset, recomputed when it changes.
+
+        The origin asks for `no-cache`, and the CDN in front of it answers with
+        a four-hour browser TTL regardless, so a deployed change kept running
+        the previous script in every browser that had already visited -- which
+        on screen is indistinguishable from the change not working. Versioning
+        the URL settles it without depending on a CDN setting: the HTML is
+        `no-store`, so it always carries the current hash, and a changed file is
+        a different URL.
+        """
+
+        target = (WEB / name).resolve()
+        try:
+            stamp = target.stat().st_mtime_ns
+        except OSError:
+            return ""
+        cached = ASSET_VERSIONS.get(name)
+        if cached and cached[0] == stamp:
+            return cached[1]
+        digest = hashlib.sha256(target.read_bytes()).hexdigest()[:10]
+        ASSET_VERSIONS[name] = (stamp, digest)
+        return digest
+
     def serve_static(self, path: str) -> None:
         if path in {"/", ""}:
             path = "/index.html"
@@ -1071,6 +1200,10 @@ class Handler(BaseHTTPRequestHandler):
                 "{{RETENTION_HOURS}}": str(SESSION_TTL_HOURS),
                 "{{APP_MODE}}": html.escape(APP_MODE),
             }
+            for asset in ("app.js", "styles.css"):
+                digest = self.asset_version(asset)
+                if digest:
+                    replacements[f'"/{asset}"'] = f'"/{asset}?v={digest}"'
             content = resolved.read_text(encoding="utf-8")
             for marker, replacement in replacements.items():
                 content = content.replace(marker, replacement)
@@ -1085,6 +1218,10 @@ class Handler(BaseHTTPRequestHandler):
                 ".png": "image/png",
                 ".ico": "image/x-icon",
                 ".json": "application/json; charset=utf-8",
+                ".svg": "image/svg+xml",
+                ".woff2": "font/woff2",
+                ".xml": "application/xml; charset=utf-8",
+                ".txt": "text/plain; charset=utf-8",
             }
             content_type = content_types.get(
                 resolved.suffix, "application/octet-stream"
@@ -1094,7 +1231,13 @@ class Handler(BaseHTTPRequestHandler):
             # local server, and an hour-long cache means a changed interface
             # silently keeps running the previous script until a hard refresh --
             # indistinguishable, on screen, from the change not working.
-            cache = "no-cache"
+            # A fingerprinted URL names one immutable body, so it can be kept
+            # forever. A bare one is whatever is current and must be revalidated.
+            cache = (
+                "public, max-age=31536000, immutable"
+                if parse_qs(urlparse(self.path).query).get("v")
+                else "no-cache"
+            )
         self.send_response(200)
         self._common_headers(content_type, len(body), cache=cache)
         self.end_headers()

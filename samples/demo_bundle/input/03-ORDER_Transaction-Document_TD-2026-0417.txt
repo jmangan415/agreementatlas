@@ -1,0 +1,234 @@
+[DOCUMENT] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[SOURCE] 03-ORDER_Transaction-Document_TD-2026-0417.md
+[INSTRUMENT_CLASS] ORDER
+[INSTRUMENT_TYPE] ORDER_SCHEDULE
+[VERSION] 4.2
+[EFFECTIVE_DATE] unknown
+
+[CLAUSE_ID] clause:66d9e11bc975d33adac8
+[SECTION] Preamble
+[SECTION_PATH] Preamble Preamble
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+
+[CLAUSE_ID] clause:669ffa119fa639cee710
+[SECTION] Preamble (2)
+[SECTION_PATH] Preamble Preamble
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] **Transaction Document No. TD-2026-0417**
+
+[CLAUSE_ID] clause:25acd58882768f2af979
+[SECTION] Preamble (3)
+[SECTION_PATH] Preamble Preamble
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:6e965cf225a09e632ec0
+[SECTION] 1
+[SECTION_PATH] 1 Order Details
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · United Kingdom · fees
+[CLAUSE_TEXT] | Field | Value | |---|---| | Supplier | Northwind Data Systems plc ("NDS") | | Supplier registered office | 40 Bishopsgate, London EC2N 4AJ, United Kingdom | | Supplier company number | 07734112 | | Licensee | Meridian Retail Group plc | | Licensee registered office | Meridian House, 12 Colmore Row, Birmingham B3 2QD | | Licensee company number | 04188206 | | Transaction Document No. | TD-2026-0417 | | Quotation reference | Q-2026-11884 rev.3 | | Licensee purchase order | MRG-PO-884213 | | Order Date | 17 April 2026 | | Subscription Term Start | 1 May 2026 | | Subscription Term End | 30 April 2029 | | Initial Term | 36 months | | Currency | GBP (£) | | Payment Terms | Net 30 days from invoice date | | Billing Frequency | Annual in advance | | NDS Account Executive | R. Okonjo | | Governing Master Agreement | Northwind Master Software Licence and Services Agreement, v4.2, executed 3 April 2026 |
+
+[CLAUSE_ID] clause:b62d658a6d41c0c96fd4
+[SECTION] 1 (2)
+[SECTION_PATH] 1 Order Details
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:75a14e4fb51a67df36f7
+[SECTION] 2
+[SECTION_PATH] 2 Licensed Software
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · fees
+[CLAUSE_TEXT] | Line | SKU | Product | Licence Model | Metric | Deployment Type | Qty | Unit List Price | Disc. % | Extended Annual Fee | |---:|---|---|---|---|---|---:|---:|---:|---:| | 1 | NDS-IH-STD-NU | InsightHub Analytics Platform | Standard Named User | Named User | Production | 850 | £420.00 | 32% | £242,760.00 | | 2 | NDS-IH-OCC-NU | InsightHub Analytics Platform | Occasional Named User | Named User | Production | 1,200 | £126.00 | 32% | £102,816.00 | | 3 | NDS-IH-RO-NU | InsightHub Analytics Platform | Read-Only Named User | Named User | Production | 2,400 | £84.00 | 40% | £120,960.00 | | 4 | NDS-IH-CON-NU | InsightHub Analytics Platform | Contractor Named User | Named User | Production | 180 | £420.00 | 20% | £60,480.00 | | 5 | NDS-IH-STD-NP | InsightHub Analytics Platform | Standard Named User | Named User | Non-Production | 120 | £105.00 | 40% | £7,560.00 | | 6 | NDS-CL-CORE | CoreLedger Financial Suite | Core-Based | Core | Production | 96 | £3,150.00 | 28% | £217,728.00 | | 7 | NDS-CL-CORE-DR | CoreLedger Financial Suite | Core-Based | Core | Disaster Recovery (warm standby) | 48 | £1,575.00 | 28% | £54,432.00 | | 8 | NDS-VK-TB | VaultKeep Archive | Managed Volume | Terabyte | Production | 340 | £680.00 | 25% | £173,400.00 | | | | | | | | | | **Annual Software Fee** | **£980,136.00** |
+
+[CLAUSE_ID] clause:2807db59d94701500be0
+[SECTION] 2.1
+[SECTION_PATH] 2.1 Support and Maintenance
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · support · fees
+[CLAUSE_TEXT] | Line | SKU | Description | Basis | Rate | Annual Fee | |---:|---|---|---|---:|---:| | 9 | NDS-SUP-PREM | Premier Support — 24×7, Severity 1 response 1 hour | 22% of Annual Software Fee | 22% | £215,629.92 |
+
+[CLAUSE_ID] clause:3a87c2f5ad9cd8d613eb
+[SECTION] 2.2
+[SECTION_PATH] 2.2 Professional Services
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] | Line | SKU | Description | Basis | Qty | Day Rate | Total | |---:|---|---|---|---:|---:|---:| | 10 | NDS-PS-IMP | InsightHub implementation and data migration | Fixed capacity | 120 days | £1,250.00 | £150,000.00 | | 11 | NDS-PS-TRN | Administrator training, on-site, max 12 delegates per session | Per session | 6 | £3,400.00 | £20,400.00 |
+
+[CLAUSE_ID] clause:7d6cbdee9153306e2b1a
+[SECTION] 2.3
+[SECTION_PATH] 2.3 Contract Value Summary
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · support · fees
+[CLAUSE_TEXT] | Item | Year 1 | Year 2 | Year 3 | Total | |---|---:|---:|---:|---:| | Annual Software Fee | £980,136.00 | £1,009,540.08 | £1,039,826.28 | £3,029,502.36 | | Premier Support | £215,629.92 | £222,098.82 | £228,761.78 | £666,490.52 | | Professional Services | £170,400.00 | — | — | £170,400.00 | | **Total (excl. VAT)** | **£1,366,165.92** | **£1,231,638.90** | **£1,268,588.06** | **£3,866,392.88** |
+
+[CLAUSE_ID] clause:af7cabb1563a7cad50be
+[SECTION] 2.3 (2)
+[SECTION_PATH] 2.3 Contract Value Summary
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · support · fees
+[CLAUSE_TEXT] Annual uplift of three per cent (3%) applies to the Annual Software Fee and to Premier Support on each anniversary of the Subscription Term Start, as provided in Section 4.3 below.
+
+[CLAUSE_ID] clause:ebeb1769a590e4daafc2
+[SECTION] 2.3 (3)
+[SECTION_PATH] 2.3 Contract Value Summary
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:792ceac3ab74837fa571
+[SECTION] 3.1
+[SECTION_PATH] 3 Deployment and Delivery
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] 3.1 The Software will be delivered electronically to the technical contact identified in Section 6 within five (5) Business Days of the Order Date.
+
+[CLAUSE_ID] clause:927936c04044c68536fb
+[SECTION] 3.2
+[SECTION_PATH] 3 Deployment and Delivery
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] 3.2 InsightHub is licensed for deployment in Licensee's tenancy in the London and Dublin regions only. Deployment in any other region requires NDS's prior written consent.
+
+[CLAUSE_ID] clause:2a63e1c87bf0b0c4813a
+[SECTION] 3.3
+[SECTION_PATH] 3 Deployment and Delivery
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] 3.3 CoreLedger is licensed for deployment on a maximum of four (4) Instances in Production and two (2) Instances in Disaster Recovery.
+
+[CLAUSE_ID] clause:a0ca33431991eb5c4e6d
+[SECTION] 3 (4)
+[SECTION_PATH] 3 Deployment and Delivery
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:da2e30fd200a4d2eb975
+[SECTION] 4.1
+[SECTION_PATH] 4 Commercial Terms
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · fees
+[CLAUSE_TEXT] 4.1 **Payment.** Licensee shall pay each undisputed invoice within thirty (30) days of the invoice date. Invoices are issued annually in advance, the first on the Subscription Term Start.
+
+[CLAUSE_ID] clause:28e76c51b36f2a0d518e
+[SECTION] 4.2
+[SECTION_PATH] 4 Commercial Terms
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · fees
+[CLAUSE_TEXT] 4.2 **Taxes.** All fees are exclusive of VAT and of any other applicable sales, use or withholding taxes, which are payable by Licensee in addition.
+
+[CLAUSE_ID] clause:620bbeedbb4e0ae93463
+[SECTION] 4.3
+[SECTION_PATH] 4 Commercial Terms
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · support · fees
+[CLAUSE_TEXT] 4.3 **Uplift.** The Annual Software Fee and the Premier Support fee increase by three per cent (3%) on each anniversary of the Subscription Term Start. This Section 4.3 replaces, for the Software licensed under this Transaction Document only, the uplift provision at Section 6.4 of the Master Agreement.
+
+[CLAUSE_ID] clause:cdcae58db8b13703d1e8
+[SECTION] 4.4
+[SECTION_PATH] 4 Commercial Terms
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] 4.4 **Renewal.** Notwithstanding Section 12.2 of the Master Agreement, the Subscription Term under this Transaction Document does not renew automatically. NDS shall issue a renewal quotation not less than one hundred and twenty (120) days before the Subscription Term End.
+
+[CLAUSE_ID] clause:83703b6710029e810b94
+[SECTION] 4.5
+[SECTION_PATH] 4 Commercial Terms
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] 4.5 **Price hold.** Licensee may purchase additional Software Licences for the SKUs listed in Section 2 at the unit prices and discount levels shown, at any time before 30 April 2028. Additional Software Licences purchased under this Section 4.5 are co-terminous with the Subscription Term.
+
+[CLAUSE_ID] clause:db6e395c08ae1cb3ae16
+[SECTION] 4 (6)
+[SECTION_PATH] 4 Commercial Terms
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:65d938f846ad8c9a93d8
+[SECTION] 5
+[SECTION_PATH] 5 Special Provisions
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] The following provisions apply to the Software licensed under this Transaction Document and, to the extent of any inconsistency, prevail over the Master Agreement and over the Licence Model Schedule in accordance with Section 14.9 (Order of Precedence) of the Master Agreement.
+
+[CLAUSE_ID] clause:2f16b4141dee98ac20b7
+[SECTION] 5.1
+[SECTION_PATH] 5 Special Provisions
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] 5.1 **Definition of Authorised User for InsightHub.** For InsightHub only, and notwithstanding Section 1(F) of the Licence Model Schedule and Section 1.4 of the Master Agreement, "**Authorised User**" means a named individual employee of Licensee or of a Licensee Affiliate listed in Schedule 1 to this Transaction Document. Contractors, agency staff and third-party personnel are excluded from this definition and must be licensed under the Contractor Named User Licence Model.
+
+[CLAUSE_ID] clause:38f66ce88e5d4eaafc7c
+[SECTION] 5.2
+[SECTION_PATH] 5 Special Provisions
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · assignment
+[CLAUSE_TEXT] 5.2 **Affiliate allocation.** Licensee may allocate Software Licences under this Transaction Document to the Affiliates listed in Schedule 1 only. Allocation to any other Affiliate requires NDS's prior written consent, which shall not be unreasonably withheld. For the avoidance of doubt, this Section 5.2 permits allocation only, and does not permit assignment or transfer, which remains governed by Section 14.3 of the Master Agreement.
+
+[CLAUSE_ID] clause:68e0037fbb2e7b153f25
+[SECTION] 5.3
+[SECTION_PATH] 5 Special Provisions
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] 5.3 **Contractor Named User cap disapplied.** Section 3.3(iv) of the Licence Model Schedule, which caps Contractor Named User Software Licences at twenty-five per cent (25%) of total Named User Software Licences, does not apply to this Transaction Document.
+
+[CLAUSE_ID] clause:b43dc6966550d61d7c44
+[SECTION] 5.4
+[SECTION_PATH] 5 Special Provisions
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] 5.4 **Audit frequency.** NDS may exercise its audit right under Section 9.1 of the Master Agreement no more than once in any twenty-four (24) month period in respect of the Software licensed under this Transaction Document, rather than once in any twelve (12) month period.
+
+[CLAUSE_ID] clause:96ba26eef22af3c237b1
+[SECTION] 5.5
+[SECTION_PATH] 5 Special Provisions
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] 5.5 **Occasional Named User day count.** For InsightHub only, the forty (40) calendar day limit in Section 3.2(i) of the Licence Model Schedule is increased to fifty-two (52) calendar days in any calendar year.
+
+[CLAUSE_ID] clause:9fd3f502eda8dfe2c1ea
+[SECTION] 5.6
+[SECTION_PATH] 5 Special Provisions
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · fees
+[CLAUSE_TEXT] 5.6 **Termination for convenience.** Licensee may terminate the VaultKeep Archive licence at line 8 only, on ninety (90) days' written notice, effective no earlier than the second anniversary of the Subscription Term Start. No refund of prepaid fees is payable on such termination.
+
+[CLAUSE_ID] clause:f6efd0ec84dc8a09d9e4
+[SECTION] 5 (8)
+[SECTION_PATH] 5 Special Provisions
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:5ad294e3756c72f317e6
+[SECTION] 6
+[SECTION_PATH] 6 Contacts and Notices
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] | Role | Name | Organisation | Email | |---|---|---|---| | Licensee commercial contact | A. Whitfield, Head of Procurement | Meridian Retail Group plc | procurement@example.invalid | | Licensee technical contact | S. Ramanathan, Director of Platform Engineering | Meridian Retail Group plc | platform@example.invalid | | Licensee legal notices | Company Secretary | Meridian Retail Group plc | legal@example.invalid | | NDS commercial contact | R. Okonjo, Enterprise Account Director | Northwind Data Systems plc | orders@example.invalid | | NDS legal notices | General Counsel | Northwind Data Systems plc | legal@example.invalid |
+
+[CLAUSE_ID] clause:fccbbabe900d4c55bc9a
+[SECTION] 6 (2)
+[SECTION_PATH] 6 Contacts and Notices
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:dcd40953142f92e862cd
+[SECTION] 7
+[SECTION_PATH] 7 Schedule 1 — Permitted Affiliates
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT · Ireland
+[CLAUSE_TEXT] | Affiliate | Jurisdiction | Company number | Permitted products | |---|---|---|---| | Meridian Retail (Ireland) Ltd | Ireland | IE-442118 | InsightHub, CoreLedger | | Meridian Logistics Ltd | England & Wales | 05512907 | InsightHub | | Meridian Financial Services Ltd | England & Wales | 06730155 | CoreLedger, VaultKeep | | Northgate Convenience Stores Ltd | Scotland | SC318842 | InsightHub (Read-Only only) |
+
+[CLAUSE_ID] clause:646dfe9530b9c7dc7f8d
+[SECTION] 7 (2)
+[SECTION_PATH] 7 Schedule 1 — Permitted Affiliates
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:2683ec7da7c5ffcda7f0
+[SECTION] 8
+[SECTION_PATH] 8 Execution
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] This Transaction Document is entered into under, and incorporates, the Northwind Master Software Licence and Services Agreement v4.2 executed 3 April 2026. In the event of an inconsistency, the order of precedence at Section 14.9 of the Master Agreement applies.
+
+[CLAUSE_ID] clause:3bcaaf9ef57a3191ca21
+[SECTION] 8 (2)
+[SECTION_PATH] 8 Execution
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] | | Northwind Data Systems plc | Meridian Retail Group plc | |---|---|---| | Signature | _______________________ | _______________________ | | Name | R. Okonjo | A. Whitfield | | Title | Enterprise Account Director | Head of Procurement | | Date | 17 April 2026 | 17 April 2026 |
+
+[CLAUSE_ID] clause:50686a8066ff959c551d
+[SECTION] 8 (3)
+[SECTION_PATH] 8 Execution
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:0dd809ad068e747dc255
+[SECTION] 8 (4)
+[SECTION_PATH] 8 Execution
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] NOTE ON THIS DOCUMENT
+
+[CLAUSE_ID] clause:bef857f7d4e2a5913293
+[SECTION] 8 (5)
+[SECTION_PATH] 8 Execution
+[SCOPE] NORTHWIND DATA SYSTEMS PLC — TRANSACTION DOCUMENT
+[CLAUSE_TEXT] This is a fictional agreement written for demonstration purposes. Northwind Data Systems plc and Meridian Retail Group plc do not exist, no part of this document is legal advice, and any pricing shown is illustrative.

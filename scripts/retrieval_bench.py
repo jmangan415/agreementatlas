@@ -9,8 +9,16 @@ the graph, extracted correctly, and nowhere in the fourteen items retrieved.
 
 Answer quality cannot see that failure: "Yes" was right by accident. This scores
 retrieval alone, so the ranking work has a number to move that is not confounded
-by what the model does with what it is handed. No model is called, so it runs in
-seconds.
+by what the model does with what it is handed. No answering model is called, so
+it runs in seconds.
+
+Embeddings are not optional. `retrieve_evidence` fuses BM25 with vector
+similarity, and given no client it silently drops the vector arm and ranks on
+BM25 alone. The first version of this file did exactly that, so a whole round of
+ranking work was scored against a pipeline the application never runs: the
+decisive clause below sat at rank 4 with BM25 alone and did not appear at all
+once the vector arm was restored. `--no-embed` isolates the lexical arm on
+purpose; it does not measure the product.
 
 Ground truth is a distinctive fragment of the text that ought to be cited rather
 than a record id, because ids change with a rebuild and a fragment can be read
@@ -31,6 +39,7 @@ sys.path.insert(0, str(ROOT))
 
 from legal_graph_service import compact_text, retrieve_evidence  # noqa: E402
 from library_store import LibraryStore  # noqa: E402
+from lmstudio_client import LMStudioClient  # noqa: E402
 
 # corpus 1 -- the families the pipeline was developed against.
 # corpus 2 -- the cloud vendors held back, so ranking is not tuned on OpenText.
@@ -141,8 +150,23 @@ def main() -> int:
         "--corpus", type=int, choices=(1, 2), help="restrict to one corpus"
     )
     parser.add_argument("--limit", type=int, default=14, help="evidence budget")
+    parser.add_argument(
+        "--no-embed",
+        action="store_true",
+        help="lexical arm only -- diagnostic, not the shipped pipeline",
+    )
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+
+    client = None
+    if not args.no_embed:
+        client = LMStudioClient()
+        # Falling back to BM25 on a dead embedding server would print a plausible
+        # score for the wrong pipeline, which is the mistake this guard exists to
+        # stop repeating.
+        client.embeddings(
+            ["ranking benchmark reachability probe"], input_type="search_query"
+        )
 
     families = {item.name: item for item in LibraryStore(args.root).list()}
     cases = [
@@ -160,7 +184,10 @@ def main() -> int:
     rows: list[tuple[dict, int]] = []
     for case in cases:
         evidence = retrieve_evidence(
-            families[case["family"]].root, case["question"], limit=args.limit
+            families[case["family"]].root,
+            case["question"],
+            limit=args.limit,
+            embedding_client=client,
         )
         rank = rank_of(evidence, case["must_retrieve"])
         rows.append((case, rank))

@@ -13,6 +13,7 @@ const state = {
   transform: { x: 0, y: 0, k: 1 },
   drag: null,
   poll: null,
+  answerIds: new Set(),
   familyId: window.localStorage.getItem("agreementatlas.family") || "",
 };
 
@@ -328,6 +329,8 @@ async function refreshStatus({ reloadGraph = false } = {}) {
   renderRuntime();
   renderExpiry();
   renderProvenance();
+  renderSampleOffer();
+  renderSuggestions();
   if (reloadGraph || (!state.graph.nodes.length && state.status.graph_ready)) {
     await loadGraph();
   }
@@ -335,6 +338,69 @@ async function refreshStatus({ reloadGraph = false } = {}) {
     state.poll = window.setInterval(pollEnrichment, 2500);
   }
 }
+
+// A visitor who has not uploaded anything can see nothing the product does, and
+// the terms correctly tell them not to upload a real agreement. The sample
+// family is the only path from landing to understanding, so it is offered
+// wherever the workspace is empty and a bundle exists to load.
+// Questions checked against the sample family rather than written from
+// intuition: each one was asked, and the answer read, before it was offered.
+// They are shown only when that corpus is loaded -- against a visitor's own
+// upload they would name products that are not there.
+const SAMPLE_QUESTIONS = [
+  "Do I need a licence for someone who is authorised to use the software but has never logged in?",
+  "How many days per year can an Occasional Named User access InsightHub?",
+  "Can I assign my licence to an affiliate?",
+  "Does NDS warrant that usage data produced by the Software will be accurate?",
+  "What happens if we are found to be under-licensed in an audit?",
+];
+
+function renderSuggestions() {
+  const host = $("#suggestions");
+  if (!host) return;
+  const sampleLoaded = (state.status.documents || []).some((item) =>
+    String(item.source || item.name || "").startsWith("01-BASE_EULA_UK-Ireland")
+  );
+  if (!sampleLoaded || host.dataset.mode === "sample") return;
+  host.dataset.mode = "sample";
+  host.replaceChildren();
+  for (const question of SAMPLE_QUESTIONS) {
+    host.append(element("button", "suggestion", question));
+  }
+}
+
+function renderSampleOffer() {
+  const offer = $("#sampleOffer");
+  if (!offer) return;
+  const available = Boolean(state.status.sample_family);
+  const empty = !state.status.documents.length;
+  offer.hidden = !(available && empty);
+  const note = offer.querySelector(".sample-note");
+  if (available && note) {
+    note.dataset.family = state.status.sample_family;
+  }
+}
+
+async function loadSampleFamily() {
+  const button = $("#loadSample");
+  button.disabled = true;
+  const original = button.textContent;
+  button.textContent = "Loading sample…";
+  try {
+    const result = await api("/api/demo", { method: "POST" });
+    setStatus(
+      $("#uploadStatus"),
+      `${result.name} loaded — ${result.clauses} clauses, ${result.definitions} definitions.`
+    );
+    await refreshStatus({ reloadGraph: true });
+  } catch (error) {
+    button.textContent = original;
+    button.disabled = false;
+    setStatus($("#uploadStatus"), error.message, true);
+  }
+}
+
+$("#loadSample")?.addEventListener("click", loadSampleFamily);
 
 async function pollEnrichment() {
   try {
@@ -482,13 +548,14 @@ function addMessage(role, text, evidence = []) {
         element("b", "", evidenceHeading(item, index)),
         element("span", "", item.text)
       );
-      card.addEventListener("click", () => selectGraphNode(item.id));
+      card.addEventListener("click", () => selectGraphNode(item.id, item));
       list.append(card);
     });
     message.append(list);
   }
   $("#chat").append(message);
-  $("#chat").scrollTop = $("#chat").scrollHeight;
+  const chat = $("#chat");
+  chat.scrollTop = Math.max(0, message.offsetTop - chat.offsetTop - 8);
   return message.querySelector(".bubble");
 }
 
@@ -512,6 +579,7 @@ $("#askForm").addEventListener("submit", async (event) => {
   if (!question) return;
   addMessage("user", question);
   $("#question").value = "";
+  clearAnswerHighlight();
   const pending = addMessage("assistant", "Retrieving exact clauses and asking the local model…");
   $("#askButton").disabled = true;
   try {
@@ -522,7 +590,21 @@ $("#askForm").addEventListener("submit", async (event) => {
     });
     pending.textContent = `${result.answer}\n\n${result.disclaimer}`;
     const parent = pending.parentElement;
+    // A one-word reply is rewritten into the question it answers. Say so, or
+    // the reader cannot tell which variant was actually addressed.
+    if (result.selected_variant) {
+      parent.insertBefore(
+        element("div", "understood-as", `Understood as: ${result.understood_as}`),
+        pending.nextSibling
+      );
+    }
     if (result.evidence?.length) {
+      // Fourteen expanded cards pushed the answer off screen, and the scroll
+      // below then landed past all of them, so the reader had to scroll back up
+      // to read what was said. Collapsed by default; the count is the summary.
+      const details = element("details", "evidence-details");
+      const summary = element("summary", "", `${result.evidence.length} source${result.evidence.length === 1 ? "" : "s"} · click any to locate it in the graph`);
+      details.append(summary);
       const list = element("div", "evidence-list");
       result.evidence.forEach((item, index) => {
         const card = element("button", "evidence-card");
@@ -531,10 +613,12 @@ $("#askForm").addEventListener("submit", async (event) => {
           element("b", "", evidenceHeading(item, index)),
           element("span", "", item.text)
         );
-        card.addEventListener("click", () => selectGraphNode(item.id));
+        card.addEventListener("click", () => selectGraphNode(item.id, item));
         list.append(card);
       });
-      parent.append(list);
+      details.append(list);
+      parent.append(details);
+      highlightAnswerEvidence(result.evidence);
     }
     if (result.resolution_trace) {
       const trace = element("div", `resolution-trace ${result.resolution_trace.status.toLowerCase()}`);
@@ -551,7 +635,11 @@ $("#askForm").addEventListener("submit", async (event) => {
     pending.textContent = `AgreementAtlas could not answer yet: ${error.message}`;
   } finally {
     renderRuntime();
-    $("#chat").scrollTop = $("#chat").scrollHeight;
+    // Show the top of the answer, not the bottom of everything after it.
+    const bubble = pending.parentElement;
+    const chat = $("#chat");
+    chat.scrollTop = Math.max(0, bubble.offsetTop - chat.offsetTop - 8);
+    $("#question").focus();
   }
 });
 
@@ -628,6 +716,10 @@ function initialisePositions() {
   }
 }
 
+// Beyond ~550 units apart, two nodes are on opposite sides of the view and
+// pushing them further apart only inflates the whole layout.
+const REPULSION_RANGE2 = 550 * 550;
+
 function layoutStep() {
   const nodes = state.graph.nodes;
   for (let i = 0; i < nodes.length; i += 1) {
@@ -637,6 +729,14 @@ function layoutStep() {
       let dx = b.x - a.x;
       let dy = b.y - a.y;
       const distance2 = Math.max(100, dx * dx + dy * dy);
+      // Repulsion with no range limit means every node pushes every other one
+      // however far apart they are, so the cloud has to grow until the inverse
+      // square drops far enough -- and it grows with the node count. Enrichment
+      // took this graph from about sixty nodes to a hundred and fifty and the
+      // layout inflated to ten thousand units across an eight hundred pixel
+      // canvas, which is why it "looked great until it was enriched". Past this
+      // range two nodes are already unrelated on screen.
+      if (distance2 > REPULSION_RANGE2) continue;
       const force = Math.min(.55, 680 / distance2);
       dx *= force;
       dy *= force;
@@ -730,11 +830,15 @@ function drawGraph() {
     if (!visible.has(edge.source) || !visible.has(edge.target)) continue;
     const source = screenPoint(state.positions.get(edge.source), rect);
     const target = screenPoint(state.positions.get(edge.target), rect);
+    const inAnswer = state.answerIds.size
+      && state.answerIds.has(edge.source) && state.answerIds.has(edge.target);
     const highlighted = state.selectedId && (
       edge.source === state.selectedId || edge.target === state.selectedId
     );
-    context.strokeStyle = highlighted ? "rgba(27,130,149,.68)" : "rgba(92,112,130,.16)";
-    context.lineWidth = highlighted ? 1.8 : .75;
+    context.strokeStyle = inAnswer
+      ? "rgba(47,125,110,.75)"
+      : highlighted ? "rgba(27,130,149,.68)" : "rgba(92,112,130,.16)";
+    context.lineWidth = inAnswer ? 2 : highlighted ? 1.8 : .75;
     context.beginPath();
     context.moveTo(source.x, source.y);
     context.lineTo(target.x, target.y);
@@ -749,17 +853,24 @@ function drawGraph() {
       node.label, node.description, node.source, node.scope, node.section
     ].some((value) => String(value || "").toLowerCase().includes(query));
     const related = !state.selectedId || node.id === state.selectedId || connected.has(node.id);
-    context.globalAlpha = matches && related ? 1 : .17;
+    const cited = state.answerIds.has(node.id);
+    const inAnswerView = !state.answerIds.size || cited;
+    context.globalAlpha = matches && related && inAnswerView ? 1 : cited ? 1 : .10;
     context.fillStyle = style.color;
     context.beginPath();
     context.arc(point.x, point.y, style.radius * Math.sqrt(state.transform.k), 0, Math.PI * 2);
     context.fill();
+    if (cited && node.id !== state.selectedId) {
+      context.strokeStyle = "#2F7D6E";
+      context.lineWidth = 2.4;
+      context.stroke();
+    }
     if (node.id === state.selectedId || node.id === state.hoveredId) {
       context.strokeStyle = node.id === state.selectedId ? "#0d1d33" : "#218899";
       context.lineWidth = 2;
       context.stroke();
     }
-    const showLabel = node.type === "document" || node.id === state.selectedId ||
+    const showLabel = cited || node.type === "document" || node.id === state.selectedId ||
       node.id === state.hoveredId || (node.type === "contract_scope" && state.transform.k > .72);
     if (showLabel) {
       context.globalAlpha = matches ? 1 : .2;
@@ -786,7 +897,7 @@ function fitGraph() {
   const ys = nodes.map((node) => state.positions.get(node.id).y);
   const width = Math.max(180, Math.max(...xs) - Math.min(...xs) + 100);
   const height = Math.max(180, Math.max(...ys) - Math.min(...ys) + 100);
-  state.transform.k = Math.min(1.25, Math.max(.22, Math.min(rect.width / width, rect.height / height)));
+  state.transform.k = Math.min(1.25, Math.max(.03, Math.min(rect.width / width, rect.height / height)));
   state.transform.x = -(Math.max(...xs) + Math.min(...xs)) / 2 * state.transform.k;
   state.transform.y = -(Math.max(...ys) + Math.min(...ys)) / 2 * state.transform.k;
   drawGraph();
@@ -904,15 +1015,98 @@ for (const button of $$(".view-switch button")) {
   });
 }
 
-function selectGraphNode(id) {
-  if (!state.graph.nodes.some((node) => node.id === id)) {
-    const source = state.graph.nodes.find((node) => node.clause_id === id);
-    if (source) id = source.id;
+// The canvas is the largest thing on screen and, until an evidence card was
+// clicked, it showed the same picture whatever was asked. An answer already
+// names the records it used, so light exactly those and dim the rest: the graph
+// becomes the reason for the answer rather than decoration beside it.
+function highlightAnswerEvidence(evidence) {
+  const wanted = new Set();
+  for (const item of evidence || []) {
+    const direct = state.graph.nodes.find((node) => node.id === item.id);
+    const viaClause = direct || state.graph.nodes.find((node) => node.clause_id === item.id);
+    if (viaClause) wanted.add(viaClause.id);
   }
-  if (!state.graph.nodes.some((node) => node.id === id)) return;
-  state.selectedId = id;
-  renderInspector();
+  state.answerIds = wanted;
+  if (wanted.size) fitToNodes(wanted);
   drawGraph();
+}
+
+function clearAnswerHighlight() {
+  if (!state.answerIds.size) return;
+  state.answerIds = new Set();
+  drawGraph();
+}
+
+// Frame the cited records rather than the whole family, so a two-clause answer
+// is not shown as two dots in an otherwise empty field. Positions are in the
+// same pixel space `fitGraph` works in -- treating them as normalised put the
+// origin hundreds of pixels off-canvas and drew an empty graph.
+function fitToNodes(ids) {
+  const points = [...ids].map((id) => state.positions.get(id)).filter(Boolean);
+  const rect = $("#graphCanvas").getBoundingClientRect();
+  if (points.length < 2 || !rect.width || !rect.height) return;
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const width = Math.max(180, Math.max(...xs) - Math.min(...xs) + 160);
+  const height = Math.max(180, Math.max(...ys) - Math.min(...ys) + 160);
+  state.transform.k = Math.min(1.6, Math.max(.03, Math.min(rect.width / width, rect.height / height)));
+  state.transform.x = -(Math.max(...xs) + Math.min(...xs)) / 2 * state.transform.k;
+  state.transform.y = -(Math.max(...ys) + Math.min(...ys)) / 2 * state.transform.k;
+}
+
+// An evidence record and a graph node are not the same population. The graph
+// caps how many rules it draws, offerings are not drawn at all, and a clause
+// only appears through the rule that cites it. Clicking a card that fell into
+// any of those gaps did nothing whatsoever -- no selection, no message -- so
+// the panel looked broken at random.
+function resolveGraphNode(id) {
+  const nodes = state.graph.nodes;
+  const direct = nodes.find((node) => node.id === id);
+  if (direct) return direct;
+  const viaClause = nodes.find((node) => node.clause_id === id);
+  if (viaClause) return viaClause;
+  // Records derived from the same clause share a hash and differ only by
+  // prefix: offering:abc and definition:abc are the same provision, and only
+  // one of them is ever drawn.
+  const hash = String(id).split(":")[1];
+  if (hash) {
+    const twin = nodes.find((node) => String(node.id).split(":")[1] === hash);
+    if (twin) return twin;
+  }
+  return null;
+}
+
+function selectGraphNode(id, item) {
+  const node = resolveGraphNode(id);
+  if (node) {
+    state.selectedId = node.id;
+    renderInspector();
+    drawGraph();
+    return;
+  }
+  // Nothing to select, so show the evidence itself rather than ignoring the
+  // click. Saying why is the point: the record is real, it is simply not drawn
+  // in this view.
+  state.selectedId = null;
+  showEvidenceOnlyInspector(item);
+  drawGraph();
+}
+
+function showEvidenceOnlyInspector(item) {
+  const inspector = $("#nodeInspector");
+  inspector.replaceChildren();
+  const wrap = element("div", "inspector-placeholder");
+  wrap.append(element("span", "eyebrow", "EVIDENCE INSPECTOR"));
+  if (item) {
+    wrap.append(
+      element("h3", "", item.citation || item.section || "Cited provision"),
+      element("p", "", item.source || ""),
+      element("blockquote", "evidence-quote", item.text || "")
+    );
+  }
+  wrap.append(element("p", "",
+    `This provision is cited by the answer but is not drawn in the ${state.view === "overview" ? "overview" : "rule detail"} view.`));
+  inspector.append(wrap);
 }
 
 

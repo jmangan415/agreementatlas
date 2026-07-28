@@ -1,0 +1,24 @@
+{
+  "schema_version": "3.0",
+  "build_mode": "deep",
+  "canonical_records": [
+    "agreement_families.jsonl",
+    "amendments.jsonl",
+    "clauses.jsonl",
+    "cross_references.jsonl",
+    "defined_terms.jsonl",
+    "documents.jsonl",
+    "embeddings.index.jsonl",
+    "evidence_spans.jsonl",
+    "instruments.jsonl",
+    "lm_rules.jsonl",
+    "offerings.jsonl",
+    "operative_rules.jsonl",
+    "parties.jsonl",
+    "precedence_rules.jsonl",
+    "relationships.jsonl",
+    "relationships_enriched.jsonl",
+    "resolved_rules.jsonl",
+    "rules.jsonl"
+  ]
+}

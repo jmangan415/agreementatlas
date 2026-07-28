@@ -3,15 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Explore software and cloud agreements as evidence-backed legal knowledge graphs using a local language model.">
-  <title>AgreementAtlas — Agreement Intelligence</title>
+  <meta name="description" content="AgreementAtlas maps software and cloud agreements into an evidence-backed knowledge graph, answering licensing questions with citations to exact clauses. Runs on a local language model.">
+  <title>AgreementAtlas — License Intelligence</title>
+  <link rel="canonical" href="https://agreementatlas.com/">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/agreementatlas-favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+  <meta name="theme-color" content="#0F1720">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AgreementAtlas">
+  <meta property="og:url" content="https://agreementatlas.com/">
+  <meta property="og:title" content="AgreementAtlas — License Intelligence">
+  <meta property="og:description" content="Maps software agreements into an evidence-backed knowledge graph — every answer cited to an exact clause. Local-first, no cloud inference.">
+  <meta property="og:image" content="https://agreementatlas.com/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="AgreementAtlas — License Intelligence">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AgreementAtlas — License Intelligence">
+  <meta name="twitter:description" content="Maps software agreements into an evidence-backed knowledge graph — every answer cited to an exact clause.">
+  <meta name="twitter:image" content="https://agreementatlas.com/assets/og-card.png">
+
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="/" aria-label="AgreementAtlas home">
-      <span class="brand-mark" aria-hidden="true">A</span>
-      <span><strong>AgreementAtlas</strong><small>Agreement Intelligence</small></span>
+      <img class="brand-mark" src="/assets/agreementatlas-mark-dark.svg" width="34" height="34" alt="" aria-hidden="true">
+      <span class="wordmark">
+        <span class="wordmark-name"><span class="wm-a">Agreement</span><span class="wm-b">Atlas</span></span>
+        <small>License Intelligence</small>
+      </span>
     </a>
     <div class="product-promise">
       <span class="eyebrow">LOCAL-FIRST LEGAL RAG</span>
@@ -113,6 +138,10 @@
           <span class="constellation" aria-hidden="true">⌁</span>
           <h3>Build an agreement family</h3>
           <p>Upload related terms, order schedules and addenda. AgreementAtlas will map their legal rules without a model call.</p>
+          <div id="sampleOffer" class="sample-offer" hidden>
+            <button id="loadSample" type="button" class="sample-button">Load the sample family</button>
+            <span class="sample-note">A fictional EULA, licence model schedule and order form — already parsed and enriched. Nothing to upload.</span>
+          </div>
         </div>
         <div class="canvas-controls" aria-label="Graph controls">
           <button id="zoomIn" aria-label="Zoom in">+</button>
@@ -140,7 +169,7 @@
       <div class="answer-heading">
         <div>
           <span class="eyebrow">EVIDENCE-GROUNDED CHAT</span>
-          <h2>Ask the family</h2>
+          <h2>Ask these agreements</h2>
         </div>
         <span class="shield" title="Local model; exact clauses remain the source of truth">◇</span>
       </div>
@@ -149,14 +178,16 @@
       <div id="chat" class="chat" aria-live="polite">
         <div id="chatEmpty" class="chat-empty">
           <strong>Try a focused question</strong>
-          <button class="suggestion">What licence rights are granted, and under what conditions?</button>
-          <button class="suggestion">Which document takes precedence if terms conflict?</button>
-          <button class="suggestion">What security and data-processing duties apply?</button>
+          <div id="suggestions">
+            <button class="suggestion">What licence rights are granted, and under what conditions?</button>
+            <button class="suggestion">Which document takes precedence if terms conflict?</button>
+            <button class="suggestion">What security and data-processing duties apply?</button>
+          </div>
         </div>
       </div>
 
       <form id="askForm" class="composer">
-        <label for="question" class="sr-only">Ask about the uploaded agreements</label>
+        <label for="question" class="sr-only">Ask a question about these agreements</label>
         <textarea id="question" rows="3" maxlength="2000" placeholder="Ask about rights, restrictions, renewal, data, service levels…" required></textarea>
         <div>
           <span id="questionHint">Requires a loaded LM Studio model</span>

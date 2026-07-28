@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="AgreementAtlas — License Intelligence">
+  <rect width="1200" height="630" fill="#0F1720"/>
+
+  <!-- retrieval burst, pivoted on the mark, kept under 10% as the handoff requires -->
+  <g stroke="#FBFAF7" stroke-width="1.1" opacity="0.09" fill="none">
+    <path d="M232 315 L1180 315 M232 315 L1050 640 M232 315 L700 700 M232 315 L232 700 M232 315 L-240 640 M232 315 L-700 315 M232 315 L-240 -10 M232 315 L232 -70 M232 315 L700 -70 M232 315 L1050 -10"/>
+  </g>
+  <g fill="#3FA58F" opacity="0.30">
+    <circle cx="1050" cy="120" r="5"/>
+    <circle cx="905" cy="520" r="4"/>
+    <circle cx="600" cy="95" r="4"/>
+  </g>
+
+  <!-- graph-A mark, scaled from the 64-unit master -->
+  <g transform="translate(140,213) scale(3.1)">
+    <path d="M30.16 13.22 L33.84 14.78 L15.5 53 Z" fill="#FBFAF7"/>
+    <path d="M33.84 13.22 L30.16 14.78 L48.5 53 Z" fill="#FBFAF7"/>
+    <path d="M22 37 H42" fill="none" stroke="#FBFAF7" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="32" cy="14" r="5.5" fill="#3FA58F"/>
+    <circle cx="22" cy="37" r="3.6" fill="#0F1720" stroke="#FBFAF7" stroke-width="2.6"/>
+    <circle cx="42" cy="37" r="3.6" fill="#0F1720" stroke="#FBFAF7" stroke-width="2.6"/>
+  </g>
+
+  <g font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif">
+    <text x="380" y="286" font-size="76" letter-spacing="-1.9">
+      <tspan fill="#A8B0BD" font-weight="500">Agreement</tspan><tspan fill="#FBFAF7" font-weight="800">Atlas</tspan>
+    </text>
+    <text x="382" y="330" font-size="19" font-weight="600" letter-spacing="3.8" fill="#3FA58F">LICENSE INTELLIGENCE</text>
+    <text x="382" y="398" font-size="25" font-weight="500" fill="#C3CAD4">Maps software agreements into an evidence-backed</text>
+    <text x="382" y="432" font-size="25" font-weight="500" fill="#C3CAD4">knowledge graph — every answer cited to an exact clause.</text>
+    <text x="382" y="492" font-size="18" font-weight="600" letter-spacing="1.4" fill="#7C8695">LOCAL-FIRST · NO CLOUD INFERENCE · agreementatlas.com</text>
+  </g>
+</svg>

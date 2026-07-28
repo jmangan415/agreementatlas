@@ -1,0 +1,768 @@
+[DOCUMENT] LICENCE MODEL SCHEDULE
+[SOURCE] 02-SCHEDULE_Licence-Model-Schedule_v4.2_2026-03.md
+[INSTRUMENT_CLASS] ANNEX
+[INSTRUMENT_TYPE] LICENSE_MODEL_ANNEX
+[VERSION] 4.2
+[EFFECTIVE_DATE] 2026-03-01
+
+[CLAUSE_ID] clause:795651489b9ffacffa9c
+[SECTION] Preamble
+[SECTION_PATH] Preamble Preamble
+[SCOPE] General
+[CLAUSE_TEXT] LICENCE MODEL SCHEDULE
+
+[CLAUSE_ID] clause:ca91f107a15841efe497
+[SECTION] Preamble (2)
+[SECTION_PATH] Preamble Preamble
+[SCOPE] General
+[CLAUSE_TEXT] **Northwind Data Systems plc · Version 4.2 · Effective 1 March 2026**
+
+[CLAUSE_ID] clause:0f3ab3745662af13ced0
+[SECTION] Preamble (3)
+[SECTION_PATH] Preamble Preamble
+[SCOPE] General
+[CLAUSE_TEXT] This Licence Model Schedule forms part of the Licence Documents. Capitalised terms not defined here have the meaning given in the End User Licence Agreement ("**EULA**"). The version of this Schedule in effect on the date of the applicable Transaction Document governs each Software Licence for its duration.
+
+[CLAUSE_ID] clause:b3923a00ece91ebeba7b
+[SECTION] Preamble (4)
+[SECTION_PATH] Preamble Preamble
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:93caef73127c0241b836
+[SECTION] 1
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] A) "**Access**" means to interact with the Software directly or indirectly, through any interface, including a user interface, an application programming interface, a command line, a report, an extract, a scheduled job, or any intermediary program, device or system.
+
+[CLAUSE_ID] clause:0d389614b5cc511aef24
+[SECTION] 1 (2)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] B) "**Core**" means a single physical or virtual processing core available to the operating system on which an Instance runs. Where a Server presents hyper-threaded logical processors, each two logical processors count as one Core, rounded up to the next whole Core.
+
+[CLAUSE_ID] clause:f60e8cb8384811a86639
+[SECTION] 1 (3)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] C) "**CPU**" means a single central processing unit (a single processing core).
+
+[CLAUSE_ID] clause:d802cbd0b962f439b72c
+[SECTION] 1 (4)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] D) "**Device**" means a single physical or virtual workstation, terminal, handheld unit, kiosk or multi-function peripheral from which the Software is Accessed.
+
+[CLAUSE_ID] clause:ea73ebdaa8c79775bfc7
+[SECTION] 1 (5)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] E) "**Development Use**" means use of the Software by a Named Developer solely to design, build and unit-test applications, and does not include any use which supports a production business process.
+
+[CLAUSE_ID] clause:7fd2c10042d2981978eb
+[SECTION] 1 (6)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] F) "**Managed Volume**" means the volume of data under management by the Software, measured in terabytes at the point of highest usage in a calendar quarter.
+
+[CLAUSE_ID] clause:6f3d7cb2fc8b6022a41e
+[SECTION] 1 (7)
+[SECTION_PATH] 1 Definitions
+[SCOPE] security
+[CLAUSE_TEXT] G) "**Named User**" means (a) an individual natural person, or (b) a user identity, account or credential in the Software or in an external directory or identity provider, in either case with Access to the Software. A Named User identity may not be shared between two or more individual natural persons.
+
+[CLAUSE_ID] clause:0bc0d9696101026ec1a8
+[SECTION] 1 (8)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] H) "**Non-Production Use**" means use of the Software where the functionality of the Software is not placed into production use and use is restricted to system testing, quality assurance, development, training, demonstration, backup, failover, hot standby or cold standby purposes. Non-Production Use does not include load balancing, or any other system configuration whereby the Instance proactively supports production workload.
+
+[CLAUSE_ID] clause:363df844e3343249e9e4
+[SECTION] 1 (9)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] I) "**Page Processed**" means a single side of a single sheet, or its electronic equivalent, rendered, converted, composed, captured or output by the Software.
+
+[CLAUSE_ID] clause:74c739cce2e69ca8366f
+[SECTION] 1 (10)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] J) "**Program Instance**" means a single copy of the Software installed onto a single Server, identified by a distinct licence key.
+
+[CLAUSE_ID] clause:9c2ed9a3607203536026
+[SECTION] 1 (11)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] K) "**Session**" means a connection between a Device or Named User and an Instance which remains open, whether or not activity occurs, until it is closed or terminated.
+
+[CLAUSE_ID] clause:628468f4ccbc558b3b6b
+[SECTION] 1 (12)
+[SECTION_PATH] 1 Definitions
+[SCOPE] fees
+[CLAUSE_TEXT] L) "**Transaction**" means a single instance of any document, writing or record created, adapted, transformed or processed by the Software, and shall include any report, facsimile, text message, data sheet, file, index, financial statement, invoice, credit note, statement of account, remittance advice, ticket, expense record, payroll record, order, delivery note, income tax return, receipt, deposit slip, banking record or time slip, the data for which is input to, output from, created, processed, or manipulated in some way by, the Software.
+
+[CLAUSE_ID] clause:06fb7f8e70149ff7e197
+[SECTION] 1 (13)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] M) "**Work Unit**" means a unit of computational capacity as measured by the Software's own metering function and recorded in the usage report.
+
+[CLAUSE_ID] clause:1629e5c88a0b5b209f8d
+[SECTION] 1 (14)
+[SECTION_PATH] 1 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:3bfb70baa3b9790119f4
+[SECTION] 2
+[SECTION_PATH] 2 General Licence Types
+[SCOPE] General
+[CLAUSE_TEXT] Each Licence Model in Sections 4 to 15 is a standard production Licence Model unless a Transaction Document identifies one of the following general licence types, in which case the terms below modify the applicable standard production Licence Model as stated.
+
+[CLAUSE_ID] clause:3873a1c0226d404e4c80
+[SECTION] 2.1
+[SECTION_PATH] 2.1 A. Non-Production Licences
+[SCOPE] support
+[CLAUSE_TEXT] The applicable standard production Licence Model, except that the functionality within the Software is not placed into production use and use of the Software is restricted to system testing, development, training, backup, failover, hot standby or cold standby purposes. This does not include load balancing or other system configurations whereby other system resources proactively support production use.
+
+[CLAUSE_ID] clause:10401bcea1220ca96c19
+[SECTION] 2.2
+[SECTION_PATH] 2.2 B. Evaluation Licences
+[SCOPE] General
+[CLAUSE_TEXT] The applicable standard production Licence Model, except that (unless the parties otherwise agree in a Transaction Document)
+
+[CLAUSE_ID] clause:7978e9aa6ae6681cde96
+[SECTION] 2.2 (2)
+[SECTION_PATH] 2.2 B. Evaluation Licences
+[SCOPE] General
+[CLAUSE_TEXT] the Software Licence expires thirty
+
+[CLAUSE_ID] clause:263dde2584b0aab2632b
+[SECTION] 2.2 (3)
+[SECTION_PATH] 2.2 B. Evaluation Licences
+[SCOPE] support
+[CLAUSE_TEXT] days after delivery; (ii) the Software may not be used to process production data; (iii) no Support Services are provided; and (iv) the warranty in Section 9.1 of the EULA does not apply and the Software is provided "as is".
+
+[CLAUSE_ID] clause:b44aa2672488b9e20cbd
+[SECTION] 2.3
+[SECTION_PATH] 2.3 C. Read Only Licences
+[SCOPE] General
+[CLAUSE_TEXT] The applicable standard production Licence Model, except that: (i) an individual allocated this Software Licence may view, query and export data from the Software, but may not create, amend, approve, delete or otherwise modify any record in the Software; (ii) the generation of a report, extract or dashboard does not constitute modification, provided the output is not written back to the Software; and (iii) where an individual performs any action reserved to a full licence, Licensee shall be deemed to have acquired the applicable full Software Licence for that individual as of the date of that action.
+
+[CLAUSE_ID] clause:98f2a13213e3ba5d2aee
+[SECTION] 2.4
+[SECTION_PATH] 2.4 D. Runtime Licences
+[SCOPE] support
+[CLAUSE_TEXT] The applicable standard production Licence Model, except that the Software may be used only in support of a single application identified in the Transaction Document, and may not be used to develop, extend or support any other application.
+
+[CLAUSE_ID] clause:091328cda60ba6022636
+[SECTION] 2.5
+[SECTION_PATH] 2.5 E. Disaster Recovery Licences
+[SCOPE] General
+[CLAUSE_TEXT] The applicable standard production Licence Model, except that
+
+[CLAUSE_ID] clause:112b75e51f7fcab0e05b
+[SECTION] 2.5 (2)
+[SECTION_PATH] 2.5 E. Disaster Recovery Licences
+[SCOPE] General
+[CLAUSE_TEXT] a cold standby Instance, which is installed but not running and holds no synchronised data, requires no Software Licence; (ii) a warm standby Instance, which is running and receives synchronised data but serves no workload, requires Software Licences equal to fifty per cent (50%) of the production quantity; (iii) a hot standby Instance, which is running, receives synchronised data and is capable of serving workload without manual intervention, requires Software Licences equal to the full production quantity; and (iv) following a disaster event Licensee may operate a standby Instance at production capacity for up to thirty
+
+[CLAUSE_ID] clause:f97f10a766ffc426d58e
+[SECTION] 2.5 (3)
+[SECTION_PATH] 2.5 E. Disaster Recovery Licences
+[SCOPE] General
+[CLAUSE_TEXT] consecutive days without additional Software Licences, provided Licensee notifies NDS in writing within five
+
+[CLAUSE_ID] clause:1b7ad8029bced95841fa
+[SECTION] 2.5 (4)
+[SECTION_PATH] 2.5 E. Disaster Recovery Licences
+[SCOPE] General
+[CLAUSE_TEXT] Business Days of the event.
+
+[CLAUSE_ID] clause:b86951bf5e6a0c7a1cf6
+[SECTION] 2.5 (5)
+[SECTION_PATH] 2.5 E. Disaster Recovery Licences
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:fb7b216dcf31de25070d
+[SECTION] 3.1
+[SECTION_PATH] 3 Additional Terms and Conditions
+[SCOPE] General
+[CLAUSE_TEXT] 3.1 Licensee's right to use the Software is limited to the quantity, the Licence Model, the Deployment Type and the term identified in the applicable Transaction Document.
+
+[CLAUSE_ID] clause:3937aeef00ab69a43243
+[SECTION] 3.2
+[SECTION_PATH] 3 Additional Terms and Conditions
+[SCOPE] fees
+[CLAUSE_TEXT] 3.2 Licensee shall not exceed the licensed quantity at any time. Where Licensee exceeds the licensed quantity, Licensee shall be deemed to have acquired additional Software Licences sufficient to bring Licensee into compliance, at NDS's then-current list price, and shall pay the associated Fees within thirty (30) days of NDS's invoice.
+
+[CLAUSE_ID] clause:c77b25725333b5275c21
+[SECTION] 3.3
+[SECTION_PATH] 3 Additional Terms and Conditions
+[SCOPE] General
+[CLAUSE_TEXT] 3.3 Licence quantities may not be aggregated, netted or averaged across Software products, Instances, Deployment Types or Licence Models, except where this Schedule expressly permits it.
+
+[CLAUSE_ID] clause:662c522326e6f86a19ea
+[SECTION] 3.4
+[SECTION_PATH] 3 Additional Terms and Conditions
+[SCOPE] assignment
+[CLAUSE_TEXT] 3.4 Software Licences are allocated, not assigned. Nothing in this Schedule permits Licensee to assign, transfer, novate or sublicense a Software Licence, which is governed exclusively by Section 13.4 of the EULA.
+
+[CLAUSE_ID] clause:6b6d15948fc15fd75606
+[SECTION] 3.5
+[SECTION_PATH] 3 Additional Terms and Conditions
+[SCOPE] General
+[CLAUSE_TEXT] 3.5 Where the Software includes a licence metering or usage reporting function, Licensee shall keep that function enabled and shall not suppress the transmission of usage reports to NDS.
+
+[CLAUSE_ID] clause:63b6c13b15a8e046bceb
+[SECTION] 3.6
+[SECTION_PATH] 3 Additional Terms and Conditions
+[SCOPE] General
+[CLAUSE_TEXT] 3.6 Licensee shall not use the Software to provide bureau, outsourcing, service provider or managed service offerings to any third party.
+
+[CLAUSE_ID] clause:83a07edf969945d84d85
+[SECTION] 3 (7)
+[SECTION_PATH] 3 Additional Terms and Conditions
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:bb5be88e086234ec6a96
+[SECTION] 4.1
+[SECTION_PATH] 4.1 A. Standard Named User Licence Model
+[SCOPE] permitted use
+[CLAUSE_TEXT] Licensee agrees to exercise its licence to Software designated as "Standard Named User" subject to the following restrictions:
+
+[CLAUSE_ID] clause:2226226d601c0ad1a7b5
+[SECTION] 4.1 (2)
+[SECTION_PATH] 4.1 A. Standard Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Licensee must purchase and allocate an individual Software Licence for each individual human being who is authorised to Access or use the Software (regardless of whether the individual Accesses or uses the Software).
+
+[CLAUSE_ID] clause:6d0f4d922dfafbfa2955
+[SECTION] 4.1 (3)
+[SECTION_PATH] 4.1 A. Standard Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) Licensee may only allocate Software Licences to employees or contractors of the Licensee or its Affiliates, and employees or contractors of the Licensee's customers and business partners where the Access is solely for the purpose of Licensee's own internal business operations.
+
+[CLAUSE_ID] clause:91375db39fbcbbb01cc7
+[SECTION] 4.1 (4)
+[SECTION_PATH] 4.1 A. Standard Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iii) Licensee may not allocate Standard Named User Software Licences to functions, positions, job titles, teams, service accounts, robotic process automation agents, or any other non-human process. Where the Software is Accessed by an automated process on behalf of one or more individual human beings, a Software Licence is required for each such individual.
+
+[CLAUSE_ID] clause:45afebca467713218ede
+[SECTION] 4.1 (5)
+[SECTION_PATH] 4.1 A. Standard Named User Licence Model
+[SCOPE] security · assignment
+[CLAUSE_TEXT] (iv) When Licensee allocates a Software Licence to an individual, Licensee must assign unique login credentials to that individual and must record the allocation. Software Licences cannot be shared, re-allocated on a rotating, shift or temporary basis, or exchanged between individuals except as permitted by paragraph (v).
+
+[CLAUSE_ID] clause:1aab9026c2e6b2a6291b
+[SECTION] 4.1 (6)
+[SECTION_PATH] 4.1 A. Standard Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (v) A Software Licence may be re-allocated to another individual where the original individual leaves Licensee's organisation, or moves to a position in which that individual will no longer use the Software, provided that (a) the original individual's Access is first revoked, and (b) the re-allocation is recorded.
+
+[CLAUSE_ID] clause:258d0bc9b0a14218e57e
+[SECTION] 4.1 (7)
+[SECTION_PATH] 4.1 A. Standard Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (vi) Until the user's account has been deleted from the system, a user licence is required even if the user is no longer an employee or contractor of Licensee.
+
+[CLAUSE_ID] clause:ea4497fe27f99278cc8b
+[SECTION] 4.1 (8)
+[SECTION_PATH] 4.1 A. Standard Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (vii) Licensee must maintain a permanent record of user account allocations and make such documentation available to NDS upon request.
+
+[CLAUSE_ID] clause:a346297e7780817c1161
+[SECTION] 4.2
+[SECTION_PATH] 4.2 B. Occasional Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] The Licence Model terms and limitations applicable to the Occasional Named User Licence Model are identical to those that apply to Software licensed under the Standard Named User Licence Model except that:
+
+[CLAUSE_ID] clause:75944db83f1c150e8aae
+[SECTION] 4.2 (2)
+[SECTION_PATH] 4.2 B. Occasional Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) An individual allocated this licence may use or Access the Software during no more than forty (40) calendar days of any calendar year. Multiple log-ins, sessions, or activity, if conducted during a single 24 hour calendar day (beginning midnight of the time zone determined by the physical location of the database Server), are counted as one of the forty (40) days of authorised use. Any log-ins, sessions, or activity if conducted during a single 24 hour period but over 2 calendar days are counted as two of the forty (40) days of use.
+
+[CLAUSE_ID] clause:a1a961982ef08ae64504
+[SECTION] 4.2 (3)
+[SECTION_PATH] 4.2 B. Occasional Named User Licence Model
+[SCOPE] assignment
+[CLAUSE_TEXT] (ii) The licence type "Occasional Named User" must be assigned or allocated to a user when the user is first authorised to Access the system. A user allocated any other type of user licence may not be downgraded to or allocated an Occasional Named User licence unless the user is first deleted from the system.
+
+[CLAUSE_ID] clause:40ef80dcd6cd52cd2361
+[SECTION] 4.2 (4)
+[SECTION_PATH] 4.2 B. Occasional Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iii) An Occasional Named User that uses or Accesses the Software more than forty (40) calendar days of any calendar year may no longer Access the Software using an Occasional Named User licence and shall be required to purchase a Standard Named User licence upon the forty-first (41st) day of use. The account for this upgraded user does not need to be deleted prior to allocating the Standard Named User licence.
+
+[CLAUSE_ID] clause:59ddc8db400cb6b2b411
+[SECTION] 4.2 (5)
+[SECTION_PATH] 4.2 B. Occasional Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iv) Licensee is required to maintain a record of all individuals allocated an Occasional Named User licence and of the days on which each such individual Accessed the Software.
+
+[CLAUSE_ID] clause:b05266918064b784ddac
+[SECTION] 4.3
+[SECTION_PATH] 4.3 C. Contractor Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] The Licence Model terms and limitations applicable to the Contractor Named User Licence Model are identical to those that apply to Software licensed under the Standard Named User Licence Model except that:
+
+[CLAUSE_ID] clause:6cf9d9c9c438777c85aa
+[SECTION] 4.3 (2)
+[SECTION_PATH] 4.3 C. Contractor Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) A Software Licence under this Licence Model may be allocated only to an individual engaged by Licensee under a contract for services who is not an employee of Licensee or of an Affiliate of Licensee.
+
+[CLAUSE_ID] clause:4fe31e06cf3836330a66
+[SECTION] 4.3 (3)
+[SECTION_PATH] 4.3 C. Contractor Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) Each Software Licence under this Licence Model expires on the earlier of (a) the end of the subscription term, and (b) twelve (12) months from the date of allocation, and must be renewed to remain effective.
+
+[CLAUSE_ID] clause:d235ec658601240418a8
+[SECTION] 4.3 (4)
+[SECTION_PATH] 4.3 C. Contractor Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iii) An individual allocated a Software Licence under this Licence Model may not be granted administrative privileges in the Software, and may not Access the audit log, the licence administration console, or the system configuration functions.
+
+[CLAUSE_ID] clause:5565e4b4fe3e93fa2c19
+[SECTION] 4.3 (5)
+[SECTION_PATH] 4.3 C. Contractor Named User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iv) Contractor Named User Software Licences may not exceed twenty-five per cent (25%) of the total quantity of Named User Software Licences held by Licensee across all Named User Licence Models.
+
+[CLAUSE_ID] clause:0f4255583597eeb76d4f
+[SECTION] 4.4
+[SECTION_PATH] 4.4 D. Named Developer Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) A "Named Developer" means an individual human being, or a user identity in the Software or in an external system, with Access to the Software where the Software is licensed for Development Use only.
+
+[CLAUSE_ID] clause:b5c736391424d28e1012
+[SECTION] 4.4 (2)
+[SECTION_PATH] 4.4 D. Named Developer Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) Software licensed under this Licence Model is allocated on a per Named Developer, per Software component, per Instance basis. Each Named Developer must have a separate Named Developer Licence for each Software component on each Instance they Access for Development Use.
+
+[CLAUSE_ID] clause:6ba4dbd804e76fab719d
+[SECTION] 4.4 (3)
+[SECTION_PATH] 4.4 D. Named Developer Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iii) A Named Developer Licence does not permit Access to any Instance which supports a production business process.
+
+[CLAUSE_ID] clause:fb06e556f7b35e112fa9
+[SECTION] 4.4 (4)
+[SECTION_PATH] 4.4 D. Named Developer Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:e1f1b71cdddf7a4d8be2
+[SECTION] 5.1
+[SECTION_PATH] 5.1 A. Standard Concurrent User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Licensee must purchase a Software Licence for each concurrent Session open against an Instance, measured as the maximum number of Sessions open simultaneously at any point during the measurement period.
+
+[CLAUSE_ID] clause:2b0d2c41b80bce4bb9be
+[SECTION] 5.1 (2)
+[SECTION_PATH] 5.1 A. Standard Concurrent User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) A Standard Concurrent User licence key is permanent to a particular Server or Program Instance. Standard Concurrent User licence keys cannot be dynamically or otherwise re-allocated to other systems. A Standard Concurrent User licence key may only be re-allocated to a replacement Server if the original Server is taken out of service.
+
+[CLAUSE_ID] clause:8b9389d9e1f310ea2f3b
+[SECTION] 5.1 (3)
+[SECTION_PATH] 5.1 A. Standard Concurrent User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iii) In the case of multiple Program Instances, the quantity of Standard Concurrent User licence keys summed across all Program Instances must not exceed the quantity of Standard Concurrent User licences.
+
+[CLAUSE_ID] clause:d098507b89edc7d2a004
+[SECTION] 5.1 (4)
+[SECTION_PATH] 5.1 A. Standard Concurrent User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iv) A Session which remains open without user activity for more than thirty (30) minutes is not counted, provided the Software is configured to terminate idle Sessions at or below that threshold.
+
+[CLAUSE_ID] clause:f20ef4353f7674213e54
+[SECTION] 5.2
+[SECTION_PATH] 5.2 B. Standard Anonymous User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] The terms, conditions and limitations applicable to the use of Software licensed under the Standard Anonymous User Licence Model are identical to those that apply to Software licensed under the Standard Concurrent User Licence Model except that:
+
+[CLAUSE_ID] clause:40e6b65e2041ecbf1de2
+[SECTION] 5.2 (2)
+[SECTION_PATH] 5.2 B. Standard Anonymous User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Licensee may allocate Software Licences to any individual and is not required to identify those individuals.
+
+[CLAUSE_ID] clause:941ba433028726667715
+[SECTION] 5.2 (3)
+[SECTION_PATH] 5.2 B. Standard Anonymous User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) This Licence Model may be used only for Access from a public-facing interface, and may not be used to provide Access to Licensee's own employees or contractors.
+
+[CLAUSE_ID] clause:555faacaee0f581c7737
+[SECTION] 5.2 (4)
+[SECTION_PATH] 5.2 B. Standard Anonymous User Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:12cc99c74b34651b67b2
+[SECTION] 6.1
+[SECTION_PATH] 6.1 A. Production Server Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed per Server, per Deployment Type.
+
+[CLAUSE_ID] clause:4f44559ff69657c01c35
+[SECTION] 6.1 (2)
+[SECTION_PATH] 6.1 A. Production Server Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) A Software Licence is required for each Server on which an Instance is installed, whether or not the Instance is running.
+
+[CLAUSE_ID] clause:1956b9c8f019c3436192
+[SECTION] 6.1 (3)
+[SECTION_PATH] 6.1 A. Production Server Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iii) Where an Instance is installed on a clustered group of Servers, a Software Licence is required for each Server in the cluster.
+
+[CLAUSE_ID] clause:8b658cca0df5dde9b508
+[SECTION] 6.2
+[SECTION_PATH] 6.2 B. Production Server (Limited Server Calls) Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] The terms applicable to the Production Server Licence Model, except that the number of calls made to the Instance in any calendar year may not exceed the quantity stated in the Transaction Document. Calls in excess of that quantity are chargeable at NDS's then-current list price for the applicable band.
+
+[CLAUSE_ID] clause:60f066f2a008210f86a5
+[SECTION] 6.2 (2)
+[SECTION_PATH] 6.2 B. Production Server (Limited Server Calls) Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:a5d874e8a95b7fb75861
+[SECTION] 7.1
+[SECTION_PATH] 7.1 A. Production CPU Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed per CPU, per Instance, per Deployment Type.
+
+[CLAUSE_ID] clause:3a1d8b03032e4d64c4c5
+[SECTION] 7.1 (2)
+[SECTION_PATH] 7.1 A. Production CPU Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) Licensee must licence every CPU available to the operating system on which the Instance runs, whether or not the Software uses that CPU, unless the Software is constrained to a defined subset of CPUs by a hard partitioning technology listed in the Documentation.
+
+[CLAUSE_ID] clause:8937c8fa4c5f825173f4
+[SECTION] 7.1 (3)
+[SECTION_PATH] 7.1 A. Production CPU Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iii) A minimum of four (4) CPUs must be licensed per Instance.
+
+[CLAUSE_ID] clause:b32f827a156c3c43cd16
+[SECTION] 7.2
+[SECTION_PATH] 7.2 B. Production Logical CPU Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] The terms applicable to the Production CPU Licence Model, except that a licence is required for each logical processor presented to the operating system rather than for each Core.
+
+[CLAUSE_ID] clause:a2bd5cb04c2c8d88edea
+[SECTION] 7.3
+[SECTION_PATH] 7.3 C. Platform Core Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed per Core across all Instances of the Software operated by Licensee.
+
+[CLAUSE_ID] clause:cd9d202c58a3a1c49dc2
+[SECTION] 7.3 (2)
+[SECTION_PATH] 7.3 C. Platform Core Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) Cores may be aggregated across Instances of the same Software product and the same Deployment Type, and only across those.
+
+[CLAUSE_ID] clause:19d56bfba7aca96c7856
+[SECTION] 7.3 (3)
+[SECTION_PATH] 7.3 C. Platform Core Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:3ad9d1efc8b1d7d04650
+[SECTION] 8.1
+[SECTION_PATH] 8.1 A. Production Program Instance Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed per Program Instance, per Deployment Type.
+
+[CLAUSE_ID] clause:88e14af7f4c31d11830b
+[SECTION] 8.1 (2)
+[SECTION_PATH] 8.1 A. Production Program Instance Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) Each Program Instance requires a distinct licence key. A licence key may not be installed on more than one Server at a time.
+
+[CLAUSE_ID] clause:ae31b9bb9ac0fc449e32
+[SECTION] 8.2
+[SECTION_PATH] 8.2 B. Production Cluster Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed per cluster, where a cluster is a group of Servers presented to the Software as a single system.
+
+[CLAUSE_ID] clause:d9546b2709e7c71143d1
+[SECTION] 8.2 (2)
+[SECTION_PATH] 8.2 B. Production Cluster Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) A cluster may contain no more than eight (8) Servers unless the Transaction Document states otherwise. A cluster which exceeds that number requires an additional cluster Software Licence.
+
+[CLAUSE_ID] clause:2fc33e9b08eb549af1ba
+[SECTION] 8.2 (3)
+[SECTION_PATH] 8.2 B. Production Cluster Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:44a778db42ad0140e278
+[SECTION] 9.1
+[SECTION_PATH] 9.1 A. Client Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed per Device from which the Software is Accessed.
+
+[CLAUSE_ID] clause:fbb1a9bc3ee6496a0698
+[SECTION] 9.1 (2)
+[SECTION_PATH] 9.1 A. Client Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) A Software Licence is required for each Device, whether or not the Device is used by more than one individual.
+
+[CLAUSE_ID] clause:66b448f4e1a00c887d36
+[SECTION] 9.2
+[SECTION_PATH] 9.2 B. Client User Access Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) A Software Licence is required for each individual human being authorised to Access the Software from any Device.
+
+[CLAUSE_ID] clause:92b36e390e170b3a00b4
+[SECTION] 9.2 (2)
+[SECTION_PATH] 9.2 B. Client User Access Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) At no point may an individual who has not been granted a Client User Access Licence Access the Software, whether directly or through an intermediary program or Device.
+
+[CLAUSE_ID] clause:9b6aa983981656e2b418
+[SECTION] 9.3
+[SECTION_PATH] 9.3 C. MFP Device Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed per multi-function peripheral from which documents are captured or output.
+
+[CLAUSE_ID] clause:9e84021c8341254066e9
+[SECTION] 9.3 (2)
+[SECTION_PATH] 9.3 C. MFP Device Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) A Software Licence is required for each such Device connected to an Instance, whether or not the Device is in active use.
+
+[CLAUSE_ID] clause:56763460209ee340aa67
+[SECTION] 9.3 (3)
+[SECTION_PATH] 9.3 C. MFP Device Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:d5abd2c921aa5bf397ca
+[SECTION] 10.1
+[SECTION_PATH] 10.1 A. Managed Volume Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed by Managed Volume.
+
+[CLAUSE_ID] clause:6c7669f991e3b87c5385
+[SECTION] 10.1 (2)
+[SECTION_PATH] 10.1 A. Managed Volume Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) Data held solely in backup or archive media which is not available to the Software for query is excluded from the measurement.
+
+[CLAUSE_ID] clause:fbe3610ef2e0cafefef3
+[SECTION] 10.1 (3)
+[SECTION_PATH] 10.1 A. Managed Volume Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iii) Managed Volume is measured at the point of highest usage in each calendar quarter and is not averaged across quarters.
+
+[CLAUSE_ID] clause:c4e06323584673213083
+[SECTION] 10.2
+[SECTION_PATH] 10.2 B. Pages Processed Per Year Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed by the number of Pages Processed by the Software in each calendar year.
+
+[CLAUSE_ID] clause:580fd3ef75800cb7eb88
+[SECTION] 10.2 (2)
+[SECTION_PATH] 10.2 B. Pages Processed Per Year Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) The count resets on 1 January of each calendar year. Unused volume does not carry forward.
+
+[CLAUSE_ID] clause:dbe365c2cf3757abf426
+[SECTION] 10.3
+[SECTION_PATH] 10.3 C. Electronic Employee Files Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed by the number of individual employee records held in the Software.
+
+[CLAUSE_ID] clause:0cc816b1ff460e1725d3
+[SECTION] 10.3 (2)
+[SECTION_PATH] 10.3 C. Electronic Employee Files Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) The count is taken at the point of highest usage in each calendar year and includes records of former employees which have not been deleted.
+
+[CLAUSE_ID] clause:8c5dd72c92aad4d0dcf1
+[SECTION] 10.3 (3)
+[SECTION_PATH] 10.3 C. Electronic Employee Files Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:b3e1e1ab678424181478
+[SECTION] 11.1
+[SECTION_PATH] 11.1 A. Perpetual Transaction Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed by the number of Transactions processed by the Software in each calendar year.
+
+[CLAUSE_ID] clause:2090aedad53408923979
+[SECTION] 11.1 (2)
+[SECTION_PATH] 11.1 A. Perpetual Transaction Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) The Transaction count resets on 1 January of each calendar year. Unused Transaction volume does not carry forward.
+
+[CLAUSE_ID] clause:7d542566b6b709cf3823
+[SECTION] 11.1 (3)
+[SECTION_PATH] 11.1 A. Perpetual Transaction Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iii) Where Licensee processes Transactions in excess of the licensed volume, Section 3.2 applies and the excess is chargeable at NDS's then-current list price for the applicable Transaction band.
+
+[CLAUSE_ID] clause:a5e7d6eacaf2cc4b06a1
+[SECTION] 11.1 (4)
+[SECTION_PATH] 11.1 A. Perpetual Transaction Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (iv) A single document processed through two or more distinct Software components counts as one Transaction, provided the processing occurs within a single workflow instance.
+
+[CLAUSE_ID] clause:b61a0d8747f9215228e0
+[SECTION] 11.1 (5)
+[SECTION_PATH] 11.1 A. Perpetual Transaction Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (v) The Software Licences may not be allocated to any other party.
+
+[CLAUSE_ID] clause:5db723d9bdc7c01da14c
+[SECTION] 11.2
+[SECTION_PATH] 11.2 B. Term Transaction Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] The terms applicable to the Perpetual Transaction Licence Model, except that the Software Licence expires at the end of the term stated in the Transaction Document and no right to continued use survives expiry.
+
+[CLAUSE_ID] clause:3bd68dc694ddff5fef5b
+[SECTION] 11.2 (2)
+[SECTION_PATH] 11.2 B. Term Transaction Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:56230339e433df4d2057
+[SECTION] 12.1
+[SECTION_PATH] 12.1 A. Work Unit Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed by the number of Work Units consumed in each calendar month, as recorded by the Software's metering function.
+
+[CLAUSE_ID] clause:2ab1e619ed56e346711c
+[SECTION] 12.1 (2)
+[SECTION_PATH] 12.1 A. Work Unit Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) Where the metering function is unavailable for any period, consumption for that period is deemed to be the highest monthly consumption recorded in the preceding twelve (12) months.
+
+[CLAUSE_ID] clause:db7c14c2e162cb2f6c7e
+[SECTION] 12.2
+[SECTION_PATH] 12.2 B. Work Unit Subscription Licence Model
+[SCOPE] support
+[CLAUSE_TEXT] The terms applicable to the Work Unit Licence Model, except that maintenance and support services are included with each licence as identified in the Transaction Document.
+
+[CLAUSE_ID] clause:539fd583ebf92a90467e
+[SECTION] 12.2 (2)
+[SECTION_PATH] 12.2 B. Work Unit Subscription Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:605158b19816bd19a999
+[SECTION] 13.1
+[SECTION_PATH] 13.1 A. Standard Connectivity Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] The terms, conditions and limitations applicable to the use of Software licensed under the Standard Connectivity Licence Model shall be identical to those that apply to Software licensed under the Standard Named User Licence Model except that:
+
+[CLAUSE_ID] clause:f44170fbf8399145faff
+[SECTION] 13.1 (2)
+[SECTION_PATH] 13.1 A. Standard Connectivity Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) A Software Licence is required for each concurrent connection to a host system rather than for each individual human being.
+
+[CLAUSE_ID] clause:779cb14125329101ba51
+[SECTION] 13.1 (3)
+[SECTION_PATH] 13.1 A. Standard Connectivity Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) Licensee must maintain a record of the maximum number of concurrent connections in each calendar month.
+
+[CLAUSE_ID] clause:de4f5e03ba030cbabaa5
+[SECTION] 13.2
+[SECTION_PATH] 13.2 B. Secure Server Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (i) Software licensed under this Licence Model is licensed per Server on which the secure gateway component is installed.
+
+[CLAUSE_ID] clause:b39264db2d7898d43762
+[SECTION] 13.2 (2)
+[SECTION_PATH] 13.2 B. Secure Server Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] (ii) The gateway component may only be installed on a single Server per Software Licence.
+
+[CLAUSE_ID] clause:989659344c7dffd512f3
+[SECTION] 13.2 (3)
+[SECTION_PATH] 13.2 B. Secure Server Licence Model
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:b999caa7ff2e1865214e
+[SECTION] 14.1
+[SECTION_PATH] 14 Product Specific Use Restrictions and Limitations
+[SCOPE] permitted use · assignment
+[CLAUSE_TEXT] 14.1 Where a Transaction Document identifies Software as "InsightHub", the Software may be deployed only in the regions identified in the Transaction Document, and Licensee may not enable any connector which transfers Customer data outside those regions.
+
+[CLAUSE_ID] clause:85e1228b6fc2d759928a
+[SECTION] 14.2
+[SECTION_PATH] 14 Product Specific Use Restrictions and Limitations
+[SCOPE] permitted use
+[CLAUSE_TEXT] 14.2 Where a Transaction Document identifies Software as "CoreLedger", the Software may not be used to process the financial records of any entity which is not Licensee or an Affiliate of Licensee.
+
+[CLAUSE_ID] clause:9b37e7a4a9c1b8211e32
+[SECTION] 14.3
+[SECTION_PATH] 14 Product Specific Use Restrictions and Limitations
+[SCOPE] permitted use
+[CLAUSE_TEXT] 14.3 Where a Transaction Document identifies Software as "VaultKeep", the retention policies configured in the Software are Licensee's responsibility, and NDS has no obligation to retain data beyond the term of the Software Licence.
+
+[CLAUSE_ID] clause:7b592a1f86ec1ee0debe
+[SECTION] 14.4
+[SECTION_PATH] 14 Product Specific Use Restrictions and Limitations
+[SCOPE] permitted use
+[CLAUSE_TEXT] 14.4 Third party components distributed with the Software are licensed subject to the terms identified in the document entitled Third Party Notifications. Where those terms conflict with this Schedule, they prevail in respect of the third party component only.
+
+[CLAUSE_ID] clause:62c2d4f140d2fd98f67a
+[SECTION] 14 (5)
+[SECTION_PATH] 14 Product Specific Use Restrictions and Limitations
+[SCOPE] permitted use
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:b151bfa024109ee2d6cf
+[SECTION] 15.1
+[SECTION_PATH] 15 Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] 15.1 A reference to a Licence Model being "identical to" another Licence Model "except" as stated means that every term of the referenced Licence Model applies in full, as modified only by the stated exceptions.
+
+[CLAUSE_ID] clause:25ef84996da98e739f4d
+[SECTION] 15.2
+[SECTION_PATH] 15 Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] 15.2 Where two or more Licence Models could apply to the same use, the Licence Model identified in the Transaction Document applies. Where none is identified, the standard production Licence Model applies.
+
+[CLAUSE_ID] clause:f5e27ed9cde182f3439b
+[SECTION] 15.3
+[SECTION_PATH] 15 Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] 15.3 Headings in this Schedule are for convenience only and do not affect interpretation.
+
+[CLAUSE_ID] clause:1b43491e3f049719eac5
+[SECTION] 15 (4)
+[SECTION_PATH] 15 Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:41fc7b936bd23d467f1f
+[SECTION] 15 (5)
+[SECTION_PATH] 15 Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] NOTE ON THIS DOCUMENT
+
+[CLAUSE_ID] clause:300b30858606a5d3961a
+[SECTION] 15 (6)
+[SECTION_PATH] 15 Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] This is a fictional agreement written for demonstration purposes. Northwind Data Systems plc and Meridian Retail Group plc do not exist, no part of this document is legal advice, and any pricing shown is illustrative.

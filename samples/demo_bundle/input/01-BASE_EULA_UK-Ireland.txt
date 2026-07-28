@@ -1,0 +1,810 @@
+[DOCUMENT] END USER LICENCE AGREEMENT (UNITED KINGDOM AND IRELAND) **Northwind Data Systems plc · Version 4.2**
+[SOURCE] 01-BASE_EULA_UK-Ireland.md
+[INSTRUMENT_CLASS] MASTER
+[INSTRUMENT_TYPE] EULA
+[VERSION] 4.2
+[EFFECTIVE_DATE] unknown
+
+[CLAUSE_ID] clause:95210297157b68951d48
+[SECTION] Preamble
+[SECTION_PATH] Preamble Preamble
+[SCOPE] General
+[CLAUSE_TEXT] END USER LICENCE AGREEMENT (UNITED KINGDOM AND IRELAND)
+
+[CLAUSE_ID] clause:fdc732f1f83fbdea010b
+[SECTION] Preamble (2)
+[SECTION_PATH] Preamble Preamble
+[SCOPE] General
+[CLAUSE_TEXT] **Northwind Data Systems plc · Version 4.2**
+
+[CLAUSE_ID] clause:be460ed883450a693f72
+[SECTION] Preamble (3)
+[SECTION_PATH] Preamble Preamble
+[SCOPE] General
+[CLAUSE_TEXT] This End User Licence Agreement ("**EULA**") is between Northwind Data Systems plc ("**NDS**") and you (either as an individual, a single corporation, or other single legal entity that purchases the applicable Software) ("**Licensee**") and is effective from the date of the applicable Transaction Document, as defined below (the "**Effective Date**").
+
+[CLAUSE_ID] clause:6be3e0fe52c5a811b871
+[SECTION] Preamble (4)
+[SECTION_PATH] Preamble Preamble
+[SCOPE] General
+[CLAUSE_TEXT] NDS and Licensee agree as follows:
+
+[CLAUSE_ID] clause:c896582f7d838aeece4b
+[SECTION] Preamble (5)
+[SECTION_PATH] Preamble Preamble
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:dbf97053226383adba9c
+[SECTION] 1.0
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] A) "**Affiliate**" means any entity controlled by, controlling, or under common control with a party to this EULA. Control exists through ownership, directly or indirectly, of a majority of the outstanding equity capital and of the voting interests of the subject entity. If an entity ceases to meet these criteria, it will cease to be an Affiliate under this EULA.
+
+[CLAUSE_ID] clause:1ce0a9c2e8aec9f8a9c2
+[SECTION] 1.0 (2)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] B) "**Authorised User**" means an individual natural person to whom Licensee has allocated a Software Licence in accordance with the applicable Licence Model.
+
+[CLAUSE_ID] clause:0fa15e2c111787ee939b
+[SECTION] 1.0 (3)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] C) "**Claim**" means claims, suits, actions or proceedings brought against Licensee in a court of competent jurisdiction in a Covered Country by a third party which allege an infringement of that third party's patent, copyright or trade secret rights existing under the laws of that Covered Country.
+
+[CLAUSE_ID] clause:530c2e3a1e29d90f242d
+[SECTION] 1.0 (4)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] confidentiality
+[CLAUSE_TEXT] D) "**Confidential Information**" means information, whether or not in physical form, including all oral communications, documents and other information, disclosed by a party to the other which
+
+[CLAUSE_ID] clause:c295ee8d1a5864d9878a
+[SECTION] 1.0 (5)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] confidentiality
+[CLAUSE_TEXT] is by its nature or by the circumstances surrounding its disclosure regarded, or could reasonably be expected to be regarded, as confidential to the disclosing party
+
+[CLAUSE_ID] clause:653f53f0844fa2049ff4
+[SECTION] 1.0 (6)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] confidentiality
+[CLAUSE_TEXT] is marked or otherwise designated "confidential" by the disclosing party; or
+
+[CLAUSE_ID] clause:1b8d422f555104af21ee
+[SECTION] 1.0 (7)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] confidentiality
+[CLAUSE_TEXT] the disclosing party informs the receiving party is confidential or a trade secret.
+
+[CLAUSE_ID] clause:0683e7c9bda552434ae9
+[SECTION] 1.0 (8)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] United Kingdom
+[CLAUSE_TEXT] E) "**Covered Country**" means the United Kingdom, Ireland, and each member state of the European Economic Area.
+
+[CLAUSE_ID] clause:ae69f8fb315cceafd31c
+[SECTION] 1.0 (9)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] F) "**Deployment Type**" means the environment in which an Instance is operated, being Production, Non-Production or Disaster Recovery, each as described in the Licence Model Schedule.
+
+[CLAUSE_ID] clause:387ca87338326f091a7d
+[SECTION] 1.0 (10)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] G) "**Documentation**" means user guides, operating manuals and release notes in effect as of the date of delivery of the applicable Software, made generally available by NDS.
+
+[CLAUSE_ID] clause:14f99e898810f5129c0f
+[SECTION] 1.0 (11)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] fees
+[CLAUSE_TEXT] H) "**Fees**" means Licence Fees and/or Maintenance Fees, as applicable.
+
+[CLAUSE_ID] clause:d78b09a709ff18ea009e
+[SECTION] 1.0 (12)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] I) "**Instance**" means each copy or implementation of the Software installed on a Server or on a clustered group of Servers.
+
+[CLAUSE_ID] clause:a136aabab36c309d87e3
+[SECTION] 1.0 (13)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] J) "**Licence Documents**" means this EULA including any addenda, the Licence Model Schedule, all Transaction Documents (including pricing information), the Documentation, the document entitled Third Party Notifications available at www.example.invalid/agreements, and any other documents provided by NDS setting out permitted uses of the Software.
+
+[CLAUSE_ID] clause:2d07956583119ced1873
+[SECTION] 1.0 (14)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] fees
+[CLAUSE_TEXT] K) "**Licence Fees**" means all non-refundable fees payable by Licensee to NDS with respect to the granting of Software Licences.
+
+[CLAUSE_ID] clause:3a4caf253d22266a2d4f
+[SECTION] 1.0 (15)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] permitted use
+[CLAUSE_TEXT] L) "**Licence Model**" means the description of the conditions, limitations and restrictions associated with the Software Licence which govern the use of the Software, as set out in the applicable Licence Model Schedule.
+
+[CLAUSE_ID] clause:c9de99f0a045450129fb
+[SECTION] 1.0 (16)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] M) "**Licence Model Schedule**" for each individual Software Licence means the version of the document entitled "Licence Model Schedule" applicable to the licensed Software in effect on the date of the applicable Transaction Document.
+
+[CLAUSE_ID] clause:ad3e39940143e3d41a9a
+[SECTION] 1.0 (17)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] support · fees
+[CLAUSE_TEXT] N) "**Maintenance Fees**" means the fees payable by Licensee for Support Services.
+
+[CLAUSE_ID] clause:25ee730345917ce1a1f1
+[SECTION] 1.0 (18)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] O) "**Physical Media**" means the physical media or hardware containing or enabling Software.
+
+[CLAUSE_ID] clause:75440e42df35481ff88a
+[SECTION] 1.0 (19)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] P) "**Reseller**" means an authorised NDS reseller.
+
+[CLAUSE_ID] clause:dfc3bd180cbe0a9c0904
+[SECTION] 1.0 (20)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] Q) "**Server**" means a single physical or virtual computer, or a clustered group of computers presented to the Software as a single system, on which an Instance is installed.
+
+[CLAUSE_ID] clause:86cd8ce1d97aefa58d68
+[SECTION] 1.0 (21)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] support
+[CLAUSE_TEXT] R) "**Software**" means the software products, Documentation and Support Software licensed to Licensee under this EULA, including all copies made by Licensee, and may, where the meaning so implies, refer to all of the Software or portions thereof.
+
+[CLAUSE_ID] clause:4223673603a330fd8598
+[SECTION] 1.0 (22)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] S) "**Software Licence**" means a licence for the Software granted under this EULA to the Licensee.
+
+[CLAUSE_ID] clause:c61b1835f289de430049
+[SECTION] 1.0 (23)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] support
+[CLAUSE_TEXT] T) "**Support Services**" means the maintenance and support services described in Section 7.1 and in the applicable support policy.
+
+[CLAUSE_ID] clause:dd1fe423ed0b7f484259
+[SECTION] 1.0 (24)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] support
+[CLAUSE_TEXT] U) "**Support Software**" means software tools provided by NDS solely to enable the delivery of Support Services.
+
+[CLAUSE_ID] clause:2c6ee0c6cbce865ce98d
+[SECTION] 1.0 (25)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] fees
+[CLAUSE_TEXT] V) "**Transaction Document**" means an order form, quotation or other ordering document executed by the parties, or an order accepted by NDS, which identifies the Software licensed, the quantity, the Licence Model and the Fees payable.
+
+[CLAUSE_ID] clause:70f51b7a41d6c4dec43b
+[SECTION] 1.0 (26)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] support · fees
+[CLAUSE_TEXT] W) "**Update**" means a release of the Software containing error corrections or minor enhancements, made generally available to customers current on Support Services, and does not include a release which NDS makes generally available for a separate fee.
+
+[CLAUSE_ID] clause:51d9efcd4a2d5a6a6fdf
+[SECTION] 1.0 (27)
+[SECTION_PATH] 1.0 Definitions
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:b5c1953267a1411e7a5d
+[SECTION] 2.1
+[SECTION_PATH] 2.1 Ownership
+[SCOPE] assignment
+[CLAUSE_TEXT] NDS and its licensors retain all right, title and interest, including all intellectual property rights, in and to the Software. Licensee acquires no rights in the Software other than the rights expressly granted by this EULA. No title to or ownership of the Software is transferred to Licensee. The Software is licensed, not sold.
+
+[CLAUSE_ID] clause:7c0a15df0f9d4d2477e4
+[SECTION] 2.1 (2)
+[SECTION_PATH] 2.1 Ownership
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:906c1969c1a6e4af2d80
+[SECTION] 3.1
+[SECTION_PATH] 3.1 Grant of Licence
+[SCOPE] fees · assignment
+[CLAUSE_TEXT] Subject to Licensee's compliance with the Licence Documents and payment of the applicable Fees, NDS grants Licensee a non-exclusive, non-transferable licence to install and use the Software in the quantity, for the Deployment Type, under the Licence Model, and for the term identified in the applicable Transaction Document, solely for Licensee's internal business operations.
+
+[CLAUSE_ID] clause:3c17a290e97351282fb4
+[SECTION] 3.2
+[SECTION_PATH] 3.2 Applicable Licence Models
+[SCOPE] General
+[CLAUSE_TEXT] Each Software Licence is subject to the Licence Model identified in the applicable Transaction Document. Where a Transaction Document does not identify a Licence Model, the applicable standard production Licence Model for that Software applies. The Licence Model Schedule in effect on the date of the Transaction Document governs that Software Licence for its duration, notwithstanding any later revision of the Licence Model Schedule.
+
+[CLAUSE_ID] clause:6924993a2c84f7bae02d
+[SECTION] 3.3
+[SECTION_PATH] 3.3 Allocation of Licences to Affiliates
+[SCOPE] General
+[CLAUSE_TEXT] Unless prohibited under the applicable Transaction Document, Licensee may allocate Software Licences to its Affiliates, provided that
+
+[CLAUSE_ID] clause:59e4945befc91196e91f
+[SECTION] 3.3 (2)
+[SECTION_PATH] 3.3 Allocation of Licences to Affiliates
+[SCOPE] General
+[CLAUSE_TEXT] Licensee remains responsible for each Affiliate's compliance with the Licence Documents
+
+[CLAUSE_ID] clause:fbeff1f8aecaeee18159
+[SECTION] 3.3 (3)
+[SECTION_PATH] 3.3 Allocation of Licences to Affiliates
+[SCOPE] General
+[CLAUSE_TEXT] Licensee is liable for any breach of the Licence Documents by an Affiliate; and
+
+[CLAUSE_ID] clause:6633b824a4233b2aaffe
+[SECTION] 3.3 (4)
+[SECTION_PATH] 3.3 Allocation of Licences to Affiliates
+[SCOPE] assignment
+[CLAUSE_TEXT] the aggregate use across Licensee and its Affiliates does not exceed the licensed quantity. Allocation under this Section 3.3 is not an assignment, transfer or sublicence, and Section 13.4 continues to apply.
+
+[CLAUSE_ID] clause:c0dfa02a5a2e01eb652b
+[SECTION] 3.3 (5)
+[SECTION_PATH] 3.3 Allocation of Licences to Affiliates
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:8e9018978d9c8c78e9d9
+[SECTION] 4.1
+[SECTION_PATH] 4.1 Software and Documentation
+[SCOPE] fees
+[CLAUSE_TEXT] NDS will make the Software and Documentation available for electronic download. Where Physical Media is ordered, delivery is Ex Works (Incoterms 2020) at NDS's designated facility. NDS has no obligation to deliver Software for which the applicable Fees have not been paid.
+
+[CLAUSE_ID] clause:ee62f0d0de06d264262a
+[SECTION] 4.1 (2)
+[SECTION_PATH] 4.1 Software and Documentation
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:83191cb4fee855477850
+[SECTION] 5.1
+[SECTION_PATH] 5.1 General Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] Licensee shall not, and shall not permit any third party to
+
+[CLAUSE_ID] clause:054179381c3e1f33e89a
+[SECTION] 5.1 (2)
+[SECTION_PATH] 5.1 General Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] use the Software other than as permitted by the applicable Licence Model
+
+[CLAUSE_ID] clause:a7019563eea4852b12d0
+[SECTION] 5.1 (3)
+[SECTION_PATH] 5.1 General Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] exceed the licensed quantity or Deployment Type
+
+[CLAUSE_ID] clause:d6971de04171eb5be2be
+[SECTION] 5.1 (4)
+[SECTION_PATH] 5.1 General Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] provide bureau, outsourcing, hosting, service provider or managed service offerings to any third party using the Software
+
+[CLAUSE_ID] clause:1a404fcb4a5129215e24
+[SECTION] 5.1 (5)
+[SECTION_PATH] 5.1 General Restrictions
+[SCOPE] permitted use · assignment
+[CLAUSE_TEXT] transfer, lease, lend, resell or distribute the Software; or
+
+[CLAUSE_ID] clause:3a3ff198940e9607f1ca
+[SECTION] 5.1 (6)
+[SECTION_PATH] 5.1 General Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] permit any person other than an Authorised User to access the Software.
+
+[CLAUSE_ID] clause:e347be58f01095e0432e
+[SECTION] 5.2
+[SECTION_PATH] 5.2 Further Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] Licensee shall not
+
+[CLAUSE_ID] clause:eee592b8d503822ee106
+[SECTION] 5.2 (2)
+[SECTION_PATH] 5.2 Further Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] reverse engineer, decompile or disassemble the Software, except to the extent that such activity is expressly permitted by applicable law notwithstanding this restriction and only after Licensee has given NDS written notice and a reasonable opportunity to provide the necessary interface information
+
+[CLAUSE_ID] clause:93f2519dffbd10abf9fe
+[SECTION] 5.2 (3)
+[SECTION_PATH] 5.2 Further Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] remove, obscure or alter any proprietary notice, licence key, licence metering or usage reporting function of the Software
+
+[CLAUSE_ID] clause:8eae8b8ea8180efeca51
+[SECTION] 5.2 (4)
+[SECTION_PATH] 5.2 Further Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] disclose to any third party the results of any benchmark test of the Software without NDS's prior written consent; or
+
+[CLAUSE_ID] clause:6417acc850d68022ab89
+[SECTION] 5.2 (5)
+[SECTION_PATH] 5.2 Further Restrictions
+[SCOPE] permitted use
+[CLAUSE_TEXT] use the Software to develop a product which is competitive with the Software.
+
+[CLAUSE_ID] clause:e1c659628d88272d00f5
+[SECTION] 5.3
+[SECTION_PATH] 5.3 Derivative Works and Improvements
+[SCOPE] assignment
+[CLAUSE_TEXT] Any modification, enhancement or derivative work of the Software developed by or on behalf of Licensee, and all intellectual property rights therein, vest in NDS on creation. Licensee assigns to NDS all such rights and shall execute any document reasonably required to give effect to this Section 5.3.
+
+[CLAUSE_ID] clause:af4e668b028c1fb0279e
+[SECTION] 5.4
+[SECTION_PATH] 5.4 Automated Access
+[SCOPE] General
+[CLAUSE_TEXT] Where the Software is accessed by an automated process on behalf of one or more individual natural persons, a Software Licence is required for each such individual, unless the applicable Licence Model expressly provides otherwise.
+
+[CLAUSE_ID] clause:7247d6a09de42d9fa189
+[SECTION] 5.4 (2)
+[SECTION_PATH] 5.4 Automated Access
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:89c31fe0ef85bbb8380f
+[SECTION] 6.1
+[SECTION_PATH] 6.1 Orders
+[SCOPE] General
+[CLAUSE_TEXT] Each Transaction Document is subject to acceptance by NDS. A Licensee purchase order is administrative only, and any term in it which is additional to or inconsistent with the Licence Documents has no effect.
+
+[CLAUSE_ID] clause:1bfd80b83baffd9e910c
+[SECTION] 6.2
+[SECTION_PATH] 6.2 Orders through a Reseller
+[SCOPE] General
+[CLAUSE_TEXT] Where Licensee purchases through a Reseller, Licensee's payment obligations are to the Reseller, and NDS is not responsible for the Reseller's acts or omissions. This EULA governs Licensee's use of the Software regardless of the channel of purchase, and no term agreed between Licensee and a Reseller binds NDS.
+
+[CLAUSE_ID] clause:12e880de5a3704ce91f0
+[SECTION] 6.3
+[SECTION_PATH] 6.3 Risk of Loss and Shipping Terms
+[SCOPE] General
+[CLAUSE_TEXT] Risk of loss for Physical Media passes to Licensee on delivery to the carrier. Shipping and insurance charges are payable by Licensee.
+
+[CLAUSE_ID] clause:7d9efde086c31f94f899
+[SECTION] 6.4
+[SECTION_PATH] 6.4 Invoicing and Payment
+[SCOPE] fees
+[CLAUSE_TEXT] Licensee shall pay each undisputed invoice within thirty (30) days of the invoice date, in the currency stated in the Transaction Document, without set-off or deduction. Overdue amounts bear interest at four per cent (4%) above the Bank of England base rate, accruing daily. Fees are non-refundable and non-cancellable except as expressly provided.
+
+[CLAUSE_ID] clause:8204ababd9dc3492460f
+[SECTION] 6.5
+[SECTION_PATH] 6.5 Taxes
+[SCOPE] fees
+[CLAUSE_TEXT] All Fees are exclusive of VAT and of any other sales, use, excise or withholding taxes, which are payable by Licensee in addition. Where Licensee is required by law to withhold any amount, Licensee shall gross up the payment so that NDS receives the full amount invoiced.
+
+[CLAUSE_ID] clause:aa22f51a9be3008e0a22
+[SECTION] 6.6
+[SECTION_PATH] 6.6 Uplift
+[SCOPE] fees
+[CLAUSE_TEXT] Unless a Transaction Document states otherwise, Fees for each renewal term increase by five per cent (5%) over the immediately preceding term.
+
+[CLAUSE_ID] clause:c9e348093168c569ad24
+[SECTION] 6.7
+[SECTION_PATH] 6.7 Licensee Affiliate Orders
+[SCOPE] General
+[CLAUSE_TEXT] An Affiliate of Licensee may place a Transaction Document under this EULA, in which case that Affiliate is the Licensee for the purposes of that Transaction Document and is bound by the Licence Documents.
+
+[CLAUSE_ID] clause:c20c173bc9aaa5b5d205
+[SECTION] 6.8
+[SECTION_PATH] 6.8 NDS Affiliate Orders
+[SCOPE] General
+[CLAUSE_TEXT] An NDS Affiliate may accept a Transaction Document under this EULA, in which case that Affiliate is NDS for the purposes of that Transaction Document.
+
+[CLAUSE_ID] clause:1bd6ccca1dbb902f67db
+[SECTION] 6.8 (2)
+[SECTION_PATH] 6.8 NDS Affiliate Orders
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:cc7d114a035fce706031
+[SECTION] 7.1
+[SECTION_PATH] 7.1 Support Services
+[SCOPE] support · fees
+[CLAUSE_TEXT] Where Licensee has paid the applicable Maintenance Fees, NDS will provide Support Services in accordance with the support policy in effect at the start of the applicable support term. Support Services include Updates and the response targets stated in that policy.
+
+[CLAUSE_ID] clause:47a97829c6e9a10660cf
+[SECTION] 7.2
+[SECTION_PATH] 7.2 Support Services Exclusions
+[SCOPE] support
+[CLAUSE_TEXT] NDS has no obligation to provide Support Services in respect of
+
+[CLAUSE_ID] clause:4b1eca481f21d4437f73
+[SECTION] 7.2 (2)
+[SECTION_PATH] 7.2 Support Services Exclusions
+[SCOPE] support
+[CLAUSE_TEXT] Software which has been modified other than by NDS
+
+[CLAUSE_ID] clause:d06b4f0526c3011ee351
+[SECTION] 7.2 (3)
+[SECTION_PATH] 7.2 Support Services Exclusions
+[SCOPE] support
+[CLAUSE_TEXT] any release of the Software other than the current release and the immediately preceding release
+
+[CLAUSE_ID] clause:dd29dbe36760bcfbba7b
+[SECTION] 7.2 (4)
+[SECTION_PATH] 7.2 Support Services Exclusions
+[SCOPE] support
+[CLAUSE_TEXT] faults caused by hardware, third party software or an operating environment not specified in the Documentation
+
+[CLAUSE_ID] clause:c1152d372d048d0d0b5a
+[SECTION] 7.2 (5)
+[SECTION_PATH] 7.2 Support Services Exclusions
+[SCOPE] support
+[CLAUSE_TEXT] faults caused by Licensee's failure to install an Update made available by NDS; or
+
+[CLAUSE_ID] clause:e36fe3b4bec028537437
+[SECTION] 7.2 (6)
+[SECTION_PATH] 7.2 Support Services Exclusions
+[SCOPE] support
+[CLAUSE_TEXT] use of the Software otherwise than in accordance with the Licence Documents.
+
+[CLAUSE_ID] clause:3f18d57b4c6e31e9295d
+[SECTION] 7.2 (7)
+[SECTION_PATH] 7.2 Support Services Exclusions
+[SCOPE] support
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:f631519ddcf24368b251
+[SECTION] 8.1
+[SECTION_PATH] 8.1 Audit
+[SCOPE] General
+[CLAUSE_TEXT] During the term of this EULA and for twenty-four (24) months after it ends, Licensee will maintain electronic and other records sufficient for NDS to confirm that Licensee has complied with this EULA. Licensee will promptly and accurately complete and return, within no more than thirty (30) days, any self-audit questionnaire issued by NDS, together with a certification by an authorised representative of Licensee confirming that Licensee's responses accurately and fully reflect Licensee's usage of the Software. Furthermore NDS may, once per year, audit Licensee's records and computer systems (including servers, databases and all other applicable software and hardware) to confirm that Licensee has complied with this EULA.
+
+[CLAUSE_ID] clause:a7a50a4b3b1349e7eb5e
+[SECTION] 8.2
+[SECTION_PATH] 8.2 Conduct
+[SCOPE] confidentiality
+[CLAUSE_TEXT] NDS will give Licensee at least fourteen (14) days' written notice of an audit. An audit will be conducted during normal business hours and in a manner which does not unreasonably interfere with Licensee's operations. NDS will treat all information obtained in an audit as Licensee's Confidential Information.
+
+[CLAUSE_ID] clause:961c1c16e3aae8563e72
+[SECTION] 8.3
+[SECTION_PATH] 8.3 Non-compliance
+[SCOPE] General
+[CLAUSE_TEXT] If an audit establishes that Licensee has used the Software in excess of the licensed quantity, or otherwise in breach of the Licence Documents, then
+
+[CLAUSE_ID] clause:db8b0826202cfa2baef0
+[SECTION] 8.3 (2)
+[SECTION_PATH] 8.3 Non-compliance
+[SCOPE] fees
+[CLAUSE_TEXT] Licensee will be deemed to have acquired additional Software Licences sufficient to bring Licensee into compliance, at NDS's then-current list price, and will pay the associated Licence Fees and any unpaid Maintenance Fees immediately on invoice; and
+
+[CLAUSE_ID] clause:04697681f21a826db864
+[SECTION] 8.3 (3)
+[SECTION_PATH] 8.3 Non-compliance
+[SCOPE] General
+[CLAUSE_TEXT] where the shortfall exceeds five per cent (5%) of the licensed quantity, Licensee will reimburse all reasonable costs incurred by NDS in performing the audit. The remedies in this Section 8.3 are in addition to any other remedy available to NDS.
+
+[CLAUSE_ID] clause:423ba79a2b5a842173f4
+[SECTION] 8.3 (4)
+[SECTION_PATH] 8.3 Non-compliance
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:64554560d2649dbcc240
+[SECTION] 9.1
+[SECTION_PATH] 9.1 Limited Warranty
+[SCOPE] fees
+[CLAUSE_TEXT] NDS warrants that, for a period of ninety (90) days from delivery, the Software will perform substantially in accordance with the Documentation. Licensee's sole and exclusive remedy, and NDS's entire liability, for breach of this warranty is that NDS will, at its option, repair or replace the Software or refund the Licence Fees paid for the non-conforming Software.
+
+[CLAUSE_ID] clause:f8f27ac487c0b3135016
+[SECTION] 9.2
+[SECTION_PATH] 9.2 Warranty Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] The warranty in Section 9.1 does not apply where the non-conformity arises from
+
+[CLAUSE_ID] clause:ad8e24d0dc4390126812
+[SECTION] 9.2 (2)
+[SECTION_PATH] 9.2 Warranty Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] modification of the Software other than by NDS
+
+[CLAUSE_ID] clause:56ce5ff5f95d3df649c8
+[SECTION] 9.2 (3)
+[SECTION_PATH] 9.2 Warranty Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] use of the Software otherwise than in accordance with the Documentation
+
+[CLAUSE_ID] clause:56a58e666e7b11f8500e
+[SECTION] 9.2 (4)
+[SECTION_PATH] 9.2 Warranty Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] hardware, third party software or an operating environment not specified in the Documentation; or
+
+[CLAUSE_ID] clause:c6a3b3ac6a980e0d597d
+[SECTION] 9.2 (5)
+[SECTION_PATH] 9.2 Warranty Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] Licensee's failure to install an Update made available by NDS.
+
+[CLAUSE_ID] clause:32381a8c62fb2ef4fb9f
+[SECTION] 9.3
+[SECTION_PATH] 9.3 Disclaimer
+[SCOPE] General
+[CLAUSE_TEXT] EXCEPT AS EXPRESSLY STATED IN SECTION 9.1, THE SOFTWARE IS PROVIDED "AS IS", AND NDS DOES NOT WARRANT THAT
+
+[CLAUSE_ID] clause:75077a43027cd203e8ba
+[SECTION] 9.3 (2)
+[SECTION_PATH] 9.3 Disclaimer
+[SCOPE] General
+[CLAUSE_TEXT] the Software will be uninterrupted, timely, secure or error-free
+
+[CLAUSE_ID] clause:bad1d2a0c4b83566ec5f
+[SECTION] 9.3 (3)
+[SECTION_PATH] 9.3 Disclaimer
+[SCOPE] General
+[CLAUSE_TEXT] all defects in the Software will be corrected
+
+[CLAUSE_ID] clause:eb76b391d9e34653164a
+[SECTION] 9.3 (4)
+[SECTION_PATH] 9.3 Disclaimer
+[SCOPE] General
+[CLAUSE_TEXT] the Software will meet Licensee's requirements or achieve any particular result
+
+[CLAUSE_ID] clause:d73698658d444fda3653
+[SECTION] 9.3 (5)
+[SECTION_PATH] 9.3 Disclaimer
+[SCOPE] General
+[CLAUSE_TEXT] any data, analytics or usage information generated by or through the Software will be accurate, complete or fit for any purpose; or
+
+[CLAUSE_ID] clause:56b1d0465afee142a192
+[SECTION] 9.3 (6)
+[SECTION_PATH] 9.3 Disclaimer
+[SCOPE] General
+[CLAUSE_TEXT] the Software will operate in combination with any hardware, software or service not specified in the Documentation. Licensee remains responsible for any decision taken in reliance on output produced by the Software.
+
+[CLAUSE_ID] clause:32f6b53d7158a539efd4
+[SECTION] 9.4
+[SECTION_PATH] 9.4 Inability to Exclude Warranties
+[SCOPE] General
+[CLAUSE_TEXT] Nothing in this EULA excludes or limits any warranty, condition or liability which cannot be excluded or limited under applicable law.
+
+[CLAUSE_ID] clause:3d1be593decab7b89de8
+[SECTION] 9.4 (2)
+[SECTION_PATH] 9.4 Inability to Exclude Warranties
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:869f64625e59f8baaa87
+[SECTION] 10.1
+[SECTION_PATH] 10.1 Infringement Claims
+[SCOPE] General
+[CLAUSE_TEXT] NDS will defend Licensee against any Claim and will pay any damages finally awarded against Licensee, or agreed in settlement by NDS, provided that Licensee
+
+[CLAUSE_ID] clause:a3a262692022ac1a46ba
+[SECTION] 10.1 (2)
+[SECTION_PATH] 10.1 Infringement Claims
+[SCOPE] General
+[CLAUSE_TEXT] notifies NDS promptly in writing of the Claim
+
+[CLAUSE_ID] clause:22c26674b71efc8c33e1
+[SECTION] 10.1 (3)
+[SECTION_PATH] 10.1 Infringement Claims
+[SCOPE] General
+[CLAUSE_TEXT] gives NDS sole control of the defence and settlement; and
+
+[CLAUSE_ID] clause:cd28045ee38fc1a17314
+[SECTION] 10.1 (4)
+[SECTION_PATH] 10.1 Infringement Claims
+[SCOPE] General
+[CLAUSE_TEXT] provides reasonable assistance at NDS's expense.
+
+[CLAUSE_ID] clause:2a0c62d4285ab1599d02
+[SECTION] 10.2
+[SECTION_PATH] 10.2 Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] NDS has no obligation under Section 10.1 to the extent a Claim arises from
+
+[CLAUSE_ID] clause:f1996fee302ec1ede7b7
+[SECTION] 10.2 (2)
+[SECTION_PATH] 10.2 Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] modification of the Software other than by NDS
+
+[CLAUSE_ID] clause:e2ba34f790954fc93c0b
+[SECTION] 10.2 (3)
+[SECTION_PATH] 10.2 Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] combination of the Software with any product, service or data not supplied by NDS, where the Claim would have been avoided but for that combination
+
+[CLAUSE_ID] clause:9ae35cf49bc45bd3e6eb
+[SECTION] 10.2 (4)
+[SECTION_PATH] 10.2 Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] use of the Software otherwise than in accordance with the Licence Documents
+
+[CLAUSE_ID] clause:be29f9f88d5a5e88488b
+[SECTION] 10.2 (5)
+[SECTION_PATH] 10.2 Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] Licensee's continued use of the Software after NDS has notified Licensee to cease such use; or
+
+[CLAUSE_ID] clause:baa464705cff239e222a
+[SECTION] 10.2 (6)
+[SECTION_PATH] 10.2 Exclusions
+[SCOPE] General
+[CLAUSE_TEXT] any release of the Software other than the most current release, where the Claim would have been avoided by using the current release.
+
+[CLAUSE_ID] clause:3e36fa9f0096be8723af
+[SECTION] 10.3
+[SECTION_PATH] 10.3 Licensee's Continued Use
+[SCOPE] General
+[CLAUSE_TEXT] If the Software becomes, or in NDS's opinion is likely to become, the subject of a Claim, NDS may at its option
+
+[CLAUSE_ID] clause:86d7c53aa576c9f1aa58
+[SECTION] 10.3 (2)
+[SECTION_PATH] 10.3 Licensee's Continued Use
+[SCOPE] General
+[CLAUSE_TEXT] procure for Licensee the right to continue using the Software
+
+[CLAUSE_ID] clause:21adfbaeb570de188111
+[SECTION] 10.3 (3)
+[SECTION_PATH] 10.3 Licensee's Continued Use
+[SCOPE] General
+[CLAUSE_TEXT] modify or replace the Software so that it is non-infringing; or
+
+[CLAUSE_ID] clause:31afa7694163d3057a92
+[SECTION] 10.3 (4)
+[SECTION_PATH] 10.3 Licensee's Continued Use
+[SCOPE] fees
+[CLAUSE_TEXT] terminate the affected Software Licence and refund the Licence Fees paid, depreciated on a straight-line basis over sixty
+
+[CLAUSE_ID] clause:2e373b05e2c3884b14e6
+[SECTION] 10.3 (5)
+[SECTION_PATH] 10.3 Licensee's Continued Use
+[SCOPE] General
+[CLAUSE_TEXT] months. Section 10.1, Section 10.2 and this Section 10.3 state NDS's entire liability and Licensee's sole remedy for any infringement of third party intellectual property rights.
+
+[CLAUSE_ID] clause:161da37ef979b5e9d79c
+[SECTION] 10.3 (6)
+[SECTION_PATH] 10.3 Licensee's Continued Use
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:2461b05db493541a6044
+[SECTION] 11.1
+[SECTION_PATH] 11.1 EXCLUSION OF DAMAGES
+[SCOPE] General
+[CLAUSE_TEXT] NEITHER PARTY WILL BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, ANTICIPATED SAVINGS, GOODWILL, BUSINESS OPPORTUNITY, OR LOSS OR CORRUPTION OF DATA, HOWEVER ARISING AND WHETHER IN CONTRACT, TORT (INCLUDING NEGLIGENCE) OR OTHERWISE, EVEN IF THAT PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+[CLAUSE_ID] clause:37aa159762da9f65c9c8
+[SECTION] 11.2
+[SECTION_PATH] 11.2 LIMITATION OF LIABILITY
+[SCOPE] fees
+[CLAUSE_TEXT] EACH PARTY'S TOTAL AGGREGATE LIABILITY ARISING OUT OF OR IN CONNECTION WITH THIS EULA WILL NOT EXCEED THE FEES PAID OR PAYABLE BY LICENSEE UNDER THE TRANSACTION DOCUMENT GIVING RISE TO THE LIABILITY IN THE TWELVE (12) MONTHS IMMEDIATELY PRECEDING THE EVENT GIVING RISE TO THE CLAIM.
+
+[CLAUSE_ID] clause:799ca8412e0892f4339a
+[SECTION] 11.3
+[SECTION_PATH] 11.3 BASIS OF THE BARGAIN
+[SCOPE] fees
+[CLAUSE_TEXT] THE PARTIES AGREE THAT THE LIMITATIONS IN THIS SECTION 11.0 ARE AN ESSENTIAL BASIS OF THE BARGAIN, THAT THE FEES REFLECT THAT ALLOCATION OF RISK, AND THAT THE PARTIES WOULD NOT HAVE ENTERED INTO THIS EULA WITHOUT THIS SECTION 11.0.
+
+[CLAUSE_ID] clause:1650a00fa5e7eb076869
+[SECTION] 11.4
+[SECTION_PATH] 11.4 LIMITED TO THE EXTENT PERMITTED BY LAW
+[SCOPE] General
+[CLAUSE_TEXT] NOTHING IN THIS EULA EXCLUDES OR LIMITS EITHER PARTY'S LIABILITY FOR DEATH OR PERSONAL INJURY CAUSED BY NEGLIGENCE, FOR FRAUD OR FRAUDULENT MISREPRESENTATION, OR FOR ANY OTHER LIABILITY WHICH CANNOT BE EXCLUDED OR LIMITED UNDER APPLICABLE LAW.
+
+[CLAUSE_ID] clause:f0afccf7fb2c1cce360e
+[SECTION] 11.4 (2)
+[SECTION_PATH] 11.4 LIMITED TO THE EXTENT PERMITTED BY LAW
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:68c84f0df0e81b1c4dc8
+[SECTION] 12.1
+[SECTION_PATH] 12.1 Termination for Default
+[SCOPE] permitted use
+[CLAUSE_TEXT] Either party may terminate this EULA for material breach by written notice, effective ten (10) days after the notice unless the other party first cures the breach. NDS may terminate immediately on written notice where Licensee breaches Section 5.0 (Restrictions) or fails to pay any amount within thirty (30) days of a written demand.
+
+[CLAUSE_ID] clause:4eb5df263c17c3804fe9
+[SECTION] 12.2
+[SECTION_PATH] 12.2 Effect of Termination or Expiration
+[SCOPE] General
+[CLAUSE_TEXT] On termination or expiration of a Software Licence, Licensee shall immediately cease all use of the affected Software, uninstall and destroy all copies, and certify in writing to NDS within thirty (30) days that it has done so. Sections 1.0, 2.0, 5.0, 6.4, 8.0, 9.3, 10.0, 11.0, 12.2 and 13.0 survive termination.
+
+[CLAUSE_ID] clause:d84ff61d9623c2f59991
+[SECTION] 12.3
+[SECTION_PATH] 12.3 Termination or Suspension of Support Services
+[SCOPE] support · fees
+[CLAUSE_TEXT] NDS may suspend or terminate Support Services where Maintenance Fees are unpaid thirty (30) days after the due date. Support Services reinstated after lapse are subject to payment of all Maintenance Fees for the lapsed period.
+
+[CLAUSE_ID] clause:0248699efaf69a32970b
+[SECTION] 12.3 (2)
+[SECTION_PATH] 12.3 Termination or Suspension of Support Services
+[SCOPE] support
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:60e20666003e98b8da90
+[SECTION] 13.1
+[SECTION_PATH] 13.1 Confidentiality
+[SCOPE] permitted use · confidentiality
+[CLAUSE_TEXT] Each party (a "**Disclosing Party**") may disclose to the other (a "**Receiving Party**") Confidential Information. Each party agrees, for the period of this EULA and for three (3) years afterwards, to hold the other party's Confidential Information in strict confidence, not to disclose it to third parties other than to Affiliates and professional advisers bound by appropriate obligations of confidentiality, and not to use it for any purpose except as expressly permitted. The foregoing does not apply to information which: (a) is or becomes public through no act or omission of the Receiving Party; (b) was lawfully in the Receiving Party's possession without obligation of confidence before disclosure; (c) is lawfully disclosed to the Receiving Party by a third party without restriction; (d) is independently developed by the Receiving Party without access to the Disclosing Party's Confidential Information; or (e) is required to be disclosed by law or by order of a court or regulator, provided the Receiving Party promptly notifies the Disclosing Party where lawfully permitted to do so.
+
+[CLAUSE_ID] clause:b5674c22f2457ae16a53
+[SECTION] 13.2
+[SECTION_PATH] 13.2 Automated Verification
+[SCOPE] support · confidentiality
+[CLAUSE_TEXT] The Software may include a function which records and transmits to NDS information about the quantity and Deployment Type of the Software in use. Licensee shall not disable or suppress that function. Information collected under this Section 13.2 is Licensee's Confidential Information and will be used only to verify compliance and to provide Support Services.
+
+[CLAUSE_ID] clause:6765d38ca63257c195c8
+[SECTION] 13.3
+[SECTION_PATH] 13.3 Developer Tools
+[SCOPE] General
+[CLAUSE_TEXT] Where the Software includes developer tools, those tools are licensed for the sole purpose of developing applications which interoperate with the Software, and may not be distributed to any third party.
+
+[CLAUSE_ID] clause:d49b81d127f4ec5067a9
+[SECTION] 13.4
+[SECTION_PATH] 13.4 Assignment
+[SCOPE] assignment
+[CLAUSE_TEXT] Licensee may not assign, transfer, novate or sublicense any portion of its interests, rights or obligations under this EULA, whether by written agreement, merger, consolidation, change of control, operation of law or otherwise, without the prior written consent of NDS. Any purported assignment in breach of this Section 13.4 is void. NDS may assign this EULA to an Affiliate or in connection with a merger or sale of substantially all of its assets.
+
+[CLAUSE_ID] clause:d8b14f6adb7cd55a39f2
+[SECTION] 13.5
+[SECTION_PATH] 13.5 Notices
+[SCOPE] General
+[CLAUSE_TEXT] Notices must be in writing and sent to the address stated in the applicable Transaction Document, and are deemed given on delivery if delivered by hand, or two (2) Business Days after posting if sent by recorded delivery.
+
+[CLAUSE_ID] clause:b06b4e0535b3d43eb728
+[SECTION] 13.6
+[SECTION_PATH] 13.6 Governing Law
+[SCOPE] Ireland
+[CLAUSE_TEXT] This EULA is governed by the laws of England and Wales, and the parties submit to the exclusive jurisdiction of the courts of England and Wales, save that where Licensee's registered office is in Ireland this EULA is governed by the laws of Ireland and the parties submit to the exclusive jurisdiction of the courts of Ireland.
+
+[CLAUSE_ID] clause:1dbc25ab2b089b5ecbf5
+[SECTION] 13.7
+[SECTION_PATH] 13.7 Entire Agreement and Order of Precedence
+[SCOPE] General
+[CLAUSE_TEXT] The Licence Documents constitute the entire agreement between the parties and supersede all prior proposals and communications. In the event of an inconsistency between: (i) special provisions agreed in a Transaction Document, (ii) this EULA including any addenda, and (iii) the Licence Model Schedule, the Documentation or any other document provided by NDS setting out permitted uses of the Software, the documents will be interpreted in that order to the extent of the inconsistency.
+
+[CLAUSE_ID] clause:3267c954c58bc07906ee
+[SECTION] 13.8
+[SECTION_PATH] 13.8 Severability and Waiver
+[SCOPE] General
+[CLAUSE_TEXT] If any provision of this EULA is held unenforceable, the remainder continues in full force. A failure to enforce any provision is not a waiver of it.
+
+[CLAUSE_ID] clause:bc3c911b948a656c79c6
+[SECTION] 13.9
+[SECTION_PATH] 13.9 Export Laws
+[SCOPE] General
+[CLAUSE_TEXT] Licensee shall comply with all applicable export control and sanctions laws, and shall not export or re-export the Software in breach of them.
+
+[CLAUSE_ID] clause:997751ec303ddb2d98cc
+[SECTION] 13.10
+[SECTION_PATH] 13.10 Third Party Rights
+[SCOPE] General
+[CLAUSE_TEXT] This EULA does not confer a benefit on, and is not enforceable by, any person who is not a party to it.
+
+[CLAUSE_ID] clause:99f5699eb27d23b271a9
+[SECTION] 13.11
+[SECTION_PATH] 13.11 Force Majeure
+[SCOPE] General
+[CLAUSE_TEXT] Neither party is liable for any failure or delay in performance, other than a failure to pay, caused by an event beyond its reasonable control.
+
+[CLAUSE_ID] clause:9ce29050eae6a86f95fc
+[SECTION] 13.12
+[SECTION_PATH] 13.12 Legal Review and Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] Both parties have had an opportunity for legal review of the Licence Documents. The parties agree that the Licence Documents result from negotiation between them and that no rule of construction against the drafter applies.
+
+[CLAUSE_ID] clause:28f2d6606f4954519e06
+[SECTION] 13.12 (2)
+[SECTION_PATH] 13.12 Legal Review and Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] ---
+
+[CLAUSE_ID] clause:7f9f375b99ce8b351a5e
+[SECTION] 13.12 (3)
+[SECTION_PATH] 13.12 Legal Review and Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] NOTE ON THIS DOCUMENT
+
+[CLAUSE_ID] clause:872b99490c03e775d6a6
+[SECTION] 13.12 (4)
+[SECTION_PATH] 13.12 Legal Review and Interpretation
+[SCOPE] General
+[CLAUSE_TEXT] This is a fictional agreement written for demonstration purposes. Northwind Data Systems plc and Meridian Retail Group plc do not exist, no part of this document is legal advice, and any pricing shown is illustrative.

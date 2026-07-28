@@ -167,9 +167,73 @@ def repair_split_words(text: str) -> str:
     return "".join(output)
 
 
+def pdf_text(path: Path) -> str:
+    """A PDF's text with its tables kept as tables.
+
+    Flattening a page reads a multi-column table one visual line at a time, so
+    the columns interleave and the sentences splice. SAP's support schedule
+    prints priority, definition and response level side by side, and came out
+    as "...if normal business processes are seriously and within 2 hours of case
+    submission for SAP affected." -- two columns fused into one sentence, with a
+    response time welded into the middle of a definition. Every clause drawn
+    from a table was quotable, plausible and wrong.
+
+    pdfplumber locates the table regions, so the prose around them can be read
+    separately and each table emitted row by row. Returns "" when the file
+    yields nothing, leaving the caller to fall back.
+    """
+
+    try:
+        import pdfplumber
+    except ImportError:
+        return ""
+
+    def render(table: list[list]) -> str:
+        rows = []
+        for row in table or []:
+            cells = [" ".join(str(cell or "").split()) for cell in row]
+            if any(cells):
+                rows.append(" | ".join(cells))
+        return "\n".join(rows)
+
+    pages: list[str] = []
+    try:
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                found = page.find_tables()
+                if not found:
+                    pages.append(page.extract_text() or "")
+                    continue
+                # Read down the page, taking the prose above each table and then
+                # the table itself, so a provision keeps the order it was
+                # written in rather than being split into prose-then-appendix.
+                parts: list[str] = []
+                cursor = 0.0
+                for table in sorted(found, key=lambda item: item.bbox[1]):
+                    top, bottom = table.bbox[1], table.bbox[3]
+                    if top - cursor > 2:
+                        band = page.crop((0, cursor, page.width, top))
+                        parts.append(band.extract_text() or "")
+                    parts.append(render(table.extract()))
+                    cursor = max(cursor, bottom)
+                if page.height - cursor > 2:
+                    tail = page.crop((0, cursor, page.width, page.height))
+                    parts.append(tail.extract_text() or "")
+                pages.append("\n".join(part for part in parts if part.strip()))
+    except Exception:  # noqa: BLE001 - a malformed PDF falls back, it does not stop the build
+        return ""
+    return "\n\n".join(page for page in pages if page.strip())
+
+
 def extract_source_text(path: Path) -> str:
     if path.suffix.lower() in {".txt", ".md"}:
         return path.read_text(encoding="utf-8", errors="replace")
+    if path.suffix.lower() == ".pdf":
+        text = pdf_text(path)
+        if text.strip():
+            return repair_split_words(text)
+    # Everything else -- and any PDF that yielded nothing -- goes through
+    # MarkItDown, which reads the Office formats pdfplumber cannot open.
     return repair_split_words(
         MarkItDown(enable_plugins=False).convert(path).text_content
     )
@@ -367,7 +431,7 @@ GENERIC_CLASSIFICATION = ("MASTER", "AGREEMENT")
 
 # Only these pairings are accepted from a model; anything else is discarded.
 INSTRUMENT_TAXONOMY: dict[str, set[str]] = {
-    "MASTER": {"MSA", "EULA", "GTC", "AGREEMENT"},
+    "MASTER": {"MSA", "EULA", "GTC", "AGREEMENT", "TOS"},
     "ORDER": {"ORDER_SCHEDULE", "ORDER_FORM", "SOW"},
     "ANNEX": {
         "LICENSE_MODEL_ANNEX",
@@ -377,7 +441,7 @@ INSTRUMENT_TAXONOMY: dict[str, set[str]] = {
     },
     "ADDENDUM": {"DPA", "BAA", "SECURITY_ADDENDUM"},
     "AMENDMENT": {"AMENDMENT"},
-    "POLICY": {"SLA", "SUPPORT_POLICY", "AUP"},
+    "POLICY": {"SLA", "SUPPORT_POLICY", "AUP", "PRIVACY_POLICY"},
 }
 
 
@@ -412,7 +476,13 @@ def classify_instrument(title: str, source: str, text: str) -> tuple[str, str]:
             ("ADDENDUM", "SECURITY_ADDENDUM"),
         ),
         (
-            r"\b(order schedule|order form)\b",
+            # Vendors name the ordering instrument differently and all of them
+            # mean the document that says what was bought: OpenText writes
+            # "Transaction Document", Oracle "Ordering Document". Read as a
+            # master agreement, an order form's special provisions stop
+            # overriding the terms they were negotiated to override.
+            r"\b(order schedule|order form|ordering document|order document"
+            r"|transaction document)\b",
             ("ORDER", "ORDER_SCHEDULE"),
         ),
         (
@@ -424,8 +494,21 @@ def classify_instrument(title: str, source: str, text: str) -> tuple[str, str]:
             ("ANNEX", "LICENSE_MODEL_ANNEX"),
         ),
         (
-            r"\b(product terms|product specific terms)\b",
+            # A capability-specific rider -- "SAP AI Terms", "Generative AI
+            # Terms" -- modifies the master for one class of functionality and
+            # is not itself a master.
+            r"\b(product terms|product specific terms|ai terms"
+            r"|product development schedule)\b",
             ("ANNEX", "PRODUCT_TERMS"),
+        ),
+        (
+            # A list of what is covered, priced or metered: the service
+            # description of the annex above rather than terms in its own right.
+            # "Service Description" is deliberately absent: it names different
+            # things at different vendors, so `make_instrument` leaves it to the
+            # model classifier rather than guessing from the title alone.
+            r"\b(services list|service list|services catalog(?:ue)?)\b",
+            ("ANNEX", "SERVICE_DESCRIPTION"),
         ),
         (
             r"\bamendment\b",
@@ -436,8 +519,26 @@ def classify_instrument(title: str, source: str, text: str) -> tuple[str, str]:
             ("POLICY", "SLA"),
         ),
         (
-            r"\bsupport policy\b",
+            # SAP, Oracle and Salesforce all publish this as a "schedule"; only
+            # some vendors call it a policy. Read as a master agreement it
+            # competes with the GTC it is subordinate to.
+            r"\b(support policy|support schedule|maintenance schedule"
+            r"|support terms|maintenance policy)\b",
             ("POLICY", "SUPPORT_POLICY"),
+        ),
+        (
+            # A privacy policy describes how personal data is handled and is not
+            # the agreement it sits beside. Classed as a master agreement it
+            # competes with the terms it is subordinate to when precedence is
+            # resolved.
+            r"\b(privacy policy|privacy notice|privacy statement)\b",
+            ("POLICY", "PRIVACY_POLICY"),
+        ),
+        (
+            # Click-through terms for a hosted service. Every SaaS vendor
+            # publishes these and none of them call it an EULA.
+            r"\b(terms of service|terms of use|website terms)\b",
+            ("MASTER", "TOS"),
         ),
         (
             r"\b(acceptable use policy|aup)\b",
@@ -1420,7 +1521,24 @@ def fragments(text: str, patterns: Sequence[str]) -> list[str]:
     return values
 
 
-MODAL_VERB = r"(?:shall|must|may|will|cannot|can\s+not|is\s+not\s+permitted)"
+# A duty does not need a modal verb. A drafter writes "Each party agrees ... to
+# hold the other party's Confidential Information in strict confidence, not to
+# disclose such Confidential Information to third parties ... and not to use
+# such Confidential Information for any purpose", which is one permission
+# followed by three duties and contains exactly one modal. Reading only modals,
+# the splitter saw a single statement, labelled the whole paragraph PERMISSION /
+# MAY from its first words, and gave that rule an evidence span covering the
+# three duties it does not describe -- so the interface highlighted "must" under
+# a heading reading "may".
+MODAL_VERB = (
+    r"(?:shall|must|may|will|cannot|can\s+not|is\s+not\s+permitted"
+    r"|agrees\s+not\s+to|undertakes\s+not\s+to|not\s+to\s+[a-z]+"
+    # "agrees, for the period of this EULA and for three (3) years afterwards,
+    # to hold" -- the duty verb is separated from "agrees" by a comma-delimited
+    # aside. Bounded to one such aside so this cannot run across a sentence.
+    r"|(?:agrees|undertakes|covenants)(?:,[^.;]{0,80},)?\s+to\s+[a-z]+"
+    r"|is\s+required\s+to|is\s+entitled\s+to)"
+)
 
 # Where one operative statement ends and the next begins. Either a sentence or
 # semicolon boundary, or a conjunction that introduces a fresh modal verb --
@@ -1430,7 +1548,20 @@ PROPOSITION_BREAK = re.compile(
     r"(?<=[a-z\)\"”])[.;]\s+(?=[A-Z“\"(])"
     # The conjunction may be followed by its own aside -- "and, upon request,
     # Customer will provide" -- so allow punctuation between it and the subject.
-    rf"|,?\s+(?:and|but|or)\s*,?\s+(?=(?:[\w'-]+[,\s]+){{0,3}}?{MODAL_VERB}\b)",
+    # The subject between the conjunction and its modal can be long: "... and a
+    # user allocated any other type of license may not have the allocation
+    # changed" puts seven words there. At a window of three that second statement
+    # stayed joined to the first. Measured over the 1,523 multi-act clauses in
+    # the library, fragments still holding more than one act fall 277 -> 225 as
+    # the window widens 3 -> 8, then flatten (215 at twelve, 205 at twenty),
+    # while "the Software and Documentation licensed to Licensee may be used"
+    # keeps its object list intact throughout. Eight buys most of the gain
+    # before the window starts reaching across genuine lists.
+    rf"|,?\s+(?:and|but|or)\s*,?\s+(?=(?:[\w'-]+[,\s]+){{0,8}}?{MODAL_VERB}\b)"
+    # A list of duties is punctuated with commas alone -- "to hold ..., not to
+    # disclose ..., and not to use ...". Only the limb carrying the conjunction
+    # would otherwise separate, leaving the rest joined to the first duty.
+    rf"|,\s+(?=not\s+to\s+[a-z]+)",
     re.I,
 )
 
@@ -1753,6 +1884,59 @@ def extract_offerings(family_id: str, clauses: Sequence[Clause]) -> list[Offerin
             )
         )
     return sorted(output, key=lambda item: item.name)
+
+
+def offering_definitions(
+    family_id: str, clauses: Sequence[Clause], offerings: Sequence[Offering]
+) -> list[DefinedTerm]:
+    """A section titled with a name defines that name.
+
+    An agreement defines things two ways. It writes `"CPU" means a single
+    central processing unit`, and it writes a section headed `A. Standard Named
+    User License Model` whose clauses are the terms of that model. Only the
+    first was ever recorded as a definition, so asking what a CPU is worked and
+    asking what a Standard Named User is did not -- there was no definition to
+    retrieve, and the answer got built from the four clauses that merely repeat
+    the phrase. A Standard Named User came back as "the licence an Occasional
+    Named User must purchase on the 53rd day", which describes something that is
+    not it.
+
+    The parser already locates these sections; `extract_offerings` is built on
+    exactly that. This records what it found in the index that answers "what is
+    X", rather than adding a second retrieval path beside it.
+    """
+
+    by_name: dict[str, list[Clause]] = defaultdict(list)
+    for clause in clauses:
+        name = offering_name(clause.heading)
+        if name:
+            by_name[name].append(clause)
+
+    output: list[DefinedTerm] = []
+    for offering in offerings:
+        members = by_name.get(offering.name) or []
+        if not members:
+            continue
+        # The whole section is the definition. A licence model is constituted by
+        # its terms, and truncating to a first sentence loses the obligation the
+        # model exists to impose.
+        body = compact(" ".join(item.text for item in members))
+        if not body:
+            continue
+        output.append(
+            DefinedTerm(
+                id=stable_id("definition", offering.instrument_id, offering.name),
+                family_id=family_id,
+                instrument_id=offering.instrument_id,
+                clause_id=offering.clause_id,
+                term=offering.name,
+                definition=body,
+                evidence_span_ids=[
+                    span for item in members[:3] for span in item.evidence_span_ids
+                ],
+            )
+        )
+    return output
 
 
 def extract_definitions(family_id: str, clauses: Sequence[Clause]) -> list[DefinedTerm]:
@@ -3313,6 +3497,15 @@ def rebuild_workspace(
     parties = extract_parties(family_id, instruments, clauses)
     definitions = extract_definitions(family_id, clauses)
     offerings = extract_offerings(family_id, clauses)
+    # A quoted "means" sentence and a titled section are both definitions; only
+    # the first was indexed as one. Registered here so that asking what a
+    # licence model is uses the same path that already answers what a CPU is.
+    known_terms = {item.term.casefold() for item in definitions}
+    definitions.extend(
+        item
+        for item in offering_definitions(family_id, clauses, offerings)
+        if item.term.casefold() not in known_terms
+    )
     rules = extract_rules(family_id, clauses, parties, spans)
     precedence = extract_precedence(family_id, instruments, clauses)
     cross_refs = extract_cross_references(family_id, clauses)

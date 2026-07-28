@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Session workspaces and generated data are private to a visitor and short-lived.
+Disallow: /api/
+
+Sitemap: https://agreementatlas.com/sitemap.xml
