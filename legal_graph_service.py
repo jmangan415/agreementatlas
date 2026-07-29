@@ -2776,7 +2776,15 @@ def answer_question(
     question: str,
     retriever: EvidenceRetriever | None = None,
     history: list[dict] | None = None,
+    on_token=None,
 ) -> dict:
+    """Answer from graph-retrieved evidence.
+
+    `on_token`, when given, receives the answer in pieces as the model writes
+    it; the assembled answer is still returned in full, so every caller keeps
+    the same result shape whether it streams or not.
+    """
+
     active_retriever = retriever or AgreementAtlasGraphRetriever(client)
     evidence = active_retriever.retrieve(root, question)
     if not evidence:
@@ -2898,7 +2906,11 @@ def answer_question(
         # is the worst thing this tool can be, and a licensing question almost
         # always turns on which variant the customer bought.
         + ambiguity_rule
-        + "Answer the question asked, in its first sentence. If it is a "
+        + "Answer the question asked, about the thing it names, in its first "
+        "sentence. Asked about one contractual mechanism, answer for that "
+        "mechanism before mentioning any other: asked about assignment, the "
+        "first sentence is about assignment, even when a differently-named "
+        "route exists. If it is a "
         'yes/no question, begin with Yes or No. If it is not -- "what is a '
         'CPU", "what happens if" -- do not begin with Yes or No, and never '
         # Both defects came from forcing the yes/no opening onto questions that
@@ -2912,12 +2924,43 @@ def answer_question(
         "its limbs is met, so a definition reading 'input to, output from, "
         "created, processed, or manipulated' is satisfied by input alone. Do not "
         "require every limb.\n\n"
+        # Asked what the Production CPU licence model is, with its section in
+        # evidence, the answer opened "the provided evidence does not define
+        # 'Production CPU'" and then quoted that section's terms -- because no
+        # definitions-section entry exists for the name. A licence model is
+        # defined by its section, not by a glossary line.
+        "A named licence model, edition or plan is defined by the section that "
+        "states its terms: what is counted, what one unit covers, its limits. "
+        "When that section is in evidence, describe it as the definition "
+        "rather than saying the name is undefined.\n\n"
+        # Asked "can I assign my licence to an affiliate", with the assignment
+        # prohibition and the allocation permission both in evidence, the
+        # answer opened "Yes, you may allocate" and called the allocation
+        # rules an override of the prohibition. Distinguishing those two
+        # mechanisms is the reason both clauses exist; blurring them is the
+        # one error a licensing reader will not forgive.
+        "Answer for the mechanism the question names. If a differently-named "
+        "mechanism reaches a similar end, present it as a distinct "
+        "alternative, not as the answer, and never present a permission for "
+        "one mechanism as overriding a prohibition of another. A precedence "
+        "rule in the trace controls only within its stated scope: a schedule "
+        "whose definitions control does not thereby override unrelated "
+        "provisions.\n\n"
         "Say a question is undecided only when the evidence truly does not settle "
         "it. Do not invent doubt from a term that is merely undefined, and do not "
         "confuse a similar phrase in a different context for the one asked about. "
         "Evidence that does not bear on the question should be left out rather "
         "than summarised -- but a competing variant of the thing asked about "
         "always bears on it.\n\n"
+        # Both the local and the frontier model, holding a rule that a session
+        # "over 2 calendar days" counts as two of the 52 days and asked about
+        # 11pm-to-1am use, answered "undecided": the rule was quoted and the
+        # last step -- that 11pm to 1am spans two calendar days -- was refused.
+        # Hedging on a stipulated fact reads as caution but is a wrong answer.
+        "When the question supplies the facts, apply the retrieved rule to "
+        "those facts and state the outcome. Do not answer 'it depends' on a "
+        "fact the question has already given, and if the stated facts satisfy "
+        "a rule's condition, say what follows.\n\n"
         "Note conditions, limits, exceptions and amendments only where they change "
         "the answer. Do not claim a rule controls unless the trace supports it. "
         "Be brief: a short answer that is correct beats a long one that hedges, "
@@ -2930,17 +2973,35 @@ def answer_question(
         if len(variants) > 1
         else ""
     )
-    answer = client.chat(
-        model=model,
-        system=system,
-        user=(
-            f"QUESTION:\n{question}{variant_context}"
-            f"\n\nLEGAL RESOLUTION TRACE:\n{trace_context}"
-            f"\n\nEVIDENCE:\n{context}"
-        ),
-        temperature=0.1,
-        max_tokens=1600,
+    user_message = (
+        f"QUESTION:\n{question}{variant_context}"
+        f"\n\nLEGAL RESOLUTION TRACE:\n{trace_context}"
+        f"\n\nEVIDENCE:\n{context}"
     )
+    if on_token is not None and hasattr(client, "chat_stream"):
+        pieces: list[str] = []
+        for piece in client.chat_stream(
+            model=model,
+            system=system,
+            user=user_message,
+            temperature=0.1,
+            max_tokens=1600,
+        ):
+            pieces.append(piece)
+            on_token(piece)
+        answer = "".join(pieces)
+        if not answer.strip():
+            raise LMStudioError(
+                "The selected model returned empty content; disable hidden reasoning."
+            )
+    else:
+        answer = client.chat(
+            model=model,
+            system=system,
+            user=user_message,
+            temperature=0.1,
+            max_tokens=1600,
+        )
     if evidence and not re.search(r"\[\d+\]", answer):
         answer = f"{answer.rstrip()}\n\nSources reviewed: [1]."
     status = schema_status(root)

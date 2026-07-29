@@ -352,6 +352,72 @@ class LMStudioClient:
             )
         return str(content)
 
+    def chat_stream(
+        self,
+        *,
+        model: str,
+        system: str,
+        user: str,
+        temperature: float = 0.1,
+        max_tokens: int = 1800,
+    ):
+        """Yield the answer in pieces as the model writes it.
+
+        `chat` waits for the whole completion, which on a local model is tens
+        of seconds of blank screen and then a wall of text arriving at once.
+        The extraction and benchmark paths keep using `chat`: they parse whole
+        JSON documents and have nothing to show a reader mid-flight.
+        """
+
+        if model not in self.allowed_model_ids():
+            raise LMStudioError("The requested model is not in the server allowlist.")
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": self.prepare_user_message(model, user)},
+            ],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+            "seed": 42,
+            "reasoning_effort": "none",
+        }
+        url = f"{self.base_url.rstrip('/')}/chat/completions"
+        body = json.dumps(payload).encode("utf-8")
+        headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        request = urllib.request.Request(
+            url, data=body, headers=headers, method="POST"
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                for raw in response:
+                    line = raw.decode("utf-8", errors="replace").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        return
+                    try:
+                        chunk = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    try:
+                        piece = chunk["choices"][0]["delta"].get("content") or ""
+                    except (KeyError, IndexError, TypeError):
+                        piece = ""
+                    if piece:
+                        yield piece
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise LMStudioError(
+                f"LM Studio returned HTTP {exc.code}: {detail[:1000]}"
+            ) from exc
+        except (urllib.error.URLError, TimeoutError) as exc:
+            raise LMStudioError(f"Could not reach LM Studio at {url}: {exc}") from exc
+
     def structured_chat(
         self,
         *,
