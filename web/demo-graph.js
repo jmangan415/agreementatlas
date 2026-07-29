@@ -522,24 +522,31 @@ function renderInspector() {
   heading.append(title, element("span", "node-type", (nodeStyle[node.type] || nodeStyle.rule).label));
   inspector.append(heading);
   const grid = element("div", "detail-grid");
+  // The field values wear the same marks as the quote below them, so the
+  // grid doubles as the key: actor blue, action underlined, object dotted,
+  // conditions amber, the deontic verb in its effect's colour.
+  const effectClass =
+    { PERMISSION: "permission", PROHIBITION: "prohibition", OBLIGATION: "obligation" }[
+      String(node.effect || "")
+    ] || "";
   const details = [
-    ["Section", node.section],
-    ["Scope", node.scope],
-    ["Effect", node.effect],
-    ["Modality", node.modality],
-    ["Polarity", node.polarity],
-    ["Actor", node.actor],
-    ["Action", node.action],
-    ["Object", node.object],
-    ["Conditions", Array.isArray(node.conditions) ? node.conditions.join("; ") : node.conditions],
-    ["Carve-outs", Array.isArray(node.carve_outs) ? node.carve_outs.join("; ") : node.carve_outs],
-    ["Status", node.status],
-    ["Source", node.source],
-    ["Model", node.model],
+    ["Section", node.section, ""],
+    ["Scope", node.scope, ""],
+    ["Effect", node.effect, effectClass ? `an ${effectClass}` : ""],
+    ["Modality", node.modality, effectClass ? `an deontic ${effectClass}` : ""],
+    ["Polarity", node.polarity, ""],
+    ["Actor", node.actor, "an actor"],
+    ["Action", node.action, "an action"],
+    ["Object", node.object, "an object"],
+    ["Conditions", Array.isArray(node.conditions) ? node.conditions.join("; ") : node.conditions, "an condition"],
+    ["Carve-outs", Array.isArray(node.carve_outs) ? node.carve_outs.join("; ") : node.carve_outs, "an condition"],
+    ["Status", node.status, ""],
+    ["Source", node.source, ""],
+    ["Model", node.model, ""],
   ].filter(([, value]) => value);
-  for (const [label, value] of details) {
+  for (const [label, value, cls] of details) {
     const item = element("div", "detail-item");
-    item.append(element("b", "", label), element("span", "", String(value)));
+    item.append(element("b", "", label), element("span", cls, String(value)));
     item.querySelector("span").title = String(value);
     grid.append(item);
   }

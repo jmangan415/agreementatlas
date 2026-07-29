@@ -610,3 +610,8 @@ h2 { font-size: 1.7rem; max-width: var(--measure); }
 
 .more-evidence.cited-evidence { border-style: solid; }
 .more-evidence.cited-evidence > summary { color: var(--ink); font-weight: 600; }
+
+.detail-item span.an {
+  display: block; width: fit-content; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
