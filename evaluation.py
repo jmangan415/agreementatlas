@@ -1,4 +1,11 @@
-"""Model-free acceptance metrics for the fictional AgreementAtlas family."""
+"""Acceptance metrics for AgreementAtlas gold-question sets.
+
+Retrieval here must be the retrieval the application runs. The app fuses BM25
+with local embeddings; scoring BM25 alone measured a pipeline the user never
+sees, and on the SAP corpus the two disagree. The only model call this makes is
+embedding each question -- if LM Studio is down, vector scoring degrades to
+empty exactly as it does in the app, and the report says which one ran.
+"""
 
 from __future__ import annotations
 
@@ -9,11 +16,20 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from legal_graph_service import legal_resolution_trace, read_jsonl, retrieve_evidence
+from legal_graph_service import (
+    legal_resolution_trace,
+    load_vectors,
+    read_jsonl,
+    retrieve_evidence,
+)
 from legal_ingest import rebuild_workspace
+from lmstudio_client import LMStudioClient
 
 
 def evaluate_workspace(root: Path, gold_path: Path) -> dict:
+    embedding_client = LMStudioClient()
+    index, payload = load_vectors(root)
+    vectors_present = bool(index and payload)
     gold = json.loads(gold_path.read_text(encoding="utf-8"))
     instruments = read_jsonl(root / "legal" / "instruments.jsonl")
     rules = read_jsonl(root / "legal" / "operative_rules.jsonl")
@@ -36,7 +52,9 @@ def evaluate_workspace(root: Path, gold_path: Path) -> dict:
     definition_correct = 0
     details: list[dict] = []
     for item in gold:
-        evidence = retrieve_evidence(root, item["question"], 14)
+        evidence = retrieve_evidence(
+            root, item["question"], 14, embedding_client=embedding_client
+        )
         trace = legal_resolution_trace(root, item["question"], evidence)
         expected = item["expects"]
         if item["id"] == "instrument-classification":
@@ -102,6 +120,14 @@ def evaluate_workspace(root: Path, gold_path: Path) -> dict:
     actual_types = {item["instrument_type"] for item in instruments}
     return {
         "schema_version": "3.0",
+        # Which retrieval actually ran. A score with vectors silently absent is
+        # a different measurement wearing the same name.
+        "retrieval": {
+            "vectors_present": vectors_present,
+            "embedder_reachable": bool(
+                vectors_present and embedding_client.status().get("available")
+            ),
+        },
         "questions": len(gold),
         "controlling_clause_precision": round(
             correct_sources / max(1, len(source_questions)), 4

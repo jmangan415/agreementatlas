@@ -1,0 +1,182 @@
+[
+  {
+    "id": "ot-version-in-force",
+    "family": "OpenText",
+    "q": "OpenText published a newer License Model Schedule after we bought our licences. Do the newer version's terms apply to our existing licences?",
+    "opens": ["no"],
+    "must": ["purchase"],
+    "must_not": [],
+    "note": "LMS: the version in force at the time of purchase governs. The Support Handbook, by contrast, is then-current -- the near-miss."
+  },
+  {
+    "id": "ot-records-24-months",
+    "family": "OpenText",
+    "q": "How long after this EULA ends must Licensee keep records sufficient for an audit?",
+    "opens": [],
+    "must": ["24"],
+    "must_not": [],
+    "note": "EULA 8.1: during the term and for 24 months after."
+  },
+  {
+    "id": "ot-audit-costs-compliant",
+    "family": "OpenText",
+    "q": "OT audited us and found us fully compliant. Do we have to reimburse OT's audit costs?",
+    "opens": ["no"],
+    "must": [],
+    "must_not": [],
+    "note": "EULA 8.3: reimbursement only if Licensee failed to comply."
+  },
+  {
+    "id": "ot-cure-period",
+    "family": "OpenText",
+    "q": "If we materially breach the EULA and OT serves a termination notice, how long do we have to cure before termination takes effect?",
+    "opens": [],
+    "must": ["10"],
+    "must_not": [],
+    "note": "EULA 12: effective 10 days after notice unless first cured. The 30-day figure nearby is for Support suspension -- the distractor."
+  },
+  {
+    "id": "ot-two-calendar-days",
+    "family": "OpenText",
+    "q": "An Occasional Named User logs in at 11 pm and works until 1 am the next morning. Is that counted as one day of their 52, or two?",
+    "opens": [],
+    "must": ["two"],
+    "must_not": [],
+    "note": "LMS: activity over 2 calendar days counts as two of the 52 days."
+  },
+  {
+    "id": "ot-false-premise-transfer",
+    "family": "OpenText",
+    "q": "The EULA lets us transfer our licences to an affiliate on 30 days' notice. What is the notice procedure?",
+    "opens": [],
+    "must": ["consent"],
+    "must_not": [],
+    "note": "False premise. No transfer-on-notice right exists; assignment needs prior written consent; allocation is a different mechanism."
+  },
+  {
+    "id": "sap-renewal-both-halves",
+    "family": "SAP Cloud",
+    "q": "How much notice must Customer give to stop auto-renewal, and how much notice must SAP give?",
+    "opens": [],
+    "must": ["1 month", "6 month"],
+    "must_not": [],
+    "note": "Order Form 2.2.2. Both halves required; stating one is confidently incomplete."
+  },
+  {
+    "id": "sap-deletion-no-conflict",
+    "family": "SAP Cloud",
+    "q": "Do the GTC's 120-day deletion of Customer Data and the DPA's 6-month ceiling for Personal Data conflict?",
+    "opens": ["no"],
+    "must": [],
+    "must_not": [],
+    "note": "Control against inventing a precedence fight where none exists."
+  },
+  {
+    "id": "sap-scc-governing-law",
+    "family": "SAP Cloud",
+    "q": "Which country's law and courts govern the EU Standard Contractual Clauses?",
+    "opens": [],
+    "must": ["german"],
+    "must_not": [],
+    "note": "DPA: law of Germany, German courts."
+  },
+  {
+    "id": "sap-p1-response",
+    "family": "SAP Cloud",
+    "q": "Our production service is completely down. How quickly must SAP first respond to the case?",
+    "opens": [],
+    "must": ["1 hour"],
+    "must_not": [],
+    "note": "Support Schedule P1 Very High: initial response within 1 hour."
+  },
+  {
+    "id": "sap-p2-tier-variant",
+    "family": "SAP Cloud",
+    "q": "How quickly must SAP first respond to a P2 (High) priority case?",
+    "opens": [],
+    "must": ["preferred"],
+    "must_not": [],
+    "note": "Depends on support tier: 4 hours Enterprise Support, 2 hours Preferred Success. Naming one without the tier split is the trap."
+  },
+  {
+    "id": "sap-sla-claim-window",
+    "family": "SAP Cloud",
+    "q": "SAP missed the availability SLA last month. How long do we have to claim the credit?",
+    "opens": [],
+    "must": ["30 business"],
+    "must_not": [],
+    "note": "SLA 2.1.1: within 30 business days after the end of the relevant month. Plain '30 days' is the careless read."
+  },
+  {
+    "id": "sap-joule-rise",
+    "family": "SAP Cloud",
+    "q": "Under RISE with SAP S/4HANA Cloud Private Edition, how many Joule messages do we get per Full Use Equivalent per year?",
+    "opens": [],
+    "must": ["500"],
+    "must_not": [],
+    "note": "AI Services List 3.3.1: 2,500 messages per FUE per Contract Year. The flat 10,000 from the table is the wrong subscription."
+  },
+  {
+    "id": "sap-insurance-unsupported",
+    "family": "SAP Cloud",
+    "q": "What professional indemnity insurance must SAP carry, and for what amount?",
+    "opens": [],
+    "must": [],
+    "must_not": ["million", "£", "€"],
+    "note": "Not in the corpus. A fabricated answer states an amount; the honest one says the documents do not."
+  },
+  {
+    "id": "sf-free-trial-warranty",
+    "family": "Salesforce",
+    "q": "During a free trial, does SFDC warrant that the service will be timely and secure?",
+    "opens": ["no"],
+    "must": [],
+    "must_not": [],
+    "note": "Free-trial disclaimer, near-duplicate of the Free Services one -- similar-context confusion test."
+  },
+  {
+    "id": "sf-ai-deception",
+    "family": "Salesforce",
+    "q": "May we present AI-generated responses to consumers as though a human wrote them?",
+    "opens": ["no"],
+    "must": [],
+    "must_not": [],
+    "note": "AI AUP: may not deceive by misrepresenting automated content."
+  },
+  {
+    "id": "sf-b2b-work-orders",
+    "family": "Salesforce",
+    "q": "Is Work Orders object access an included use case under the B2B Commerce limitations?",
+    "opens": ["no"],
+    "must": ["exclud"],
+    "must_not": [],
+    "note": "B2B Commerce Use Case Limitations: Work Orders is an Excluded Use Case. Mangled two-column table in the source."
+  },
+  {
+    "id": "sf-onsite-audit",
+    "family": "Salesforce",
+    "q": "Can Customer conduct an on-site audit of SFDC's processing under the DPA?",
+    "opens": ["yes"],
+    "must": ["three weeks"],
+    "must_not": [],
+    "note": "DPA 6.3.2-6.3.3: yes, in three trigger circumstances, once per year, three weeks' written notice. The right whose 'can' the deterministic parser once deleted."
+  },
+  {
+    "id": "okta-which-msa",
+    "family": "Okta",
+    "q": "This family holds three Okta Master Subscription Agreements (FY21, FY23, FY26). Which one governs our subscription?",
+    "opens": [],
+    "must": ["order"],
+    "must_not": [],
+    "note": "Not decidable without the Order Form: the governing MSA is the one the order incorporates. Confidently picking one is the failure."
+  },
+  {
+    "id": "okta-dr-rto",
+    "family": "Okta",
+    "q": "With the Enhanced Disaster Recovery subscription, what is the Recovery Time Objective after a Service Outage?",
+    "opens": [],
+    "must": ["minutes"],
+    "must_not": ["hours"],
+    "note": "Enhanced DR terms: no more than five minutes."
+  }
+]

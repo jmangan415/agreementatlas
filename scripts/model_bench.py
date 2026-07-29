@@ -172,14 +172,14 @@ CASES = [
         must_not=(),
     ),
     dict(
-        family="OpenText (full set)",
+        family="OpenText",
         q="May an Occasional Named User access the Software on more than 52 days in a calendar year?",
         opens=("no",),
         must=("52",),
         must_not=(),
     ),
     dict(
-        family="OpenText (full set)",
+        family="OpenText",
         q="May Actuate Named User licences be allocated to functions or shared processes?",
         opens=("no",),
         must=(),
@@ -187,7 +187,7 @@ CASES = [
     ),
     # Actor: who bears the duty.
     dict(
-        family="OpenText (full set)",
+        family="OpenText",
         q="Who must document allocations of Actuate Named User Licenses?",
         opens=(),
         must=("licensee",),
@@ -195,7 +195,7 @@ CASES = [
     ),
     # Definitional limbs.
     dict(
-        family="OpenText (full set)",
+        family="OpenText",
         q="Is every file read by StreamServe counted as a Transaction?",
         opens=("yes",),
         must=("transaction",),
@@ -203,7 +203,7 @@ CASES = [
     ),
     # Ambiguity: must not answer for one variant.
     dict(
-        family="OpenText (full set)",
+        family="OpenText",
         q="what is a named user",
         opens=(),
         must=("standard", "occasional", "actuate"),
@@ -258,7 +258,7 @@ def make_client(model):
     return HybridClient(base, key), model.split(":", 1)[1]
 
 
-def run(model, structured):
+def run(model, structured, transcript):
     original = svc.evidence_block
     if not structured:
 
@@ -296,6 +296,16 @@ def run(model, structured):
         got += points
         total += hits
         detail.append((case["q"][:44], points, hits, answer[:90].replace("\n", " ")))
+        transcript.append(
+            {
+                "id": case.get("id", case["q"][:40]),
+                "family": case["family"],
+                "question": case["q"],
+                "points": points,
+                "hits": hits,
+                "answer": answer,
+            }
+        )
     svc.evidence_block = original
     return got, total, seconds, detail, failures
 
@@ -305,7 +315,26 @@ def main() -> int:
     parser.add_argument("--models", default="google/gemma-4-26b-a4b-qat")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--list-cloud-models", action="store_true")
+    parser.add_argument(
+        "--save-answers",
+        type=Path,
+        help="Write every full answer to this JSON file, keyed by model and "
+        "reading toggle. Keyword scoring misfires -- an answer can contain "
+        "'two' while refusing to choose -- so the numbers it produces are "
+        "only final after a human reads the answers. This file is what makes "
+        "that read possible.",
+    )
+    parser.add_argument(
+        "--cases",
+        type=Path,
+        help="JSON list of cases (family/q/opens/must/must_not) replacing the "
+        "built-in suite. The built-in seven saturated -- both models score "
+        "14/14 -- so a harder set lives beside this script rather than here.",
+    )
     args = parser.parse_args()
+    if args.cases:
+        global CASES
+        CASES = json.loads(args.cases.read_text(encoding="utf-8"))
 
     if args.list_cloud_models:
         key = os.environ.get("OPENAI_API_KEY", "").strip()
@@ -324,9 +353,16 @@ def main() -> int:
         return 0
 
     print(f"{'model':34} {'reading':>9} {'score':>10} {'seconds':>9}")
+    answers: dict[str, list] = {}
     for model in args.models.split(","):
         for structured in (True, False):
-            got, total, seconds, detail, failures = run(model.strip(), structured)
+            transcript: list[dict] = []
+            got, total, seconds, detail, failures = run(
+                model.strip(), structured, transcript
+            )
+            answers[f"{model.strip()} reading={'on' if structured else 'off'}"] = (
+                transcript
+            )
             print(
                 f"{model.strip()[:34]:34} {'on' if structured else 'off':>9} "
                 f"{got:4}/{total:<5} {seconds:8.0f}"
@@ -336,6 +372,10 @@ def main() -> int:
             if args.verbose:
                 for question, points, hits, answer in detail:
                     print(f"      {points}/{hits}  {question:46} {answer}")
+    if args.save_answers:
+        args.save_answers.write_text(
+            json.dumps(answers, indent=1, ensure_ascii=False), encoding="utf-8"
+        )
     return 0
 
 

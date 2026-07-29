@@ -1,0 +1,85 @@
+model                                reading      score   seconds
+google/gemma-4-26b-a4b-qat                on   25/27          95
+      2/2  OpenText published a newer License Model Sch   No, the newer version's terms do not apply to existing licences, as "the version of the Li
+      1/1  How long after this EULA ends must Licensee    Licensee must keep records for 24 months after the EULA ends [1]. During the term of the E
+      1/1  OT audited us and found us fully compliant.    No, you do not have to reimburse OT's audit costs because the obligation to reimburse "all
+      1/1  If we materially breach the EULA and OT serv   If you are referring to the termination of the EULA itself, you have 10 days to cure the b
+      1/1  An Occasional Named User logs in at 11 pm an   It is counted as two days. According to the definition of the Occasional Named User Licens
+      1/1  The EULA lets us transfer our licences to an   No, the EULA does not permit the transfer of licenses to an affiliate on 30 days' notice; 
+      2/2  How much notice must Customer give to stop a   Customer must give at least 1 month's notice prior to the end of any Subscription Term to 
+      1/1  Do the GTC's 120-day deletion of Customer Da   No, they do not conflict because the DPA's 6-month ceiling for Personal Data is a maximum 
+      1/1  Which country's law and courts govern the EU   The EU Standard Contractual Clauses are governed by the law of Germany, and German courts 
+      1/1  Our production service is completely down. H   The speed at which SAP must first respond depends on the customer's support plan and the p
+      1/1  How quickly must SAP first respond to a P2 (   The speed at which SAP must first respond to a P2 (High) priority case depends on the cust
+      1/1  SAP missed the availability SLA last month.    You have 30 business days after the end of the relevant Month to claim the credit [5]. Cla
+      1/1  Under RISE with SAP S/4HANA Cloud Private Ed   Under RISE with SAP S/4HANA Cloud Private Edition, you get 2,500 Messages of Joule per Ful
+      3/3  What professional indemnity insurance must S   The provided evidence does not specify the type or amount of professional indemnity insura
+      1/1  During a free trial, does SFDC warrant that    No, SFDC does not warrant that the service will be timely and secure during a free trial; 
+      1/1  May we present AI-generated responses to con   No, you may not deceive end users or consumers by misrepresenting content generated throug
+      2/2  Is Work Orders object access an included use   No, Work Orders (Object Access) is listed as an Excluded Use Case under the B2B Commerce U
+      2/2  Can Customer conduct an on-site audit of SFD   Yes, Customer may conduct an On-Site Audit of SFDC's Processing activities under the DPA, 
+      0/1  This family holds three Okta Master Subscrip   The provided evidence does not settle which specific Master Subscription Agreement governs
+      1/2  With the Enhanced Disaster Recovery subscrip   Following a Service Outage, the Recovery Time Objective for the Enhanced Disaster Recovery
+google/gemma-4-26b-a4b-qat               off   26/27          68
+      2/2  OpenText published a newer License Model Sch   No, the newer version's terms do not apply to existing licences, as "the release of a new 
+      1/1  How long after this EULA ends must Licensee    Licensee must keep records sufficient for an audit for 24 months after the EULA ends [12].
+      1/1  OT audited us and found us fully compliant.    No, you do not have to reimburse OT's audit costs because the obligation to reimburse "all
+      1/1  If we materially breach the EULA and OT serv   You have 10 days to cure a material breach before termination takes effect [2]. Specifical
+      1/1  An Occasional Named User logs in at 11 pm an   It is counted as one day. According to the definition of the Occasional Named User License
+      1/1  The EULA lets us transfer our licences to an   No, the EULA does not permit the transfer of licenses to an affiliate on 30 days' notice; 
+      2/2  How much notice must Customer give to stop a   Customer must give at least 1 month's notice, and SAP must give at least 6 months' notice,
+      1/1  Do the GTC's 120-day deletion of Customer Da   No, they do not conflict because the DPA's 6-month ceiling for Personal Data is a maximum 
+      1/1  Which country's law and courts govern the EU   The law of Germany governs the EU Standard Contractual Clauses [2], [13]. German courts ha
+      1/1  Our production service is completely down. H   It is undecided how quickly SAP must respond because the required response time depends on
+      1/1  How quickly must SAP first respond to a P2 (   The speed at which SAP must first respond to a P2 (High) priority case depends on the cust
+      1/1  SAP missed the availability SLA last month.    You have 30 business days to claim the credit. Claims for a Credit must be made "through a
+      1/1  Under RISE with SAP S/4HANA Cloud Private Ed   Under RISE with SAP S/4HANA Cloud Private Edition, you get 2,500 Messages of Joule per Ful
+      3/3  What professional indemnity insurance must S   The provided evidence does not specify the amount or the specific type of professional ind
+      1/1  During a free trial, does SFDC warrant that    No, SFDC does not warrant that the service will be timely and secure during a free trial; 
+      1/1  May we present AI-generated responses to con   No, you may not deceive end users or consumers by misrepresenting content generated throug
+      2/2  Is Work Orders object access an included use   No, Work Orders (Object Access) is an excluded use case under the B2B Commerce Use Case Li
+      2/2  Can Customer conduct an on-site audit of SFD   Yes, Customer can request an on-site audit of SFDC’s processing activities covered by the 
+      1/1  This family holds three Okta Master Subscrip   The evidence does not settle which specific Master Subscription Agreement governs your sub
+      1/2  With the Enhanced Disaster Recovery subscrip   Following a Service Outage, the Recovery Time Objective for the Enhanced Disaster Recovery
+cloud:gpt-5                               on   26/27         318
+      2/2  OpenText published a newer License Model Sch   No. “The version of the License Model Schedule in force at the time of purchase of Softwar
+      1/1  How long after this EULA ends must Licensee    24 months. The EULA states: “During the term of this EULA and for 24 months after, License
+      1/1  OT audited us and found us fully compliant.    No. The EULA makes reimbursement of OT’s audit costs conditional on noncompliance: “If Lic
+      1/1  If we materially breach the EULA and OT serv   10 days. The EULA says “either party may terminate this EULA for material breach by writte
+      1/1  An Occasional Named User logs in at 11 pm an   Two. The model counts “any log-ins, sessions, or activity if conducted during a single 24 
+      1/1  The EULA lets us transfer our licences to an   There isn’t a 30‑day notice procedure for transferring licenses to an Affiliate. Assignmen
+      2/2  How much notice must Customer give to stop a   - Customer: at least 1 month’s prior notice before the end of any Subscription Term. - SAP
+      1/1  Do the GTC's 120-day deletion of Customer Da   No. Personal Data is “a sub-set of Customer Data” [1], and the DPA instructs SAP to delete
+      1/1  Which country's law and courts govern the EU   Germany. The DPA states: “The governing law of the EU Standard Contractual Clauses shall b
+      1/1  Our production service is completely down. H   Within 1 hour of case submission.  Reason: A “productive service is completely down” is P1
+      1/1  How quickly must SAP first respond to a P2 (   - SAP Enterprise Support, cloud edition: within 4 hours of case submission - SAP Preferred
+      1/1  SAP missed the availability SLA last month.    30 business days after the end of the calendar month in which SAP missed the SLA. “Claims 
+      1/1  Under RISE with SAP S/4HANA Cloud Private Ed   2,500 Messages of Joule per Full Use Equivalent per Contract Year. The AI Services List st
+      3/3  What professional indemnity insurance must S   Undecided. The provided materials contain no clause requiring SAP to carry professional in
+      1/1  During a free trial, does SFDC warrant that    No. The agreement says that during the free trial “the Services are provided ‘as-is’ witho
+      1/1  May we present AI-generated responses to con   No. Customers may not deceive end users or consumers by misrepresenting content generated 
+      2/2  Is Work Orders object access an included use   No. The B2B Commerce Use Case Limitations list “Work Orders (Object Access)” under “Exclud
+      2/2  Can Customer conduct an on-site audit of SFD   Yes. The DPA permits an “on-site audit of SFDC’s Processing activities covered by this DPA
+      1/1  This family holds three Okta Master Subscrip   Undecided on this record. The governing MSA is the one you actually entered into “as of th
+      1/2  With the Enhanced Disaster Recovery subscrip   No more than five minutes to enable read-only access, and no more than 24 hours for full-s
+cloud:gpt-5                              off   26/27         332
+      2/2  OpenText published a newer License Model Sch   No. “The release of a new version of this document does not affect the rights or obligatio
+      1/1  How long after this EULA ends must Licensee    24 months after the EULA ends. Reason: “During the term of this EULA and for 24 months aft
+      1/1  OT audited us and found us fully compliant.    No. Reimbursement of OT’s audit costs is only triggered “If Licensee has failed to comply 
+      1/1  If we materially breach the EULA and OT serv   10 days. Termination for material breach is “by written notice, effective 10 days after no
+      1/1  An Occasional Named User logs in at 11 pm an   Two. “Any log-ins, sessions, or activity if conducted during a single 24 hour period but o
+      1/1  The EULA lets us transfer our licences to an   There is no 30‑day notice transfer right. Assignment/transfer of your licences to an Affil
+      2/2  How much notice must Customer give to stop a   - Customer: at least 1 month’s notice before the end of the Subscription Term. - SAP: at l
+      1/1  Do the GTC's 120-day deletion of Customer Da   No. The DPA caps SAP’s post-termination deletion at “not to exceed 6 months” for Personal 
+      1/1  Which country's law and courts govern the EU   Germany. “The governing law of the EU Standard Contractual Clauses shall be the law of Ger
+      1/1  Our production service is completely down. H   Within 1 hour of case submission. Reason: a “productive service is completely down” is Pri
+      1/1  How quickly must SAP first respond to a P2 (   Within 4 hours for SAP Enterprise Support, cloud edition customers, and within 2 hours for
+      1/1  SAP missed the availability SLA last month.    30 business days after the end of the Month in which SAP missed the System Availability SL
+      1/1  Under RISE with SAP S/4HANA Cloud Private Ed   2,500 Messages of Joule per Full Use Equivalent per Contract Year.  Reason: “Customer shal
+      3/3  What professional indemnity insurance must S   No professional indemnity insurance requirement is specified in the evidence, and no amoun
+      1/1  During a free trial, does SFDC warrant that    No. During a free trial the Services are provided “as-is” “without any warranty,” and SFDC
+      1/1  May we present AI-generated responses to con   No. Customers may not deceive end users or consumers by misrepresenting content generated 
+      2/2  Is Work Orders object access an included use   No. The B2B Commerce Use Case Limitations list Work Orders (Object Access) under “Excluded
+      2/2  Can Customer conduct an on-site audit of SFD   Yes. “Customer can request an on-site audit of SFDC’s Processing activities covered by thi
+      1/1  This family holds three Okta Master Subscrip   Undecided. The governing MSA is the one your organization actually entered into and accept
+      1/2  With the Enhanced Disaster Recovery subscrip   No more than five minutes to enable read-only access and no more than 24 hours for full-se
