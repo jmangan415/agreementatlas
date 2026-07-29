@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -66,18 +67,31 @@ def evaluate_workspace(root: Path, gold_path: Path) -> dict:
             }
         )
 
-    list_clause_ids = {
-        item["id"]
-        for item in read_jsonl(root / "legal" / "clauses.jsonl")
-        if item.get("clause_kind") == "LIST_ITEM"
+    # Negation inheritance, measured on the clauses that actually test it: a list
+    # item under a negative chapeau must come out negative, because the "not" is
+    # in the sentence above it and nowhere in its own words.
+    #
+    # This previously counted list-item rules that were PROHIBITION and NEGATIVE
+    # and SHALL, all three, over every list item in the corpus. On the fictional
+    # set that is exactly the three rules under "Customer shall not:", so it
+    # reported 1.0 and read as a rate. On any real corpus it is not a rate at
+    # all: SAP's fifty list items are legitimately 24 permissions, 11 "will not"
+    # prohibitions and 10 "shall" obligations, of which one matched the triple,
+    # so the same healthy corpus scored 0.02. It was asserting a fixture, under
+    # the name of a property.
+    clauses_by_id = {
+        item["id"]: item for item in read_jsonl(root / "legal" / "clauses.jsonl")
     }
-    list_rules = [item for item in rules if item["clause_id"] in list_clause_ids]
-    negation_correct = sum(
-        item["effect"] == "PROHIBITION"
-        and item["polarity"] == "NEGATIVE"
-        and item["modality"] == "SHALL"
-        for item in list_rules
-    )
+    negating = re.compile(r"\b(not|no|never|neither|nor|without)\b", re.I)
+    list_rules = []
+    for item in rules:
+        clause = clauses_by_id.get(item["clause_id"])
+        if not clause or clause.get("clause_kind") != "LIST_ITEM":
+            continue
+        chapeau = clauses_by_id.get(str(clause.get("chapeau_clause_id") or ""))
+        if chapeau and negating.search(str(chapeau.get("text", ""))):
+            list_rules.append(item)
+    negation_correct = sum(item["polarity"] == "NEGATIVE" for item in list_rules)
     expected_types = set(
         next(
             item["expects"]["instrument_types"]
@@ -109,7 +123,7 @@ def evaluate_workspace(root: Path, gold_path: Path) -> dict:
             "source_questions": len(source_questions),
             "precedence_questions": len(precedence_questions),
             "definition_questions": len(definition_questions),
-            "list_item_rules": len(list_rules),
+            "list_items_under_negative_chapeau": len(list_rules),
         },
         "negation_preservation_rate": round(
             negation_correct / max(1, len(list_rules)), 4
@@ -117,6 +131,28 @@ def evaluate_workspace(root: Path, gold_path: Path) -> dict:
         "unsupported_claim_rate": float(1 - unsupported_correct),
         "details": details,
     }
+
+
+def sap_family_root() -> Path | None:
+    """The SAP Cloud family, if this machine has it loaded.
+
+    The eight documents are SAP's own published cloud agreement set, but they are
+    not committed -- `data/` is ignored in full -- so the gold set that depends on
+    them has to find them rather than ship them, and say so plainly when it
+    cannot.
+    """
+
+    try:
+        from library_store import LibraryStore
+    except ImportError:
+        return None
+    root = Path(__file__).resolve().parent / "data" / "library"
+    if not root.is_dir():
+        return None
+    for family in LibraryStore(root).list():
+        if family.name == "SAP Cloud":
+            return family.root
+    return None
 
 
 def main() -> None:
@@ -133,8 +169,40 @@ def main() -> None:
         type=Path,
         default=Path(__file__).resolve().parent / "samples",
     )
+    # The fictional corpus is 1,130 words across six documents, and its single
+    # precedence question is answered by a class-keyed heuristic rather than by
+    # reading a stated ladder -- so it scored 1.0 for precedence throughout the
+    # period when the ladder parser was shredding a real one and "which document
+    # controls" was answering "the evidence does not settle it". A second gold
+    # set on a real vendor corpus is the only way that failure gets caught.
+    parser.add_argument(
+        "--corpus",
+        choices=("acme", "sap"),
+        default="acme",
+        help="acme: the committed fictional set. sap: the SAP Cloud family in the "
+        "local library, whose documents are not committed.",
+    )
     args = parser.parse_args()
-    gold = args.samples / "gold_questions.json"
+    gold = args.samples / (
+        "gold_questions_sap.json" if args.corpus == "sap" else "gold_questions.json"
+    )
+    if args.corpus == "sap" and not args.root:
+        family = sap_family_root()
+        if family is None:
+            print(
+                json.dumps(
+                    {
+                        "skipped": "sap",
+                        "reason": "The SAP Cloud family is not in this library. Its "
+                        "documents are not committed, so this gold set only runs "
+                        "where they have been loaded.",
+                    },
+                    indent=2,
+                )
+            )
+            return
+        print(json.dumps(evaluate_workspace(family, gold), indent=2))
+        return
     if args.root:
         print(json.dumps(evaluate_workspace(args.root, gold), indent=2))
         return

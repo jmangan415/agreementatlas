@@ -1,0 +1,83 @@
+[
+  {
+    "id": "instrument-classification",
+    "question": "Which instruments are master terms, orders, addenda, policies and annexes?",
+    "expects": {
+      "instrument_types": [
+        "ORDER_SCHEDULE",
+        "SUPPORT_POLICY",
+        "SLA",
+        "DPA",
+        "GTC",
+        "PRODUCT_TERMS",
+        "SERVICE_DESCRIPTION"
+      ]
+    }
+  },
+  {
+    "id": "ladder-precedence",
+    "question": "If the Support Schedule and the General Terms and Conditions disagree, which one controls?",
+    "expects": {
+      "source": "01-ORDER_Sample-Order-Form-Cloud-Services_v4-2016.pdf",
+      "relationship": "CONTROLS_FOR_DEFINED_SCOPE",
+      "note": "The ranking is stated in Order Form section 8, which is neither of the two documents it ranks. The Support Schedule is Document 3 and the GTC is Document 6, so the Support Schedule controls. The Acme gold set never exercises this path: all ten of its precedence pairs come from class-keyed heuristics, none from a stated ladder."
+    }
+  },
+  {
+    "id": "ladder-lowest-rank",
+    "question": "Does the General Terms and Conditions override the Data Processing Agreement?",
+    "expects": {
+      "source": "01-ORDER_Sample-Order-Form-Cloud-Services_v4-2016.pdf",
+      "relationship": "CONTROLS_FOR_DEFINED_SCOPE",
+      "note": "No. The GTC is the longest and most master-like document in the set and is ranked last of six. The DPA is Document 5. This is the direction a reader is most likely to get backwards."
+    }
+  },
+  {
+    "id": "pds-override",
+    "question": "Can SAP use our data for product development even though the Data Processing Agreement limits processing to running our service?",
+    "expects": {
+      "source": "09-ANNEX_SAP-Product-Development-Schedule_v3-2021.pdf",
+      "evidence_contains": "Notwithstanding anything in the Agreement",
+      "note": "Yes, bounded. The Product Development Schedule displaces the DPA for Product Development Processing only, subject to anonymisation or immediate automated deletion. Read from the source PDFs, not from the pipeline's own extraction."
+    }
+  },
+  {
+    "id": "joule-variants",
+    "question": "How many free Joule messages do we get per year?",
+    "expects": {
+      "source": "08-ANNEX_SAP-AI-Services-List_v10-2025.pdf",
+      "note": "Unanswerable without knowing the base Cloud Service: SuccessFactors is tiered by user count, RISE is per Full Use Equivalent, IBP is a flat figure per Contract Year. A single silently chosen number is wrong by an order of magnitude."
+    }
+  },
+  {
+    "id": "governing-law-scc",
+    "question": "Which country's law and courts apply to a dispute about the EU Standard Contractual Clauses?",
+    "expects": {
+      "source": "05-DPA_Data-Processing-Agreement_v10-2024.pdf",
+      "note": "Germany and the German courts, for SCC disputes only. The GTC's England and Wales clause governs everything else, and the GTC is the document a reader reaches for first."
+    }
+  },
+  {
+    "id": "renewal-asymmetry",
+    "question": "How much notice must Customer give to stop auto-renewal, and how much must SAP give?",
+    "expects": {
+      "source": "01-ORDER_Sample-Order-Form-Cloud-Services_v4-2016.pdf",
+      "note": "One month for Customer, six months for SAP. Both halves are required: stating one is a confidently incomplete answer."
+    }
+  },
+  {
+    "id": "nested-not-conflicting",
+    "question": "The GTC gives SAP 120 days to delete Customer Data but the DPA allows up to 6 months for Personal Data. Which applies?",
+    "expects": {
+      "source": "06-BASE_General-Terms-and-Conditions-Cloud-Services-UK_v4-2026.pdf",
+      "note": "A control against over-triggering. Personal Data is a subset of Customer Data, so 120 days already satisfies the six-month ceiling and there is no conflict to resolve. Every other precedence question here checks that a real ranking is found; this one checks that a false one is not invented."
+    }
+  },
+  {
+    "id": "unsupported",
+    "question": "What professional indemnity insurance must SAP carry, and for what amount?",
+    "expects": {
+      "note": "The corpus does not say. Nothing in the eight documents states an insurance obligation or a coverage figure, so the honest answer is that this is not settled here."
+    }
+  }
+]
