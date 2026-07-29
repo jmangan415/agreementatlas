@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import tempfile
 from collections import Counter, defaultdict
@@ -2312,6 +2313,119 @@ def instrument_for_reference(
     return matches[0] if matches else None
 
 
+# Words that carry no identifying power in a document title. Deliberately short:
+# vendor and product words are *not* listed, because inverse document frequency
+# demotes them automatically wherever they are common in that corpus. Hardcoding
+# "sap" here changed the scores by 0.02 and would have been one more vendor's
+# name to add for every corpus loaded.
+TITLE_NOISE = {"the", "a", "an", "for", "of", "and", "this", "in", "to", "under", "its"}
+# A rung names a document and then says where to find it, and quotes the short
+# name it will be called afterwards. Neither is part of the title.
+TITLE_LOCATOR = re.compile(r"https?://\S+")
+TITLE_ALIAS = re.compile(r"[(“\"][^)”\"]{0,60}[)”\"]")
+
+
+def title_tokens(text: str) -> set[str]:
+    """The words that identify a document, with locators and aliases removed."""
+
+    text = TITLE_ALIAS.sub(" ", TITLE_LOCATOR.sub(" ", text))
+    return {
+        word
+        for word in re.findall(r"[a-z]+", text.lower())
+        if word not in TITLE_NOISE and len(word) > 2
+    }
+
+
+def title_weights(instruments: Sequence[Instrument]) -> dict[str, float]:
+    """How much each word narrows down which document is meant.
+
+    Contract titles in one family share most of their words -- SAP's are all
+    "... for Cloud Services" -- so counting matched words equally lets the shared
+    boilerplate decide. "Supplemental Terms and Conditions for Cloud Services"
+    then scores higher against the *General* Terms and Conditions than the one
+    word that distinguishes them scores against it, and the resolver confidently
+    returns the wrong document. Weighting by inverse document frequency over the
+    corpus's own titles makes the rare word carry the decision, which is the only
+    word that ever could.
+    """
+
+    counts: dict[str, int] = defaultdict(int)
+    for instrument in instruments:
+        for word in title_tokens(instrument.title):
+            counts[word] += 1
+    total = max(1, len(instruments))
+    return {
+        word: math.log((total + 1) / (count + 0.5)) for word, count in counts.items()
+    }
+
+
+# A named document either matches one instrument clearly or is not in the corpus.
+# Both thresholds are deliberately conservative: a wrong match invents a
+# precedence edge between two real documents, which is worse than no edge.
+TITLE_MATCH = 0.60
+TITLE_MARGIN = 0.15
+# Below this, the phrase does not read as a document title at all and belongs to
+# the reference resolver, which handles class references like "an Attachment".
+TITLE_FLOOR = 0.35
+
+
+def instrument_by_title(
+    phrase: str, instruments: Sequence[Instrument], weights: dict[str, float]
+) -> tuple[Instrument | None, bool]:
+    """Resolve a document *name* to the instrument it names.
+
+    Returns the instrument and whether the phrase looked like a title at all.
+    A phrase that names a document the corpus does not contain returns
+    ``(None, True)`` -- referenced but absent, which an agreement family does
+    routinely: SAP's order of precedence ranks six documents and ships five.
+    Saying so is the honest answer, and the alternative is a fabricated rank.
+    """
+
+    # A title ends where its locator begins: a URL never appears inside a
+    # document's name, and everything after one is either the address or the
+    # prose that resumed. One SAP rung runs its URL straight into the next
+    # sentence with no full stop, so without this cut the rung carries a whole
+    # paragraph and no title can be recognised inside it.
+    wanted = title_tokens(TITLE_LOCATOR.split(phrase, maxsplit=1)[0])
+    if not wanted:
+        return None, False
+    default = math.log(len(instruments) + 1) if instruments else 1.0
+    scored = []
+    for instrument in instruments:
+        held = title_tokens(instrument.title)
+        if not held:
+            continue
+        # Containment, in whichever direction fits, rather than similarity.
+        # A rung routinely says more than the title it names -- an alias, a
+        # locator, a parenthetical aside -- and just as routinely says less,
+        # naming "the Business Unit Terms" for a document titled "Cloud Software
+        # Group Business Unit Terms". Symmetric overlap penalises both, and
+        # charges the longest rung in the SAP ladder for words that are not part
+        # of any title.
+        shared = sum(weights.get(word, default) for word in wanted & held)
+        asked = sum(weights.get(word, default) for word in wanted)
+        total = sum(weights.get(word, default) for word in held)
+        scored.append(
+            (
+                max(shared / total if total else 0.0, shared / asked if asked else 0.0),
+                instrument,
+            )
+        )
+    if not scored:
+        return None, False
+    scored.sort(key=lambda item: (-item[0], item[1].source))
+    best, instrument = scored[0]
+    runner_up = scored[1][0] if len(scored) > 1 else 0.0
+    # One word in common is a coincidence, not a name. "the Documentation"
+    # scored a perfect containment against a Salesforce annex whose extracted
+    # title is a whole paragraph of body text and happens to contain the word,
+    # and that invented a precedence pair between two real documents.
+    overlap = len(wanted & title_tokens(instrument.title))
+    if best >= TITLE_MATCH and best - runner_up >= TITLE_MARGIN and overlap >= 2:
+        return instrument, True
+    return None, best >= TITLE_FLOOR and overlap >= 2
+
+
 def subject_scope(text: str, *, default: str = "") -> dict[str, list[str]]:
     scope = empty_scope()
     for value, pattern in (
@@ -2354,6 +2468,14 @@ LADDER_ASCENDING = re.compile(
     r"\bascending\b|\bleast\b[^.]{0,40}\bgreatest\b|\blowest\b[^.]{0,40}\bhighest\b",
     re.I,
 )
+# A ladder that numbers its own rungs -- "Document 1:", "Exhibit 2 -", "(iii)".
+# Where this is present it is the only separator that matters; punctuation is
+# part of the document titles, not between them.
+LADDER_LABEL = re.compile(
+    r"(?:\b(?:Document|Exhibit|Annex|Attachment|Schedule|Appendix)\s+\d+\s*[:.\-–]"
+    r"|(?<![A-Za-z])\((?:\d{1,2}|[ivx]{1,4}|[a-h])\)\s)",
+    re.I,
+)
 
 
 def ladder_phrases(text: str, followers: Sequence[str]) -> list[str]:
@@ -2371,7 +2493,25 @@ def ladder_phrases(text: str, followers: Sequence[str]) -> list[str]:
     tail = text[match.end() :].strip()
     # Strip the enumerator that survives conversion, e.g. "(1) the Transaction Document".
     tail = re.sub(r"^\(?\d+\)\s*", "", tail)
-    if len(tail) >= 15:
+    labelled = LADDER_LABEL.split(tail)
+    if len(labelled) > 2:
+        # The list labels its own ranks -- "Document 1: ... Document 2: ..." --
+        # so the label is the separator and nothing else is. Splitting such a
+        # list on commas and "and" instead destroys it, because document titles
+        # are full of both: SAP's six ranks include "Supplemental Terms and
+        # Conditions", "General Terms and Conditions" and "Data Processing
+        # Agreement for Cloud Services, SAP Support and SAP Services". That
+        # yielded seven fragments, none of which was a document name, and the
+        # only pairs that survived matched by accident.
+        phrases = [
+            # Prose resumes after the last rung, so keep the sentence the label
+            # introduces and drop whatever follows it. The locator and the quoted
+            # alias are left in place: `title_tokens` strips both, so the rung
+            # does not need a rule per way of writing "published under".
+            re.split(r"(?<=[a-z\)”\"])\.\s+[A-Z]", part)[0]
+            for part in labelled[1:]
+        ]
+    elif len(tail) >= 15:
         phrases = re.split(r"[;,]|\band\b", tail, flags=re.I)
     else:
         # The ranks were split into their own clauses; each follower is one rank.
@@ -2520,12 +2660,33 @@ def extract_precedence(
             # instruments that rank equally against the rungs above and below.
             ranked: list[list[Instrument]] = []
             seen_ids: set[str] = set()
+            weights = title_weights(instruments)
             for phrase in phrases:
+                # A rung names a document by title, which is a different job from
+                # working out which instrument a sentence is about, and it has an
+                # answer the general resolver cannot give: "named here, but not in
+                # this corpus". Only fall back for a rung that does not read as a
+                # title, which is where class references like "an Attachment" live.
+                # A rung naming the speaking document is not a title lookup at
+                # all -- "this End User Agreement" resolves by self-reference, and
+                # asking which title it most resembles would answer a different
+                # question and sometimes answer it wrongly.
+                named, looked_like_title = (
+                    (None, False)
+                    if SELF_REFERENCE.search(phrase)
+                    else instrument_by_title(phrase, instruments, weights)
+                )
+                if named is not None:
+                    candidates = [named]
+                elif looked_like_title:
+                    candidates = []
+                else:
+                    candidates = list(
+                        instruments_for_reference(phrase, source, instruments)
+                    )
                 rung = [
                     candidate
-                    for candidate in instruments_for_reference(
-                        phrase, source, instruments
-                    )
+                    for candidate in candidates
                     if candidate.id not in seen_ids
                 ]
                 if rung:
