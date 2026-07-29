@@ -734,6 +734,20 @@ def validate_extracted_rule(
         polarity = "NEGATIVE" if effect == "PROHIBITION" else "POSITIVE"
     if modality not in VALID_MODALITIES or polarity not in VALID_POLARITIES:
         return None
+    # Effect and polarity are two views of one fact, and the deterministic path
+    # derives the first from the second, so a prohibition is always negative
+    # there. The model writes them as independent fields and they diverge: 156
+    # of 1,150 rules were an impossible pair, 106 of them a positive
+    # prohibition. Read one, "SAP warrants to maintain an average monthly system
+    # availability", was stored as a PROHIBITION.
+    #
+    # Rejected rather than repaired. Which half the model meant is not
+    # recoverable -- a positive prohibition might be an obligation with the
+    # wrong effect or a prohibition with the wrong polarity, and choosing would
+    # be inventing. The clause keeps its deterministic rule instead, which is
+    # self-consistent by construction.
+    if (effect == "PROHIBITION") != (polarity == "NEGATIVE"):
+        return None
 
     raw_evidence = item.get("evidence_spans")
     if raw_evidence is None and item.get("evidence"):

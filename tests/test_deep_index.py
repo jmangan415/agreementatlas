@@ -21,7 +21,7 @@ from legal_graph_service import (
     substantive_clauses,
     validate_extracted_rule,
 )
-from legal_ingest import rebuild_workspace
+from legal_ingest import modality_and_polarity, rebuild_workspace
 from lmstudio_client import LMStudioClient
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -422,6 +422,118 @@ class DeepIndexTests(unittest.TestCase):
             retriever=FixedRetriever(),  # type: ignore[arg-type]
         )
         self.assertIn("[1]", answer["answer"])
+
+
+class ModalityEffectTests(unittest.TestCase):
+    """A right expressed with "can" is a right, and must not vanish.
+
+    CAN was recognised as a modality and had no effect branch, so it fell
+    through to no effect at all -- and a proposition with no effect is
+    discarded, not stored badly. 131 of 440 propositions containing a positive
+    "can" produced no rule, including a customer's right to request an audit.
+    """
+
+    def test_positive_can_grants_a_permission(self) -> None:
+        effect, modality, polarity = modality_and_polarity(
+            "Customer can request an on-site audit of the Processing activities."
+        )
+        self.assertEqual(
+            (effect, modality, polarity), ("PERMISSION", "CAN", "POSITIVE")
+        )
+
+    def test_cannot_is_still_a_prohibition(self) -> None:
+        effect, _, polarity = modality_and_polarity(
+            "Licensee cannot share administrator credentials."
+        )
+        self.assertEqual((effect, polarity), ("PROHIBITION", "NEGATIVE"))
+
+    def test_a_can_clause_actually_produces_a_rule(self) -> None:
+        # The regression that matters is absence, not a wrong label, so assert
+        # against the rule list rather than against the classifier alone.
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        workspace = Path(temporary.name)
+        sources = workspace / "sources"
+        sources.mkdir()
+        (sources / "audit.md").write_text(
+            "1. Audit\n\nCustomer can request an on-site audit of the "
+            "Processing activities covered by this Agreement.\n",
+            encoding="utf-8",
+        )
+        rebuild_workspace(workspace)
+        rules = read_jsonl(workspace / "legal" / "operative_rules.jsonl")
+        self.assertTrue(
+            [r for r in rules if r.get("modality") == "CAN"],
+            "a positive 'can' clause produced no rule at all",
+        )
+
+
+class EffectPolarityConsistencyTests(unittest.TestCase):
+    """A prohibition is negative. The model wrote the two fields separately."""
+
+    def _clause_and_lookup(self):
+        clause = {
+            "id": "clause:1",
+            "family_id": "f",
+            "document_id": "d",
+            "source": "s.pdf",
+            "section_id": "1",
+            "section_path": "1",
+            "text": "SAP warrants to maintain an average monthly system availability.",
+            "scope": {},
+        }
+        return clause, {"clause:1": clause}
+
+    def _item(self, effect: str, polarity: str) -> dict:
+        return {
+            "clause_id": "clause:1",
+            "effect": effect,
+            "modality": "OTHER",
+            "polarity": polarity,
+            "actor": "SAP",
+            "action": "maintain",
+            "object": "system availability",
+            "evidence_spans": [
+                "SAP warrants to maintain an average monthly system availability."
+            ],
+            "summary": "SAP maintains availability",
+        }
+
+    def test_a_positive_prohibition_is_rejected(self) -> None:
+        clause, lookup = self._clause_and_lookup()
+        self.assertIsNone(
+            validate_extracted_rule(
+                self._item("PROHIBITION", "POSITIVE"),
+                clause,
+                clause_lookup=lookup,
+                span_lookup={},
+                actors=["SAP"],
+            )
+        )
+
+    def test_a_negative_obligation_is_rejected(self) -> None:
+        clause, lookup = self._clause_and_lookup()
+        self.assertIsNone(
+            validate_extracted_rule(
+                self._item("OBLIGATION", "NEGATIVE"),
+                clause,
+                clause_lookup=lookup,
+                span_lookup={},
+                actors=["SAP"],
+            )
+        )
+
+    def test_a_consistent_rule_survives(self) -> None:
+        clause, lookup = self._clause_and_lookup()
+        self.assertIsNotNone(
+            validate_extracted_rule(
+                self._item("OBLIGATION", "POSITIVE"),
+                clause,
+                clause_lookup=lookup,
+                span_lookup={},
+                actors=["SAP"],
+            )
+        )
 
 
 class ChapeauEligibilityTests(unittest.TestCase):

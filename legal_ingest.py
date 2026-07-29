@@ -1198,7 +1198,14 @@ def modality_and_polarity(text: str) -> tuple[str, str, str]:
     polarity = "NEGATIVE" if negative else "POSITIVE"
     if negative:
         effect = "PROHIBITION"
-    elif modality == "MAY":
+    elif modality in {"MAY", "CAN"}:
+        # CAN was recognised as a modality and then had no effect branch, so it
+        # fell through to "" -- and build_rule discards a proposition with no
+        # effect rather than storing it. The right was not mislabelled, it was
+        # deleted: 131 of 440 propositions containing a positive "can" produced
+        # no rule at all, including "Customer can request an on-site audit of
+        # SFDC's Processing activities". Only "cannot" ever reached a branch,
+        # which is why every CAN rule in the corpus was a prohibition.
         effect = "PERMISSION"
     elif modality in {"MUST", "SHALL", "WILL"}:
         effect = "OBLIGATION"
