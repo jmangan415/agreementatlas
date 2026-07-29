@@ -57,9 +57,21 @@
             <span class="eyebrow">LIBRARY</span>
             <h1>Agreement families</h1>
           </div>
-          <button id="newFamilyButton" class="text-button">+ New</button>
+          <button id="newFamilyButton" type="button" class="secondary-button">New family</button>
         </div>
+        <form id="newFamilyForm" class="inline-form" hidden>
+          <label for="newFamilyName">Name this agreement family</label>
+          <input id="newFamilyName" type="text" maxlength="120" autocomplete="off"
+                 placeholder="e.g. Acme Cloud 2026 renewal">
+          <div class="inline-form-actions">
+            <button type="submit" class="primary-button">Create</button>
+            <button id="newFamilyCancel" type="button" class="text-button">Cancel</button>
+          </div>
+        </form>
         <div id="familyList" class="family-list" aria-live="polite"></div>
+        <button id="loadSampleLibrary" type="button" class="secondary-button wide" hidden>
+          Load the sample family
+        </button>
       </section>
 
       <div class="panel-heading">
@@ -178,10 +190,10 @@
       <div id="chat" class="chat" aria-live="polite">
         <div id="chatEmpty" class="chat-empty">
           <strong>Try a focused question</strong>
-          <div id="suggestions">
-            <button class="suggestion">What licence rights are granted, and under what conditions?</button>
-            <button class="suggestion">Which document takes precedence if terms conflict?</button>
-            <button class="suggestion">What security and data-processing duties apply?</button>
+          <div id="suggestions" class="suggestions" data-mode="generic">
+            <button type="button" class="suggestion">What licence rights are granted, and under what conditions?</button>
+            <button type="button" class="suggestion">Which document takes precedence if terms conflict?</button>
+            <button type="button" class="suggestion">What security and data-processing duties apply?</button>
           </div>
         </div>
       </div>

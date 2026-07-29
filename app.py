@@ -273,6 +273,9 @@ def workspace_store():
 DEMO_BUNDLE = Path(
     os.environ.get("DEMO_BUNDLE", "") or (ROOT / "samples" / "demo_bundle")
 )
+# Written into a workspace that holds the sample, so the interface can label it
+# as sample data for as long as it is loaded rather than only before it is.
+SAMPLE_MARKER = ".sample"
 
 
 def demo_manifest() -> dict:
@@ -322,6 +325,15 @@ def load_demo_family(visitor) -> dict:
         origin = DEMO_BUNDLE / name
         if origin.is_dir():
             shutil.copytree(origin, visitor.root / name)
+
+    # Mark the workspace so the interface can say so. The client used to infer
+    # it by testing whether a document name began with "01-BASE_EULA_UK-Ireland",
+    # which broke silently the moment the bundle was renamed and could never
+    # distinguish the sample from a visitor's own upload of a similarly named
+    # file. A marker written where the copy happens cannot drift from it.
+    (visitor.root / SAMPLE_MARKER).write_text(
+        manifest.get("name", "Sample family"), encoding="utf-8"
+    )
 
     status = schema_status(visitor.root)
     return {
@@ -409,6 +421,9 @@ def ingest_uploads(visitor, uploaded: list[tuple[str, bytes]]) -> dict:
                     "One or more files did not contain readable agreement text.",
                 )
             replace_workspace(active.root, staging)
+            # Whatever this workspace is now, it is no longer only the sample,
+            # so it must stop being labelled as one.
+            (active.root / SAMPLE_MARKER).unlink(missing_ok=True)
         except APIError:
             shutil.rmtree(staging, ignore_errors=True)
             raise
@@ -856,6 +871,7 @@ class Handler(BaseHTTPRequestHandler):
             "graph_ready": False,
             "enriched": False,
             "sample_family": demo_manifest().get("name", ""),
+            "is_sample": False,
             "enrichment": {
                 "state": "idle",
                 "stage": "idle",
@@ -913,6 +929,7 @@ class Handler(BaseHTTPRequestHandler):
             # Offered only where a bundle is installed, so the interface does
             # not advertise a button that would fail.
             "sample_family": demo_manifest().get("name", ""),
+            "is_sample": (visitor.root / SAMPLE_MARKER).exists(),
             "enrichment": enrichment,
             # Durable, unlike the job dictionary above, which is empty after a
             # restart even for a family that took hours to extract.

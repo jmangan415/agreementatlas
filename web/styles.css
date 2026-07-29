@@ -170,6 +170,27 @@ select {
   color: white; background: var(--cyan); cursor: pointer; font-size: 11px; font-weight: 800;
 }
 .primary-button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Adding a family used to be a 9px text link firing a native prompt(). It is
+   one of the two ways into the product -- the other being the sample -- so it
+   is weighted like a control, not like a footnote. */
+.secondary-button {
+  padding: 5px 9px; border: 1px solid var(--cyan); border-radius: 7px;
+  color: var(--cyan); background: white; cursor: pointer; font-size: 10px; font-weight: 700;
+}
+.secondary-button:hover { color: white; background: var(--cyan); }
+.secondary-button.wide { width: 100%; margin-top: 8px; padding: 8px 10px; }
+.inline-form { margin: 9px 0 4px; }
+.inline-form label {
+  display: block; margin-bottom: 4px; color: var(--muted);
+  font-size: 9px; text-transform: uppercase; letter-spacing: .1em;
+}
+.inline-form input {
+  width: 100%; min-width: 0; padding: 8px 9px; border: 1px solid #cfd6da; border-radius: 8px;
+  color: var(--ink); background: white; font-size: 11px;
+}
+.inline-form-actions { display: flex; align-items: center; gap: 10px; }
+.inline-form-actions .primary-button { width: auto; margin-top: 8px; padding: 7px 14px; }
 .privacy-card { background: #f5f7f6; }
 .privacy-card > div:first-child { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; }
 .privacy-card > div:first-child span { color: var(--muted); }
@@ -226,64 +247,13 @@ i.family { background: #0d1d33; } i.document { background: #18385d; } i.rule { b
 .detail-item b { display: block; color: #8a96a2; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
 .detail-item span { display: block; overflow: hidden; color: var(--ink-2); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .evidence-quote { margin: 9px 0 0; padding: 8px 11px; border-left: 3px solid var(--amber); color: #35445a; background: #fff9ee; font: 11px/1.45 Georgia, serif; }
-.clause-anatomy { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }
+.clause-source { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }
 .anatomy-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .anatomy-heading small { color: var(--muted); font: italic 10px Georgia, serif; }
-.anatomy-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
-/* One hue per role, shared by the pill and the words it came from, so the pill
-   and the highlight read as the same fact rather than two coincidences. */
-:root {
-  --role-actor:     #0f766e;  --role-actor-bg:     #d3f0ec;
-  --role-modality:  #4c3fb1;  --role-modality-bg:  #e3e0fa;
-  --role-object:    #1d4ed8;  --role-object-bg:    #dbe6ff;
-  --role-action:    #b45309;  --role-action-bg:    #fdebd0;
-  --role-limit:     #a21caf;  --role-limit-bg:     #f8dcf7;
-  --role-condition: #15803d;  --role-condition-bg: #d8f2df;
-  --role-carveout:  #9a3412;  --role-carveout-bg:  #fbe0d4;
-}
-
-.anatomy-chip {
-  display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px;
-  border-radius: 6px; color: #263751; background: #edf1f3; font-size: 9px;
-  border: 1px solid transparent;
-}
-.anatomy-chip b { font-size: 7px; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
-
-.anatomy-chip.actor    { background: var(--role-actor-bg);    color: var(--role-actor);    border-color: var(--role-actor); }
-.anatomy-chip.modality { background: var(--role-modality-bg); color: var(--role-modality); border-color: var(--role-modality); }
-.anatomy-chip.object   { background: var(--role-object-bg);   color: var(--role-object);   border-color: var(--role-object); }
-.anatomy-chip.action   { background: var(--role-action-bg);   color: var(--role-action);   border-color: var(--role-action); }
-
-/* Effect and polarity are coloured by their value: obligation and prohibition
-   must not look alike at a glance. */
-.anatomy-chip.v-obligation  { background: #dbe6ff; color: #1d4ed8; border-color: #1d4ed8; }
-.anatomy-chip.v-prohibition { background: #ffdcdc; color: #b3261e; border-color: #b3261e; }
-.anatomy-chip.v-permission  { background: #d8f2df; color: #15803d; border-color: #15803d; }
-.anatomy-chip.v-exclusion   { background: #fdebd0; color: #b45309; border-color: #b45309; }
-.anatomy-chip.v-remedy      { background: #f8dcf7; color: #a21caf; border-color: #a21caf; }
-.anatomy-chip.v-negative    { background: #ffdcdc; color: #b3261e; border-color: #b3261e; }
-.anatomy-chip.v-positive    { background: #d8f2df; color: #15803d; border-color: #15803d; }
-
-/* The highlight in the clause text uses the same hue as its pill. */
-.anatomy-evidence q.diagrammed { display: block; }
-.hl { border-radius: 3px; padding: 0 2px; background: none; color: inherit; box-decoration-break: clone; }
-.hl-actor     { background: var(--role-actor-bg);     box-shadow: inset 0 -2px 0 var(--role-actor); }
-.hl-modality  { background: var(--role-modality-bg);  box-shadow: inset 0 -2px 0 var(--role-modality); font-weight: 700; }
-.hl-object    { background: var(--role-object-bg);    box-shadow: inset 0 -2px 0 var(--role-object); }
-.hl-action    { background: var(--role-action-bg);    box-shadow: inset 0 -2px 0 var(--role-action); }
-.hl-limit     { background: var(--role-limit-bg);     box-shadow: inset 0 -2px 0 var(--role-limit); font-weight: 700; }
-.hl-condition { background: var(--role-condition-bg); box-shadow: inset 0 -2px 0 var(--role-condition); }
-.hl-carveout  { background: var(--role-carveout-bg);  box-shadow: inset 0 -2px 0 var(--role-carveout); }
-
-.diagram-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 8px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
-.diagram-legend span { display: inline-flex; align-items: center; gap: 4px; }
-.diagram-legend i { width: 10px; height: 10px; border-radius: 3px; }
-.diagram-legend i.hl-actor     { background: var(--role-actor-bg);     border: 1px solid var(--role-actor); }
-.diagram-legend i.hl-modality  { background: var(--role-modality-bg);  border: 1px solid var(--role-modality); }
-.diagram-legend i.hl-object    { background: var(--role-object-bg);    border: 1px solid var(--role-object); }
-.diagram-legend i.hl-limit     { background: var(--role-limit-bg);     border: 1px solid var(--role-limit); }
-.diagram-legend i.hl-condition { background: var(--role-condition-bg); border: 1px solid var(--role-condition); }
-.diagram-legend i.hl-carveout  { background: var(--role-carveout-bg);  border: 1px solid var(--role-carveout); }
+/* The chip row, the coloured underlines and their legend went with the
+   sentence diagram (see the note in web/app.js). The evidence bands stay:
+   quoting the clause is honest, claiming which words produced which field
+   was not. */
 .anatomy-evidence { display: grid; grid-template-columns: 112px 1fr; gap: 9px; margin-top: 7px; padding: 7px 9px; border-left: 3px solid var(--amber); background: #fff9ee; }
 .anatomy-evidence.chapeau { border-color: #5a6eb4; background: #f0f2fb; }
 .anatomy-evidence.list_item { border-color: #a83d46; background: #fff2f3; }
@@ -296,6 +266,10 @@ i.family { background: #0d1d33; } i.document { background: #18385d; } i.rule { b
 .chat { flex: 1; min-height: 180px; overflow: auto; padding-right: 4px; }
 .chat-empty { display: flex; flex-direction: column; gap: 7px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: #f8faf9; }
 .chat-empty strong { margin-bottom: 2px; font-size: 11px; }
+/* The list is rebuilt in JS when the sample loads, so the spacing lives here
+   rather than on .chat-empty's gap, which only separates the heading from the
+   list and never the questions from each other. */
+.suggestions { display: flex; flex-direction: column; gap: 7px; }
 .suggestion { padding: 9px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink-2); background: white; cursor: pointer; text-align: left; font-size: 10px; }
 .message { margin-bottom: 13px; }
 .message .role { margin: 0 0 4px 3px; color: #8895a3; font-size: 8px; font-weight: 800; letter-spacing: .12em; }

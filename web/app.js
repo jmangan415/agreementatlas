@@ -281,34 +281,57 @@ function renderLibrary() {
   $("#familyHeading").textContent = heading;
 }
 
-async function selectFamily(id) {
-  if (id === state.familyId) return;
-  setFamilyId(id);
+// Everything on screen belongs to the family that was showing, so switching or
+// creating one has to clear all of it together. Kept in one place because a
+// caller that forgets the positions Map leaves the new family's nodes laid out
+// on the old family's coordinates.
+function resetWorkspaceView() {
   state.graph = { nodes: [], relationships: [] };
   state.positions.clear();
   state.selectedId = null;
   renderGraphState();
   renderInspector();
   $("#chat").replaceChildren(createChatEmpty());
+}
+
+async function selectFamily(id) {
+  if (id === state.familyId) return;
+  setFamilyId(id);
+  resetWorkspaceView();
   await refreshStatus({ reloadGraph: true });
 }
 
-async function createFamily() {
-  const name = window.prompt("Name this agreement family", "");
-  if (name === null) return;
+// A native prompt() blocks the page, cannot be styled, and gave no hint what a
+// family is for. The inline form lives in the panel it acts on, so the name is
+// typed next to the list it will join.
+function toggleFamilyForm(open) {
+  const form = $("#newFamilyForm");
+  if (!form) return;
+  form.hidden = !open;
+  $("#newFamilyButton").hidden = open;
+  if (open) {
+    $("#newFamilyName").value = "";
+    $("#newFamilyName").focus();
+  }
+}
+
+async function createFamily(name) {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) {
+    setStatus($("#uploadStatus"), "Give the agreement family a name.", true);
+    return;
+  }
   try {
     const family = await api("/api/families", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() }),
+      body: JSON.stringify({ name: trimmed }),
     });
+    toggleFamilyForm(false);
     setFamilyId(family.id);
-    state.graph = { nodes: [], relationships: [] };
-    state.positions.clear();
-    state.selectedId = null;
-    renderGraphState();
+    resetWorkspaceView();
     await refreshStatus({ reloadGraph: true });
-    setStatus($("#uploadStatus"), "Family created. Add its agreements to build the graph.");
+    setStatus($("#uploadStatus"), `${family.name} created. Add its agreements to build the graph.`);
   } catch (error) {
     setStatus($("#uploadStatus"), error.message, true);
   }
@@ -342,7 +365,7 @@ async function refreshStatus({ reloadGraph = false } = {}) {
 // A visitor who has not uploaded anything can see nothing the product does, and
 // the terms correctly tell them not to upload a real agreement. The sample
 // family is the only path from landing to understanding, so it is offered
-// wherever the workspace is empty and a bundle exists to load.
+// until it has actually been loaded.
 // Questions checked against the sample family rather than written from
 // intuition: each one was asked, and the answer read, before it was offered.
 // They are shown only when that corpus is loaded -- against a visitor's own
@@ -355,39 +378,77 @@ const SAMPLE_QUESTIONS = [
   "What happens if we are found to be under-licensed in an audit?",
 ];
 
+const GENERIC_QUESTIONS = [
+  "What licence rights are granted, and under what conditions?",
+  "Which document takes precedence if terms conflict?",
+  "What security and data-processing duties apply?",
+];
+
+// One builder for both lists. The sample questions used to be appended without
+// a click handler, so the five questions chosen to show the product off were
+// the only ones in the interface that did nothing when clicked.
+function suggestionButton(question) {
+  const button = element("button", "suggestion", question);
+  button.type = "button";
+  button.addEventListener("click", () => {
+    $("#question").value = question;
+    $("#question").focus();
+  });
+  return button;
+}
+
 function renderSuggestions() {
   const host = $("#suggestions");
   if (!host) return;
-  const sampleLoaded = (state.status.documents || []).some((item) =>
-    String(item.source || item.name || "").startsWith("01-BASE_EULA_UK-Ireland")
+  // Server-reported, not inferred from a filename. Switching away from the
+  // sample has to restore the generic questions too: the swap used to be
+  // one-way, so selecting a vendor family after the sample left it offering to
+  // answer questions about InsightHub and NDS, neither of which was loaded.
+  const mode = state.status.is_sample ? "sample" : "generic";
+  if (host.dataset.mode === mode) return;
+  host.dataset.mode = mode;
+  host.replaceChildren(
+    ...(mode === "sample" ? SAMPLE_QUESTIONS : GENERIC_QUESTIONS).map(suggestionButton)
   );
-  if (!sampleLoaded || host.dataset.mode === "sample") return;
-  host.dataset.mode = "sample";
-  host.replaceChildren();
-  for (const question of SAMPLE_QUESTIONS) {
-    host.append(element("button", "suggestion", question));
-  }
 }
 
 function renderSampleOffer() {
   const offer = $("#sampleOffer");
   if (!offer) return;
-  const available = Boolean(state.status.sample_family);
-  const empty = !state.status.documents.length;
-  offer.hidden = !(available && empty);
+  const name = state.status.sample_family;
+  const available = Boolean(name);
+  // The sample now gets its own family rather than filling whichever one is
+  // selected, so "is the workspace on screen empty" is the wrong question in
+  // local mode: with six families loaded it is never empty and the offer never
+  // appeared. What matters is whether the sample has been loaded before.
+  const loaded = state.status.persistent
+    ? (state.status.families || []).some((item) => item.name === name && item.document_count)
+    : Boolean(state.status.documents.length);
+  offer.hidden = !(available && !loaded);
+  // The in-graph offer sits inside #graphEmpty, which is hidden the moment any
+  // graph draws -- so in local mode, where a family is almost always loaded, it
+  // could never be reached. The library card carries the same action next to
+  // "New family", which is where the two ways into the product belong together.
+  const shortcut = $("#loadSampleLibrary");
+  if (shortcut) shortcut.hidden = !(available && !loaded && state.status.persistent);
   const note = offer.querySelector(".sample-note");
   if (available && note) {
     note.dataset.family = state.status.sample_family;
   }
 }
 
-async function loadSampleFamily() {
-  const button = $("#loadSample");
+// The sample family gets its own workspace, always. `/api/demo` replaces the
+// legal, sources, input and output directories wholesale, so loading it into
+// whichever family happened to be selected would silently destroy that family's
+// documents -- and in local mode the request carried no family at all, so
+// `require_family` answered 404 and the button simply did not work.
+async function loadSampleFamily(button) {
   button.disabled = true;
   const original = button.textContent;
   button.textContent = "Loading sample…";
   try {
-    const result = await api("/api/demo", { method: "POST" });
+    if (state.status.persistent) await selectSampleWorkspace();
+    const result = await api(withFamily("/api/demo"), { method: "POST" });
     setStatus(
       $("#uploadStatus"),
       `${result.name} loaded — ${result.clauses} clauses, ${result.definitions} definitions.`
@@ -400,7 +461,25 @@ async function loadSampleFamily() {
   }
 }
 
-$("#loadSample")?.addEventListener("click", loadSampleFamily);
+// Reuse the sample family if it already exists rather than accumulating a new
+// one on every click; `/api/demo` is idempotent, so reloading into the same
+// workspace is the intended repeat behaviour.
+async function selectSampleWorkspace() {
+  const name = state.status.sample_family || "Sample family";
+  const existing = (state.status.families || []).find((item) => item.name === name);
+  const family = existing || await api("/api/families", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  setFamilyId(family.id);
+  resetWorkspaceView();
+}
+
+$("#loadSample")?.addEventListener("click", () => loadSampleFamily($("#loadSample")));
+$("#loadSampleLibrary")?.addEventListener("click", () =>
+  loadSampleFamily($("#loadSampleLibrary"))
+);
 
 async function pollEnrichment() {
   try {
@@ -505,18 +584,12 @@ function createChatEmpty() {
   const container = element("div", "chat-empty");
   container.id = "chatEmpty";
   container.append(element("strong", "", "Try a focused question"));
-  for (const question of [
-    "What licence rights are granted, and under what conditions?",
-    "Which document takes precedence if terms conflict?",
-    "What security and data-processing duties apply?",
-  ]) {
-    const button = element("button", "suggestion", question);
-    button.addEventListener("click", () => {
-      $("#question").value = question;
-      $("#question").focus();
-    });
-    container.append(button);
-  }
+  const host = element("div", "suggestions");
+  host.id = "suggestions";
+  const sample = state.status && state.status.is_sample;
+  host.dataset.mode = sample ? "sample" : "generic";
+  host.append(...(sample ? SAMPLE_QUESTIONS : GENERIC_QUESTIONS).map(suggestionButton));
+  container.append(host);
   return container;
 }
 
@@ -1003,7 +1076,15 @@ function zoom(factor) {
 $("#zoomIn").addEventListener("click", () => zoom(1.25));
 $("#zoomOut").addEventListener("click", () => zoom(.8));
 $("#resetView").addEventListener("click", fitGraph);
-$("#newFamilyButton").addEventListener("click", createFamily);
+$("#newFamilyButton").addEventListener("click", () => toggleFamilyForm(true));
+$("#newFamilyCancel").addEventListener("click", () => toggleFamilyForm(false));
+$("#newFamilyForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  createFamily($("#newFamilyName").value);
+});
+$("#newFamilyName").addEventListener("keydown", (event) => {
+  if (event.key === "Escape") toggleFamilyForm(false);
+});
 $("#graphSearch").addEventListener("input", drawGraph);
 new ResizeObserver(drawGraph).observe($("#graphStage"));
 
@@ -1110,132 +1191,15 @@ function showEvidenceOnlyInspector(item) {
 }
 
 
-// --- Sentence diagramming -----------------------------------------------------
-// Show which words in the clause produced which part of the extracted rule. Only
-// text that is literally present is highlighted: the action and object are drawn
-// from closed vocabularies and often do not appear verbatim, and inventing a
-// highlight for them would misrepresent where the reading came from.
-
-const MODAL_PATTERN = /\b(shall not|must not|may not|will not|cannot|can not|shall|must|may|will|can)\b/gi;
-const LIMIT_PATTERN = /\bonly\b/gi;
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function collectMatches(text, pattern, role) {
-  const found = [];
-  pattern.lastIndex = 0;
-  let match;
-  while ((match = pattern.exec(text)) !== null) {
-    if (!match[0]) break;
-    found.push({ start: match.index, end: match.index + match[0].length, role });
-  }
-  return found;
-}
-
-function literalMatches(text, value, role) {
-  if (!value || String(value).length < 3) return [];
-  // Whole words only. Matching "allocate" inside "allocated" highlighted the
-  // stem and left the suffix bare -- "allocate|d" -- which reads as a parser
-  // error rather than a mapping. \b alone is not enough: it stops at the start
-  // of "allocated" but not at the end, so require a non-letter after too.
-  const pattern = new RegExp(`\\b${escapeRegExp(String(value))}(?![A-Za-z])`, "gi");
-  return collectMatches(text, pattern, role);
-}
-
-function diagramSentence(text, node, usedRoles) {
-  const fragment = document.createDocumentFragment();
-  if (!text) return fragment;
-
-  // Two bands, and the distinction is the whole diagram. Actor, modality,
-  // action, object and limit are constituents: a few words each, naming a part
-  // of the sentence. A condition or carve-out is a clause, and is regularly the
-  // entire sentence -- "Unless prohibited under the applicable License Document,
-  // the Licensee may allocate Software Licenses to its Affiliates, provided".
-  //
-  // Resolving purely by length let that clause win and swallow every
-  // constituent inside it, so the sentence rendered as one flat carve-out band
-  // with none of the parts marked. Constituents are placed first and the coarse
-  // spans fill in around them.
-  const constituents = [
-    ...collectMatches(text, MODAL_PATTERN, "modality"),
-    ...collectMatches(text, LIMIT_PATTERN, "limit"),
-    ...literalMatches(text, node.actor, "actor"),
-    ...literalMatches(text, node.object, "object"),
-    ...literalMatches(text, node.action, "action"),
-  ];
-  const clauses = [];
-  for (const value of node.conditions || []) clauses.push(...literalMatches(text, value, "condition"));
-  for (const value of node.carve_outs || []) clauses.push(...literalMatches(text, value, "carveout"));
-
-  // Within a band, longest first, then drop overlaps so no word has two roles.
-  const place = (candidates, taken) => {
-    candidates.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start);
-    for (const mark of candidates) {
-      if (taken.some((other) => mark.start < other.end && other.start < mark.end)) continue;
-      taken.push(mark);
-    }
-    return taken;
-  };
-  const taken = place(constituents, []);
-
-  // A clause keeps the words the constituents did not claim, as one or more
-  // fragments, so "Unless prohibited ..." still reads as the condition while
-  // "the Licensee" inside it still reads as the actor.
-  const fragments = [];
-  for (const mark of clauses) {
-    let cursor = mark.start;
-    const inside = taken
-      .filter((other) => other.start < mark.end && mark.start < other.end)
-      .sort((a, b) => a.start - b.start);
-    for (const other of inside) {
-      if (other.start > cursor) fragments.push({ start: cursor, end: other.start, role: mark.role });
-      cursor = Math.max(cursor, other.end);
-    }
-    if (cursor < mark.end) fragments.push({ start: cursor, end: mark.end, role: mark.role });
-  }
-  // Ignore slivers left between adjacent constituents; a two-character
-  // highlight reads as a rendering fault rather than a role.
-  place(fragments.filter((item) => item.end - item.start >= 3), taken);
-  taken.sort((a, b) => a.start - b.start);
-
-  let cursor = 0;
-  for (const mark of taken) {
-    if (usedRoles) usedRoles.add(mark.role);
-    if (mark.start > cursor) fragment.append(document.createTextNode(text.slice(cursor, mark.start)));
-    const piece = element("mark", `hl hl-${mark.role}`, text.slice(mark.start, mark.end));
-    piece.title = mark.role;
-    fragment.append(piece);
-    cursor = mark.end;
-  }
-  if (cursor < text.length) fragment.append(document.createTextNode(text.slice(cursor)));
-  return fragment;
-}
-
-const ROLE_LABELS = {
-  actor: "Actor",
-  modality: "Modality",
-  object: "Object",
-  action: "Action",
-  limit: "Limit",
-  condition: "Condition",
-  carveout: "Carve-out",
-};
-
-function diagramLegend(usedRoles) {
-  // Only name the colours actually on screen. A legend entry with no matching
-  // highlight reads as a highlight the reader has failed to spot.
-  const roles = Object.entries(ROLE_LABELS).filter(([role]) => usedRoles.has(role));
-  if (!roles.length) return document.createDocumentFragment();
-  const legend = element("div", "diagram-legend");
-  for (const [role, label] of roles) {
-    const item = element("span", "");
-    item.append(element("i", `hl-${role}`), document.createTextNode(label));
-    legend.append(item);
-  }
-  return legend;
-}
+// The clause anatomy panel used to render a sentence diagram here: every
+// field of the extracted rule underlined onto the words that produced it,
+// captioned "Evidence-backed sentence diagram". It was removed rather than
+// repaired. Only 41-62% of rules (varying by family) have all three of
+// actor, action and object appearing verbatim in their own evidence, so
+// roughly half the time the underlines could not honestly anchor and the
+// caption claimed more than the panel delivered. The same six fields are
+// still shown above as plain labelled text, where they promise nothing
+// about which words produced them, and the quoted source follows unmarked.
 
 function renderInspector() {
   const inspector = $("#nodeInspector");
@@ -1281,50 +1245,24 @@ function renderInspector() {
     grid.append(item);
   }
   inspector.append(grid);
-  const anatomyValues = [
-    ["effect", node.effect],
-    ["modality", node.modality],
-    ["polarity", node.polarity],
-    ["actor", node.actor],
-    ["action", node.action],
-    ["object", node.object],
-  ].filter(([, value]) => value);
-  if (anatomyValues.length || node.evidence_segments?.length) {
-    const anatomy = element("section", "clause-anatomy");
-    const anatomyHeading = element("div", "anatomy-heading");
-    anatomyHeading.append(
-      element("span", "eyebrow", "CLAUSE ANATOMY"),
-      element("small", "", "Evidence-backed sentence diagram")
+  const segments = node.evidence_segments || [];
+  if (segments.length) {
+    const source = element("section", "clause-source");
+    const sourceHeading = element("div", "anatomy-heading");
+    sourceHeading.append(
+      element("span", "eyebrow", "SOURCE TEXT"),
+      element("small", "", "Quoted exactly from the agreement")
     );
-    anatomy.append(anatomyHeading);
-    if (anatomyValues.length) {
-      const chips = element("div", "anatomy-chips");
-      for (const [label, value] of anatomyValues) {
-        // Effect and polarity are keyed to their value: a lawyer scans for
-        // "is this an obligation or a prohibition", so that distinction has to
-        // survive being glanced at, not read.
-        const keyed = label === "effect" || label === "polarity"
-          ? `v-${String(value).toLowerCase().replace(/[^a-z]/g, "")}`
-          : "";
-        const chip = element("span", `anatomy-chip ${label} ${keyed}`.trim());
-        chip.append(element("b", "", label), document.createTextNode(String(value)));
-        chips.append(chip);
-      }
-      anatomy.append(chips);
-    }
-    const usedRoles = new Set();
-    for (const segment of node.evidence_segments || []) {
+    source.append(sourceHeading);
+    for (const segment of segments) {
       const segmentNode = element("div", `anatomy-evidence ${segment.purpose || "clause"}`);
-      const quote = element("q", "diagrammed");
-      quote.append(diagramSentence(segment.text, node, usedRoles));
       segmentNode.append(
         element("b", "", segment.purpose === "chapeau" ? "Governing chapeau" : segment.purpose === "list_item" ? "Operative list item" : "Exact evidence"),
-        quote
+        element("q", "", segment.text)
       );
-      anatomy.append(segmentNode);
+      source.append(segmentNode);
     }
-    anatomy.append(diagramLegend(usedRoles));
-    inspector.append(anatomy);
+    inspector.append(source);
   } else {
     const evidence = node.evidence || node.description;
     if (evidence) inspector.append(element("blockquote", "evidence-quote", evidence));

@@ -1,6 +1,6 @@
 {
   "name": "Northwind Data Systems (sample)",
-  "built_at": 1785263903,
+  "built_at": 1785322645,
   "documents": [
     "01-BASE_EULA_UK-Ireland.md",
     "02-SCHEDULE_Licence-Model-Schedule_v4.2_2026-03.md",
@@ -9,5 +9,5 @@
   "clauses": 299,
   "definitions": 60,
   "enriched": true,
-  "embedding_records": 552
+  "embedding_records": 553
 }
