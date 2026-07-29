@@ -582,14 +582,23 @@ function renderAnswer(result, block) {
     // retrieval was scrolling, not reading -- it moves behind one line.
     const cited = citedIndices(answerText);
     const list = element("div", "evidence-list");
+    const citedCards = [];
     const rest = [];
     evidence.forEach((item, position) => {
       const index = position + 1;
       const card = evidenceCard(item, index, turnId);
       card.dataset.cited = cited.has(index) ? "1" : "0";
-      if (cited.has(index)) list.append(card);
-      else rest.push(card);
+      (cited.has(index) ? citedCards : rest).push(card);
     });
+    // Both groups fold. The cards arrive all at once after the streamed
+    // prose, and a stack of open cards made the thread jump; two closed
+    // lines add almost no height, and a citation click opens its card.
+    if (citedCards.length) {
+      const fold = element("details", "more-evidence cited-evidence");
+      fold.append(element("summary", "", `Cited clauses (${citedCards.length})`));
+      citedCards.forEach((card) => fold.append(card));
+      list.append(fold);
+    }
     if (rest.length) {
       const more = element("details", "more-evidence");
       more.append(
@@ -699,9 +708,23 @@ function ask(question) {
           if (nameLine[1] === "thinking") {
             thinkingText += payload.text || "";
             ensureThinking();
+            // The working box scrolls internally once it fills, so following
+            // the stream means pinning *its* bottom -- unless the reader has
+            // scrolled up inside it, in which case leave them where they are.
+            const stick =
+              thinkingBody.scrollHeight -
+                thinkingBody.scrollTop -
+                thinkingBody.clientHeight <
+              48;
             thinkingBody.textContent = thinkingText;
+            if (stick) thinkingBody.scrollTop = thinkingBody.scrollHeight;
             const thread = $("#thread");
-            thread.scrollTop = thread.scrollHeight;
+            if (
+              thread.scrollHeight - thread.scrollTop - thread.clientHeight <
+              160
+            ) {
+              thread.scrollTop = thread.scrollHeight;
+            }
           } else if (nameLine[1] === "token") {
             text += payload.text || "";
             body.replaceChildren();
@@ -734,6 +757,18 @@ function ask(question) {
 }
 
 /* ---------------- wiring ---------------- */
+
+$("#thread").addEventListener("click", (event) => {
+  const link = event.target.closest("a.cite-ref");
+  if (!link) return;
+  event.preventDefault();
+  const target = document.getElementById(link.getAttribute("href").slice(1));
+  if (!target) return;
+  for (let node = target; node; node = node.parentElement) {
+    if (node.tagName === "DETAILS") node.open = true;
+  }
+  target.scrollIntoView({ block: "nearest" });
+});
 
 $("#askForm").addEventListener("submit", (event) => {
   event.preventDefault();

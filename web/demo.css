@@ -607,3 +607,6 @@ h2 { font-size: 1.7rem; max-width: var(--measure); }
   margin: 0; padding: 0.2rem 0.8rem 0.7rem; max-height: 14rem; overflow-y: auto;
   font: 0.72rem/1.55 var(--mono); color: var(--muted); white-space: pre-wrap;
 }
+
+.more-evidence.cited-evidence { border-style: solid; }
+.more-evidence.cited-evidence > summary { color: var(--ink); font-weight: 600; }
