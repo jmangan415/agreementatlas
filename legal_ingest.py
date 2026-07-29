@@ -713,6 +713,66 @@ def printed_section(text: str) -> str:
     return printed
 
 
+
+# A run-in section heading printed inside a paragraph: "...will apply. 3.3
+# Allocation of Licenses to Affiliates. Unless prohibited under..." The
+# heading detector reads font size, and a document that prints its hierarchy
+# inline rather than typographically returns none at all -- 59 of the 75
+# clauses in the OpenText EULA were filed under "Preamble (n)" while the text
+# carried 50 printed section numbers. A title case run-in heading terminated
+# by a full stop is the signature; a bare number is not enough, because
+# "within 3.5 days" and "Section 12.1 above" look the same to a counter.
+INLINE_SECTION = re.compile(
+    r"(?<![\w.])(?P<section>\d{1,2}(?:\.\d{1,2}){1,2})\s+"
+    # Commas belong inside a heading -- "13.5 Waiver, Amendment, Assignment."
+    # is one section, and excluding them filed the assignment prohibition
+    # under the independent-contractors clause above it.
+    r"(?P<title>[A-Z][A-Za-z\u2019'()\-]*,?"
+    r"(?:\s+(?:of|to|and|for|the|in|or|a|an|by|with|on|under|"
+    r"[A-Z][A-Za-z\u2019'()\-]*,?)){0,7})\.(?=\s|$)"
+)
+# The words that make a number a cross-reference rather than a new section.
+SECTION_REFERENCE_LEAD = re.compile(
+    r"(?:section|subsection|clause|article|paragraph|exhibit|schedule|"
+    r"appendix|annex)\s*$",
+    re.I,
+)
+
+
+def split_run_in_sections(text: str) -> list[tuple[str, str, str]]:
+    """Split a paragraph at run-in section headings it prints inside itself.
+
+    Returns (section, heading, body) triples in reading order. The first entry
+    carries an empty section when the paragraph opens with text belonging to
+    whatever section preceded it.
+    """
+
+    segments: list[tuple[str, str, str]] = []
+    cursor = 0
+    for match in INLINE_SECTION.finditer(text):
+        before = text[cursor : match.start()]
+        # "under Section 12.1 Termination." points at a section; it does not
+        # start one.
+        if SECTION_REFERENCE_LEAD.search(before[-14:]):
+            continue
+        # A heading starts a sentence: either the paragraph does, or the text
+        # in front of it closed one.
+        lead = before.rstrip()
+        if lead and not lead.endswith((".", ":", ";", "”", '"')):
+            continue
+        segments.append(("", "", before.strip()))
+        segments.append(
+            (match.group("section"), compact(match.group("title")).rstrip("."), "")
+        )
+        cursor = match.end()
+    if not segments:
+        return []
+    remainder = text[cursor:].strip()
+    if remainder:
+        segments.append(("", "", remainder))
+    return [item for item in segments if item[0] or item[2]]
+
+
 HEADING_VERB = re.compile(
     r"\b(shall|will|must|means?|includes?|agrees?|applies|are|is|has|have)\b", re.I
 )
@@ -833,6 +893,19 @@ def paragraph_stream(
                 previous = value
                 yield section, heading, value
             continue
+        run_in = split_run_in_sections(line)
+        if run_in:
+            for number, title, body in run_in:
+                if number:
+                    value = flush()
+                    if value:
+                        previous = value
+                        yield section, heading, value
+                    section = number
+                    heading = title or f"Clause {number}"
+                if body:
+                    buffer.append(body)
+            continue
         buffer.append(line)
     value = flush()
     if value:
@@ -895,6 +968,29 @@ DEFINITION_START = re.compile(
 )
 
 
+
+# The label and aliases that introduce the *next* definition in a lettered
+# run: '...made generally available by OT; F) "EULA" or "End User License
+# Agreement" means...'. The splitter cuts at the next 'means', so everything
+# from the label up to it -- a list letter and one or more quoted aliases --
+# was glued onto the end of the previous definition, which then read as
+# though OT's Documentation definition mentioned the EULA.
+TRAILING_DEFINITION_LABEL = re.compile(
+    r'[;.,]?\s*\(?[A-Za-z]{1,2}\)\s*'
+    r'(?:[\u201c"][^\u201d"]{1,100}[\u201d"]\s*(?:or|and)?\s*)*$'
+)
+
+
+def trim_next_definition_label(body: str) -> str:
+    """Drop a following definition's label and aliases from this one's text."""
+
+    trimmed = TRAILING_DEFINITION_LABEL.sub("", body).strip(" ;,")
+    # Never let the trim empty a definition: a body that is only a label was
+    # not a definition to begin with, and returning "" would silently delete
+    # it rather than leave it visibly odd.
+    return trimmed or body
+
+
 def split_definition_block(paragraph: str) -> tuple[str, list[tuple[str, str]]]:
     """Split a packed definitions paragraph into one clause per defined term.
 
@@ -910,7 +1006,7 @@ def split_definition_block(paragraph: str) -> tuple[str, list[tuple[str, str]]]:
     output: list[tuple[str, str]] = []
     for index, match in enumerate(matches):
         end = matches[index + 1].start() if index + 1 < len(matches) else len(paragraph)
-        body = paragraph[match.start() : end].strip(" ;")
+        body = trim_next_definition_label(paragraph[match.start() : end].strip(" ;"))
         if body:
             output.append((compact(match.group("term")), body))
     return prefix, output
@@ -1994,7 +2090,7 @@ def extract_definitions(family_id: str, clauses: Sequence[Clause]) -> list[Defin
                 instrument_id=clause.document_id,
                 clause_id=clause.id,
                 term=term,
-                definition=compact(match.group("body")),
+                definition=trim_next_definition_label(compact(match.group("body"))),
                 evidence_span_ids=evidence_for_clause(clause),
             )
         )

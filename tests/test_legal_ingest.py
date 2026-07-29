@@ -15,7 +15,11 @@ from legal_graph_service import (
     legal_resolution_trace,
     retrieve_evidence,
 )
-from legal_ingest import rebuild_workspace
+from legal_ingest import (
+    rebuild_workspace,
+    split_run_in_sections,
+    trim_next_definition_label,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLES = ROOT / "samples"
@@ -313,3 +317,77 @@ class LegalGraphV3Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RunInSectionTests(unittest.TestCase):
+    """A document that prints its hierarchy inline rather than typographically.
+
+    The OpenText EULA carries 50 printed section numbers and no font-size
+    headings at all, so every clause was filed under "Preamble (n)" and the
+    assignment prohibition cited a section it does not live in.
+    """
+
+    def test_splits_at_a_run_in_heading(self):
+        segments = split_run_in_sections(
+            "the License Model will apply. 3.3 Allocation of Licenses to "
+            "Affiliates. Unless prohibited under the applicable License "
+            "Document, the Licensee may allocate Software Licenses."
+        )
+        self.assertEqual([item[0] for item in segments if item[0]], ["3.3"])
+        heading = next(item[1] for item in segments if item[0])
+        self.assertEqual(heading, "Allocation of Licenses to Affiliates")
+
+    def test_keeps_a_comma_separated_heading_whole(self):
+        segments = split_run_in_sections(
+            "Neither party has authority to bind the other. 13.5 Waiver, "
+            "Amendment, Assignment. Licensee may not assign this EULA."
+        )
+        self.assertEqual(
+            [(item[0], item[1]) for item in segments if item[0]],
+            [("13.5", "Waiver, Amendment, Assignment")],
+        )
+
+    def test_ignores_a_cross_reference(self):
+        self.assertEqual(
+            split_run_in_sections(
+                "Licensee will comply with Section 12.1 Termination. The rest "
+                "of this clause continues here."
+            ),
+            [],
+        )
+
+    def test_ignores_a_decimal_inside_a_sentence(self):
+        self.assertEqual(
+            split_run_in_sections(
+                "The service completes within 3.5 days of the request."
+            ),
+            [],
+        )
+
+
+class DefinitionBoundaryTests(unittest.TestCase):
+    """A lettered definitions run must not bleed into its neighbour.
+
+    OpenText prints '...made generally available by OT; F) "EULA" or "End User
+    License Agreement" means...'. The split happens at the next "means", so
+    the label and its aliases arrived glued to the previous definition.
+    """
+
+    def test_drops_a_following_label_and_alias(self):
+        self.assertEqual(
+            trim_next_definition_label(
+                'user guides and release notes made generally available by '
+                'OT; F) "EULA" or'
+            ),
+            "user guides and release notes made generally available by OT",
+        )
+
+    def test_leaves_a_clean_definition_alone(self):
+        body = "user guides and release notes made generally available by OT"
+        self.assertEqual(trim_next_definition_label(body), body)
+
+    def test_keeps_an_inline_enumeration(self):
+        body = (
+            "any entity controlled by a party (a) directly or (b) indirectly"
+        )
+        self.assertEqual(trim_next_definition_label(body), body)
