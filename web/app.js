@@ -371,11 +371,11 @@ async function refreshStatus({ reloadGraph = false } = {}) {
 // They are shown only when that corpus is loaded -- against a visitor's own
 // upload they would name products that are not there.
 const SAMPLE_QUESTIONS = [
-  "Do I need a licence for someone who is authorised to use the software but has never logged in?",
-  "How many days per year can an Occasional Named User access InsightHub?",
-  "Can I assign my licence to an affiliate?",
-  "Does NDS warrant that usage data produced by the Software will be accurate?",
-  "What happens if we are found to be under-licensed in an audit?",
+  "If the Support Schedule and the General Terms and Conditions disagree, which one controls?",
+  "How many free Joule messages do we get per year?",
+  "Can SAP use our data for product development, even though the DPA limits processing to running our service?",
+  "Which country's law and courts apply to a dispute about the EU Standard Contractual Clauses?",
+  "How much notice must Customer give to stop auto-renewal, and how much must SAP give?",
 ];
 
 const GENERIC_QUESTIONS = [
@@ -604,6 +604,54 @@ function evidenceHeading(item, index) {
   return `[${index + 1}] ${item.source} · ${where}${graphReason}`;
 }
 
+// The model answers in markdown, and the bubble printed it literally: a reader
+// asking what a licence costs was shown "**SAP SuccessFactors Cloud Services:**"
+// and a column of asterisks. Only the marks the model actually uses are handled
+// -- bold, bullets, nesting, paragraphs -- and every node is built rather than
+// assigned as HTML, so nothing in an answer can turn into markup.
+function renderInline(target, line) {
+  for (const [index, part] of line.split("**").entries()) {
+    if (!part) continue;
+    target.append(
+      index % 2 ? element("strong", "", part) : document.createTextNode(part)
+    );
+  }
+}
+
+function renderAnswer(target, text) {
+  target.replaceChildren();
+  let list = null;
+  let paragraph = null;
+  for (const raw of String(text).split("\n")) {
+    const bullet = raw.match(/^(\s*)[*-]\s+(.*)$/);
+    if (bullet) {
+      paragraph = null;
+      const depth = Math.min(2, Math.floor(bullet[1].length / 2));
+      if (!list || Number(list.dataset.depth) !== depth) {
+        list = element("ul", `answer-list depth-${depth}`);
+        list.dataset.depth = String(depth);
+        target.append(list);
+      }
+      const item = element("li");
+      renderInline(item, bullet[2]);
+      list.append(item);
+      continue;
+    }
+    list = null;
+    if (!raw.trim()) {
+      paragraph = null;
+      continue;
+    }
+    if (!paragraph) {
+      paragraph = element("p", "answer-para");
+      target.append(paragraph);
+    } else {
+      paragraph.append(document.createTextNode(" "));
+    }
+    renderInline(paragraph, raw.trim());
+  }
+}
+
 function addMessage(role, text, evidence = []) {
   const empty = $("#chatEmpty");
   if (empty) empty.remove();
@@ -661,7 +709,7 @@ $("#askForm").addEventListener("submit", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, model: $("#modelSelect").value }),
     });
-    pending.textContent = `${result.answer}\n\n${result.disclaimer}`;
+    renderAnswer(pending, `${result.answer}\n\n${result.disclaimer}`);
     const parent = pending.parentElement;
     // A one-word reply is rewritten into the question it answers. Say so, or
     // the reader cannot tell which variant was actually addressed.

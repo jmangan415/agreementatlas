@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgreementAtlas — why this exists</title>
+  <meta name="description" content="A local-first legal knowledge graph for software and cloud agreement families. Built to understand how licensing rights spread across documents.">
+  <link rel="icon" href="/assets/agreementatlas-favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="story-page">
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="AgreementAtlas home">
+    <img class="brand-mark" src="/assets/agreementatlas-mark-dark.svg" width="34" height="34" alt="" aria-hidden="true">
+    <span class="wordmark">
+      <span class="wordmark-name"><span class="wm-a">Agreement</span><span class="wm-b">Atlas</span></span>
+      <small>License Intelligence</small>
+    </span>
+  </a>
+  <div class="product-promise">
+    <span class="eyebrow">LOCAL-FIRST LEGAL RAG</span>
+    <span>Map obligations, permissions, scope and precedence to exact clauses.</span>
+  </div>
+  <a class="topbar-cta" href="/app.html">Open the live tool →</a>
+</header>
+
+<main class="story">
+
+  <section class="story-hero">
+    <span class="eyebrow">WHY THIS EXISTS</span>
+    <h1>A software licence is not one document, and that is the whole problem.</h1>
+    <p class="lede">
+      A master agreement grants a right. An order form narrows it for one product.
+      An addendum controls where personal data is involved. A schedule defines the
+      licence model the order is counted in. The answer to “are we compliant?”
+      almost never lives in the document you opened.
+    </p>
+    <p class="candid">
+      I built this to understand that problem properly, not as a product. It is a
+      work in progress, and the honest limits are set out at the bottom of this
+      page rather than left for you to find.
+    </p>
+  </section>
+
+  <section class="story-band">
+    <h2>Step one: read the agreements without a model</h2>
+    <p>
+      Before any AI is involved, the documents are parsed deterministically —
+      the same input always produces the same output, and every field can be
+      traced to the words that produced it. That pass classifies each document,
+      splits clauses from the lists beneath them, extracts defined terms, resolves
+      cross-references, identifies the parties, and reads each operative sentence
+      into a structured rule.
+    </p>
+
+    <figure class="anatomy-figure">
+      <figcaption>One clause, read into a rule. SAP Order Form and Support Schedule.</figcaption>
+
+      <div class="anatomy-card">
+        <div class="anatomy-quote">
+          “Customer shall pay for Excess Use based on SAP’s prices on the date the
+          Excess Use began.”
+          <span class="anatomy-cite">Order Form §5.3 Excess Use</span>
+        </div>
+        <dl class="anatomy-fields">
+          <div><dt>Effect</dt><dd class="v-obligation">OBLIGATION</dd></div>
+          <div><dt>Modality</dt><dd>SHALL</dd></div>
+          <div><dt>Polarity</dt><dd>POSITIVE</dd></div>
+          <div><dt>Actor</dt><dd>Customer</dd></div>
+          <div><dt>Action</dt><dd>pay for</dd></div>
+          <div><dt>Object</dt><dd>Excess Use based on SAP’s prices</dd></div>
+        </dl>
+      </div>
+
+      <div class="anatomy-card">
+        <div class="anatomy-quote">
+          “SAP may include Customer’s name and subscribed Cloud Services in SAP
+          customer lists and earnings communications.”
+          <span class="anatomy-cite">Order Form §6.2 Publicity</span>
+        </div>
+        <dl class="anatomy-fields">
+          <div><dt>Effect</dt><dd class="v-permission">PERMISSION</dd></div>
+          <div><dt>Modality</dt><dd>MAY</dd></div>
+          <div><dt>Polarity</dt><dd>POSITIVE</dd></div>
+          <div><dt>Actor</dt><dd>SAP</dd></div>
+          <div><dt>Action</dt><dd>include</dd></div>
+          <div><dt>Object</dt><dd>Customer’s name</dd></div>
+        </dl>
+      </div>
+    </figure>
+
+    <p class="aside">
+      The distinction that matters commercially is <strong>effect</strong>: an
+      obligation you must meet, a permission you may rely on, a prohibition that
+      ends a deal. Both examples above are checked twice — the deterministic
+      reading and the model reading agree, and every field appears verbatim in
+      the quoted sentence.
+    </p>
+
+    <ul class="fact-row">
+      <li><b>18</b><span>contractual roles recognised</span></li>
+      <li><b>6 / 20</b><span>document classes and types</span></li>
+      <li><b>20</b><span>relationship types between clauses</span></li>
+      <li><b>0</b><span>model calls in this step</span></li>
+    </ul>
+  </section>
+
+  <section class="story-band alt">
+    <h2>Step two: AI sharpens each clause — it does not build the map</h2>
+    <p>
+      A local model re-reads each clause <em>in isolation</em> and re-derives what
+      that clause says, inside a strict schema, validated against the exact quoted
+      text it was given. Where it produces a reading that validates, that reading
+      replaces the deterministic one for that clause. Where it does not, the
+      deterministic reading stands.
+    </p>
+    <p class="correction">
+      <strong>What AI does not do here:</strong> it does not discover the
+      relationships between documents. Precedence, which rule overrides which,
+      which definition controls — all of that is computed by the same
+      deterministic pass whether or not the model has run, and the results are
+      rebased onto the model’s readings afterwards so that a difference in wording
+      cannot silently sever a precedence chain.
+    </p>
+    <p>
+      Everything runs through a local model on this machine. Agreement text does
+      not need to leave it.
+    </p>
+  </section>
+
+  <section class="story-band">
+    <h2>Step three: the part a single document cannot tell you</h2>
+    <p>
+      This is a real order of precedence, read out of SAP’s own published cloud
+      agreement set — eight documents, forty-three pages. The ranking is stated in
+      one paragraph of the <em>shortest</em> document, and it silently governs the
+      other seven.
+    </p>
+
+    <ol class="ladder">
+      <li><span class="rank">1</span> Order Form <em>— where the ranking is stated</em></li>
+      <li class="absent"><span class="rank">2</span> Supplemental Terms <em>— referenced, not in the set</em></li>
+      <li><span class="rank">3</span> Support Schedule</li>
+      <li><span class="rank">4</span> Service Level Agreement</li>
+      <li><span class="rank">5</span> Data Processing Agreement</li>
+      <li class="last"><span class="rank">6</span> General Terms and Conditions <em>— ranked last</em></li>
+    </ol>
+
+    <p class="aside">
+      The General Terms and Conditions is the longest document in the set and the
+      one anybody would reach for first. It is bottom of the ladder. Nothing
+      inside it says so — a reader who starts there has no way to find out. And
+      Document 2 is referenced but absent, which the tool reports rather than
+      quietly matching to the nearest similar-sounding document.
+    </p>
+
+    <div class="answer-demo">
+      <p class="q">If the Support Schedule and the General Terms and Conditions disagree, which one controls?</p>
+      <p class="a">
+        <b>The Support Schedule.</b> It is Document 3; the General Terms and
+        Conditions is Document 6. Nothing in either document says so — the
+        ranking is only in the Order Form, and a reader who opens the two
+        documents that are actually in conflict will not find the answer in
+        either of them. This is the live answer, not a mock-up.
+      </p>
+    </div>
+  </section>
+
+  <section class="story-band limits">
+    <h2>What it does not do yet</h2>
+    <p>
+      These are measured, not estimated, and they are here because a tool that
+      hides its gaps is not one you should trust with a contract.
+    </p>
+    <ul class="limit-list">
+      <li>
+        <b>Liability caps and exclusions are not represented.</b> The rule
+        vocabulary has permission, obligation and prohibition — there is no way to
+        express “no obligation to” or a cap on damages, so the clauses a
+        negotiator cares about most are the ones currently missing from the map.
+      </li>
+      <li>
+        <b>Negation is lost on some list items.</b> Where a list sits under
+        “Customer shall not:”, each item inherits the negation from the sentence
+        above it. Measured on real vendor documents, 75% of those items keep it in
+        one corpus and 40% in another. It should be 100%.
+      </li>
+      <li>
+        <b>The strongest override in this set is not on the map.</b> SAP’s
+        Product Development Schedule says “notwithstanding anything in the
+        Agreement” and displaces the Data Processing Agreement for one narrow
+        purpose. The tool answers that question correctly, but from retrieval —
+        the graph holds no edge for it, because that document is not on the
+        ladder and “notwithstanding” is not yet read as a precedence signal.
+      </li>
+      <li>
+        <b>The corpus is ten vendors, not hundreds.</b> Roughly ninety real
+        documents, with five further vendors held back and never tuned against, to
+        check that the rules generalise rather than memorise.
+      </li>
+    </ul>
+  </section>
+
+  <section class="story-cta">
+    <h2>See it work</h2>
+    <p>
+      The sample loads in one click — SAP’s own published cloud agreement set,
+      the eight documents ranked above, already parsed and enriched. Nothing to
+      upload. You can also load your own documents; they stay on this machine and
+      are deleted when the session expires.
+    </p>
+    <a class="cta-button" href="/app.html">Open the live tool →</a>
+    <p class="disclaimer">
+      Alpha software, and not legal advice. Automated extraction and language
+      models can be incomplete or wrong. The exact agreement text remains the
+      source of truth.
+    </p>
+  </section>
+
+</main>
+
+<footer class="story-footer">
+  <a href="/app.html">Live tool</a>
+  <a href="/privacy.html">Privacy</a>
+  <a href="/terms.html">Terms</a>
+</footer>
+
+</body>
+</html>
