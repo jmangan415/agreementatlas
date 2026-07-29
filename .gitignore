@@ -25,6 +25,11 @@ knowledge/logs/
 # Local review notes derived from non-redistributable agreements
 GRAPH_REBUILD_PLAN.md
 
+# Prebuilt demo bundles. These carry the vendors' own PDFs and their full
+# extracted text; the deployment builds them locally with
+# scripts/build_demo_bundle.py rather than the repository redistributing them.
+samples/demo_bundles/
+
 # Local operating-system and editor files
 .DS_Store
 .idea/

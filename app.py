@@ -270,28 +270,120 @@ def workspace_store():
     return library_store if PERSISTENT else session_store
 
 
-DEMO_BUNDLE = Path(
-    os.environ.get("DEMO_BUNDLE", "") or (ROOT / "samples" / "demo_bundle")
+DEMO_ROOT = Path(
+    os.environ.get("DEMO_BUNDLES", "") or (ROOT / "samples" / "demo_bundles")
 )
+# The bundle a visitor gets before choosing. OpenText leads because its trap
+# questions are the measured ones (model_bench answers all seven correctly on
+# this exact workspace) and the operator can defend every answer in person.
+DEMO_ORDER = ("opentext", "sap")
 # Written into a workspace that holds the sample, so the interface can label it
 # as sample data for as long as it is loaded rather than only before it is.
 SAMPLE_MARKER = ".sample"
 
 
+def demo_manifests() -> dict[str, dict]:
+    """Every installed sample bundle, keyed by directory name, default first."""
+
+    found: dict[str, dict] = {}
+    if not DEMO_ROOT.is_dir():
+        return found
+    for directory in sorted(DEMO_ROOT.iterdir()):
+        manifest = directory / "demo.json"
+        if not manifest.is_file():
+            continue
+        try:
+            value = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(value, dict):
+            found[directory.name] = value
+    return {
+        slug: found[slug]
+        for slug in (*DEMO_ORDER, *sorted(found))
+        if slug in found
+    }
+
+
 def demo_manifest() -> dict:
-    """What the bundled sample family contains, or {} if none is installed."""
+    """The default sample bundle's manifest, or {} if none is installed."""
 
-    manifest = DEMO_BUNDLE / "demo.json"
-    if not manifest.is_file():
-        return {}
+    for manifest in demo_manifests().values():
+        return manifest
+    return {}
+
+
+
+def sample_catalogue() -> list[dict]:
+    """What the interface needs to offer each installed sample bundle."""
+
+    return [
+        {
+            "slug": slug,
+            "name": manifest.get("name", slug),
+            "short_name": manifest.get("short_name", manifest.get("name", slug)),
+            "headline": manifest.get("headline", ""),
+            "source_url": manifest.get("source_url", ""),
+            "documents": len(manifest.get("documents", [])),
+            "clauses": manifest.get("clauses", 0),
+            "definitions": manifest.get("definitions", 0),
+            "enriched": bool(manifest.get("enriched")),
+            "questions": [
+                str(item) for item in manifest.get("questions", [])[:8]
+            ],
+        }
+        for slug, manifest in demo_manifests().items()
+    ]
+
+
+def autoload_sample(visitor) -> None:
+    """Put the current sample in front of a visitor who has nothing else.
+
+    Two problems, one cause. A first-time visitor landed on an empty workspace
+    and had to find a button before the product did anything. And when the
+    bundle was replaced, every session already holding the old one was stranded:
+    the offer to load a sample is hidden as soon as any document exists, so
+    there was no route from the previous sample to the current one short of
+    deleting your own session.
+
+    Loading it here removes both. It runs on the status call, which is the first
+    thing the interface asks for, and it is skipped the moment the workspace
+    holds anything that is not a stale sample -- an uploaded document is never
+    replaced.
+    """
+
+    if PERSISTENT:
+        return
+    manifests = demo_manifests()
+    if not manifests:
+        return
+    marker = visitor.root / SAMPLE_MARKER
+    sources = visitor.root / "sources"
+    has_files = sources.is_dir() and any(item.is_file() for item in sources.iterdir())
+    if has_files:
+        if not marker.exists():
+            return
+        try:
+            current = marker.read_text(encoding="utf-8").strip()
+        except OSError:
+            return
+        # Any currently-installed sample is fine where it is: a visitor who
+        # chose the second bundle must not be flipped back to the first on
+        # their next status call.
+        if current in {
+            str(item.get("name", "")).strip() for item in manifests.values()
+        }:
+            return
     try:
-        return json.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
+        load_demo_family(visitor)
+    except APIError:
+        # A missing or half-installed bundle must not stop the page loading;
+        # the interface already copes with an empty workspace.
+        return
 
 
-def load_demo_family(visitor) -> dict:
-    """Copy the prebuilt sample family into this visitor's workspace.
+def load_demo_family(visitor, slug: str = "") -> dict:
+    """Copy a prebuilt sample family into this visitor's workspace.
 
     The public demo has no shared library by design, so without this a visitor
     arrives at an empty workspace inviting them to upload an agreement -- which
@@ -303,14 +395,19 @@ def load_demo_family(visitor) -> dict:
     enrichment rate limit: nothing here calls the model.
     """
 
-    manifest = demo_manifest()
-    if not manifest:
+    manifests = demo_manifests()
+    if not manifests:
         raise APIError(
             503,
             "no_demo",
             "The sample family is not installed on this deployment.",
         )
-    source = DEMO_BUNDLE / "legal"
+    chosen = slug or next(iter(manifests))
+    manifest = manifests.get(chosen)
+    if manifest is None:
+        raise APIError(404, "no_demo", "That sample family is not installed.")
+    bundle = DEMO_ROOT / chosen
+    source = bundle / "legal"
     if not source.is_dir():
         raise APIError(503, "no_demo", "The sample family is incomplete.")
 
@@ -322,7 +419,7 @@ def load_demo_family(visitor) -> dict:
         if target.exists():
             shutil.rmtree(target, ignore_errors=True)
     for name in ("legal", "sources", "input", "output"):
-        origin = DEMO_BUNDLE / name
+        origin = bundle / name
         if origin.is_dir():
             shutil.copytree(origin, visitor.root / name)
 
@@ -338,6 +435,7 @@ def load_demo_family(visitor) -> dict:
     status = schema_status(visitor.root)
     return {
         "loaded": True,
+        "slug": chosen,
         "name": manifest.get("name", "Sample family"),
         "documents": workspace_documents(visitor.root),
         "clauses": manifest.get("clauses", 0),
@@ -759,7 +857,9 @@ class Handler(BaseHTTPRequestHandler):
         self, content_type: str, length: int, *, cache: str = "no-store"
     ) -> None:
         self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(length))
+        # A stream has no length to declare; anything else must state one.
+        if length:
+            self.send_header("Content-Length", str(length))
         self.send_header("Cache-Control", cache)
         self.send_header("X-Content-Type-Options", "nosniff")
         # Announced only for the public deployment: sent from a local install it
@@ -791,6 +891,25 @@ class Handler(BaseHTTPRequestHandler):
             )
         elif getattr(self, "set_session_cookie", False):
             self.send_header("Set-Cookie", self._session_cookie_header(self.visitor))
+
+    def sse_start(self) -> None:
+        """Begin a server-sent-event stream.
+
+        The answer takes tens of seconds on a local model. Held until complete
+        it arrives as a wall of text after a blank wait; streamed, the reader
+        watches it being written and can stop reading when they have what they
+        asked for.
+        """
+
+        self.send_response(200)
+        self._common_headers("text/event-stream; charset=utf-8", 0)
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+
+    def sse_send(self, event: str, payload: dict) -> None:
+        body = json.dumps(payload, ensure_ascii=False)
+        self.wfile.write(f"event: {event}\ndata: {body}\n\n".encode("utf-8"))
+        self.wfile.flush()
 
     def json_response(
         self, payload: dict | list, code: int = 200, *, extra: dict | None = None
@@ -871,7 +990,9 @@ class Handler(BaseHTTPRequestHandler):
             "graph_ready": False,
             "enriched": False,
             "sample_family": demo_manifest().get("name", ""),
+            "samples": sample_catalogue(),
             "is_sample": False,
+            "sample_name": "",
             "enrichment": {
                 "state": "idle",
                 "stage": "idle",
@@ -929,7 +1050,14 @@ class Handler(BaseHTTPRequestHandler):
             # Offered only where a bundle is installed, so the interface does
             # not advertise a button that would fail.
             "sample_family": demo_manifest().get("name", ""),
+            "samples": sample_catalogue(),
             "is_sample": (visitor.root / SAMPLE_MARKER).exists(),
+            # Which sample, so a two-bundle interface can mark the loaded one.
+            "sample_name": (
+                (visitor.root / SAMPLE_MARKER).read_text(encoding="utf-8").strip()
+                if (visitor.root / SAMPLE_MARKER).exists()
+                else ""
+            ),
             "enrichment": enrichment,
             # Durable, unlike the job dictionary above, which is empty after a
             # restart even for a family that took hours to extract.
@@ -986,6 +1114,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.json_response(self.status_payload(family))
                     return
                 visitor = self.ensure_session()
+                autoload_sample(visitor)
                 self.check_rate("status", visitor, limit=120, window=60)
                 self.json_response(self.status_payload(visitor))
                 return
@@ -1040,7 +1169,14 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if path == "/api/demo":
                 self.check_rate("demo", visitor, limit=6, window=10 * 60)
-                self.json_response(load_demo_family(visitor), 201)
+                # The body is optional: the original client posts none, the
+                # sample picker names a bundle.
+                slug = ""
+                if self.headers.get("Content-Type", "").lower().startswith(
+                    "application/json"
+                ):
+                    slug = str(self.read_json().get("bundle", "")).strip()
+                self.json_response(load_demo_family(visitor, slug), 201)
                 return
             if path == "/api/enrich":
                 self.check_rate("enrich", visitor, limit=2, window=60 * 60)
@@ -1079,13 +1215,40 @@ class Handler(BaseHTTPRequestHandler):
                 # answered as though it were a new question about nothing.
                 history = conversation.load(visitor.root)
                 asked, chosen = conversation.resolve_followup(question, history)
+                streaming = bool(data.get("stream"))
+                started = False
+
+                def emit(piece: str) -> None:
+                    nonlocal started
+                    if not streaming:
+                        return
+                    if not started:
+                        self.sse_start()
+                        started = True
+                    self.sse_send("token", {"text": piece})
+
                 try:
                     result = answer_question(
-                        visitor.root, lm_client, model, asked, history=history
+                        visitor.root,
+                        lm_client,
+                        model,
+                        asked,
+                        history=history,
+                        on_token=emit if streaming else None,
                     )
                 except LMStudioError as exc:
+                    if started:
+                        # The stream is already open, so an error has to travel
+                        # inside it rather than as a status code.
+                        self.sse_send("error", {"error": safe_lm_error(exc)})
+                        lm_slots.release()
+                        return
+                    lm_slots.release()
                     raise APIError(502, "model_error", safe_lm_error(exc)) from None
-                finally:
+                except Exception:
+                    lm_slots.release()
+                    raise
+                else:
                     lm_slots.release()
                 conversation.append(
                     visitor.root,
@@ -1102,6 +1265,16 @@ class Handler(BaseHTTPRequestHandler):
                     "AI-assisted document interpretation, not legal advice. "
                     "Verify conclusions against the cited agreement text."
                 )
+                if streaming:
+                    if not started:
+                        self.sse_start()
+                    # Evidence, trace and offered variants arrive once the
+                    # prose is done; the client swaps its streamed text for
+                    # this complete record.
+                    self.sse_send("result", result)
+                    self.wfile.write(b"event: done\ndata: {}\n\n")
+                    self.wfile.flush()
+                    return
                 self.json_response(result)
                 return
             raise APIError(404, "not_found", "The API endpoint was not found.")
@@ -1201,7 +1374,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def serve_static(self, path: str) -> None:
         if path in {"/", ""}:
-            path = "/index.html"
+            # The public demo leads with the question-led page; the local
+            # workbench keeps its working interface. Both remain reachable by
+            # name in either mode.
+            path = "/index.html" if PERSISTENT else "/demo.html"
         target = WEB / path.lstrip("/")
         try:
             resolved = target.resolve()
@@ -1217,7 +1393,7 @@ class Handler(BaseHTTPRequestHandler):
                 "{{RETENTION_HOURS}}": str(SESSION_TTL_HOURS),
                 "{{APP_MODE}}": html.escape(APP_MODE),
             }
-            for asset in ("app.js", "styles.css"):
+            for asset in ("app.js", "styles.css", "demo.js", "demo.css", "demo-graph.js"):
                 digest = self.asset_version(asset)
                 if digest:
                     replacements[f'"/{asset}"'] = f'"/{asset}?v={digest}"'
