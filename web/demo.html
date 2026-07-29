@@ -39,106 +39,6 @@
 
 <main>
 
-<!-- ======================= WHY: the operator's problem ======================= -->
-<section class="why" id="why">
-  <p class="eyebrow">Why this exists</p>
-  <h1>Twenty-five years of enterprise software agreements — and they still surprise me.</h1>
-  <p class="lede">
-    I spent twenty-five years in enterprise software licensing, reading and negotiating
-    hundreds of software and cloud agreements across the table from procurement, business
-    owners and in-house legal. Their structure is a real problem for everyone at that
-    table: vendors, procurement and software asset managers alike. Rights are spread
-    across master terms, schedules, order forms and addenda; acquisitions bolt inherited
-    paper onto the stack; years of amendments accrete; and the agreements, as written,
-    produce outcomes nobody intended. The License Model Schedule loaded below still
-    carries licence models inherited through an acquisition I sold through — the paper
-    outlived the org chart. Questions like the ones on this page are the ones
-    seven-figure renewals turn on.
-  </p>
-  <p class="lede">
-    This project asks whether that reading can move, over time, to agents — and what a
-    system has to be shaped like to interpret agreement families reliably. Frontier models
-    can essentially do this work today, but contracts are exactly the documents many
-    organisations cannot send to a cloud API, so local, in-house processing is the
-    attractive path. AgreementAtlas is a first pass at that challenge:
-  </p>
-
-  <figure class="pipeline" aria-label="How AgreementAtlas works">
-    <svg viewBox="0 0 960 180" role="img" aria-hidden="true">
-      <!-- stage 1: the family -->
-      <g class="pl-docs">
-        <rect x="26" y="44" width="120" height="86" rx="6" class="pl-doc"/>
-        <rect x="18" y="36" width="120" height="86" rx="6" class="pl-doc"/>
-        <rect x="10" y="28" width="120" height="86" rx="6" class="pl-doc"/>
-        <text x="70" y="60" class="pl-doc-label" text-anchor="middle">Base terms</text>
-        <text x="70" y="78" class="pl-doc-label" text-anchor="middle">Schedules</text>
-        <text x="70" y="96" class="pl-doc-label" text-anchor="middle">Orders · DPAs</text>
-        <text x="78" y="150" class="pl-caption" text-anchor="middle">an agreement family</text>
-      </g>
-      <path class="pl-arrow" d="M156 79 h56"/>
-      <!-- stage 2: deterministic parse -->
-      <g>
-        <rect x="222" y="28" width="188" height="102" rx="8" class="pl-box"/>
-        <text x="316" y="56" class="pl-title" text-anchor="middle">Deterministic parse</text>
-        <text x="316" y="80" class="pl-detail" text-anchor="middle">clauses · defined terms</text>
-        <text x="316" y="98" class="pl-detail" text-anchor="middle">precedence ladders</text>
-        <text x="316" y="150" class="pl-caption" text-anchor="middle">no model · same input, same output</text>
-      </g>
-      <path class="pl-arrow" d="M418 79 h56"/>
-      <!-- stage 3: the graph -->
-      <g>
-        <rect x="484" y="28" width="188" height="102" rx="8" class="pl-box"/>
-        <text x="578" y="56" class="pl-title" text-anchor="middle">Legal knowledge graph</text>
-        <circle cx="530" cy="80" r="6" class="pl-dot permission"/>
-        <circle cx="578" cy="80" r="6" class="pl-dot prohibition"/>
-        <circle cx="626" cy="80" r="6" class="pl-dot obligation"/>
-        <text x="578" y="106" class="pl-detail" text-anchor="middle">rules · exact evidence spans</text>
-        <text x="578" y="150" class="pl-caption" text-anchor="middle">read by a local model</text>
-        <text x="578" y="166" class="pl-caption" text-anchor="middle">kept only when the quote validates</text>
-      </g>
-      <path class="pl-arrow" d="M680 79 h56"/>
-      <!-- stage 4: the answer -->
-      <g>
-        <rect x="746" y="28" width="200" height="102" rx="8" class="pl-answer"/>
-        <text x="846" y="60" class="pl-answer-title" text-anchor="middle">Cited answer</text>
-        <text x="846" y="86" class="pl-answer-detail" text-anchor="middle">local model, evidence only,</text>
-        <text x="846" y="104" class="pl-answer-detail" text-anchor="middle">every claim cites its clause</text>
-        <text x="846" y="150" class="pl-caption" text-anchor="middle">nothing leaves this machine</text>
-      </g>
-    </svg>
-  </figure>
-
-  <div class="why-columns">
-    <div>
-      <h3>What it does today</h3>
-      <ul>
-        <li>Parses an agreement family deterministically — instruments, clauses, defined terms,
-        licence models, cross-references, precedence ladders — every field traceable to an
-        exact span of source text.</li>
-        <li>Has a local model read each clause into a structured rule (effect · modality ·
-        actor · action · object · conditions), kept only when its quoted evidence validates
-        verbatim against the document.</li>
-        <li>Answers questions from graph-retrieved evidence with a local Gemma&nbsp;4,
-        cited to the clause — and measured against GPT-5 on a twenty-question trap suite,
-        <a href="#measurement">summarised below</a>.</li>
-      </ul>
-    </div>
-    <div>
-      <h3>Where it goes next</h3>
-      <ul>
-        <li>Sturdier deterministic structure: re-splitting clauses that PDF layout fused,
-        reading two-column tables faithfully, and modelling version chains across amended
-        and reissued agreements.</li>
-        <li>Full sentence anatomy: per-field evidence spans for every proposition in a
-        clause — the licensing sentence diagrammed, on demand, for any agreement.</li>
-        <li>Agent workflows: comparing a draft against the installed family, surfacing the
-        unintended outcomes before signature, and scaling from one family to a
-        portfolio.</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
 <!-- ======================= HERO: the trap, diagrammed ======================= -->
 <section class="hero">
   <p class="eyebrow">A live demonstration · runs entirely on one machine · no document text leaves it</p>
@@ -214,6 +114,56 @@
   </div>
 </section>
 
+<!-- ======================= WHY: the operator's problem ======================= -->
+<section class="why" id="why">
+  <div class="why-grid">
+    <div>
+      <p class="eyebrow">Why this exists</p>
+      <h2>Twenty-five years of these agreements, and they still surprise me.</h2>
+      <p class="why-text">
+        I spent my career in enterprise software licensing, reading and negotiating hundreds
+        of software and cloud agreements across the table from procurement and in-house
+        legal. Rights spread across master terms, schedules, orders and addenda;
+        acquisitions bolt inherited paper onto the stack; amendments accrete. The schedule
+        loaded here still carries licence models inherited through an acquisition I sold
+        through — the paper outlived the org chart.
+      </p>
+      <p class="why-text">
+        This asks whether that reading can move to agents, and what a system must be shaped
+        like to do it reliably. Frontier models can essentially do this work today, but
+        contracts are exactly the documents many organisations cannot send to a cloud API —
+        so everything here runs locally, and every answer is checkable against the clause it
+        came from.
+      </p>
+    </div>
+    <div class="tech-panel">
+      <p class="eyebrow">What it is built from</p>
+      <ul class="tech-list">
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="9" y="5" width="22" height="30" rx="2"/><path d="M14 13h12M14 19h12M14 25h7"/></svg>
+          <div><b>Deterministic parsing</b><span>Clauses, defined terms and precedence ladders, before any model runs</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 9v22M20 20l-9 8M20 20l9 8"/><circle cx="20" cy="8" r="3.4"/><circle cx="10" cy="30" r="3.4"/><circle cx="30" cy="30" r="3.4"/></svg>
+          <div><b>Legal knowledge graph</b><span>Rules, definitions and the edges that decide which one controls</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="12" cy="14" r="2.6"/><circle cx="24" cy="10" r="2.6"/><circle cx="29" cy="22" r="2.6"/><circle cx="15" cy="26" r="2.6"/><circle cx="25" cy="31" r="2.6"/><path d="M12 14l12-4M24 10l5 12M29 22l-14 4M15 26l10 5"/></svg>
+          <div><b>Embeddings + hybrid retrieval</b><span>Lexical and vector search fused, then resolved through the graph</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="12" y="12" width="16" height="16" rx="2"/><path d="M16 8v4M24 8v4M16 28v4M24 28v4M8 16h4M8 24h4M28 16h4M28 24h4"/></svg>
+          <div><b>A local language model</b><span>Gemma 4 on this machine — no document text leaves it</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M11 12h18M11 18h18M11 24h9"/><path class="tick" d="M22 28l4 4 7-8"/></svg>
+          <div><b>Span validation</b><span>A reading is kept only when its quote appears verbatim in the clause</span></div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <!-- ======================= CONSOLE: the live system ======================= -->
 <section class="console" id="console">
   <div class="console-head">
@@ -285,6 +235,10 @@
         <label class="sr-only" for="questionInput">Ask about these agreements</label>
         <textarea id="questionInput" rows="2" maxlength="2000"
           placeholder="Ask about rights, restrictions, renewal, audits, data…" required></textarea>
+        <label class="think-toggle" title="Let the model reason before answering. Slower, and you can read the working.">
+          <input id="thinkToggle" type="checkbox">
+          <span>Think first</span>
+        </label>
         <button id="askButton" class="button primary" type="submit" disabled>Ask</button>
       </form>
       <p class="disclaimer">AI-assisted document interpretation, not legal advice. Verify every conclusion against the cited text.</p>

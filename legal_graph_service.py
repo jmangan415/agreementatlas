@@ -2785,6 +2785,7 @@ def answer_question(
     retriever: EvidenceRetriever | None = None,
     history: list[dict] | None = None,
     on_token=None,
+    reasoning: bool = False,
 ) -> dict:
     """Answer from graph-retrieved evidence.
 
@@ -3001,15 +3002,17 @@ def answer_question(
     )
     if on_token is not None and hasattr(client, "chat_stream"):
         pieces: list[str] = []
-        for piece in client.chat_stream(
+        for kind, piece in client.chat_stream(
             model=model,
             system=system,
             user=user_message,
             temperature=0.1,
             max_tokens=ANSWER_MAX_TOKENS,
+            reasoning=reasoning,
         ):
-            pieces.append(piece)
-            on_token(piece)
+            if kind == "token":
+                pieces.append(piece)
+            on_token(kind, piece)
         answer = "".join(pieces)
         if not answer.strip():
             raise LMStudioError(

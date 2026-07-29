@@ -360,6 +360,7 @@ class LMStudioClient:
         user: str,
         temperature: float = 0.1,
         max_tokens: int = 1800,
+        reasoning: bool = False,
     ):
         """Yield the answer in pieces as the model writes it.
 
@@ -381,8 +382,15 @@ class LMStudioClient:
             "max_tokens": max_tokens,
             "stream": True,
             "seed": 42,
-            "reasoning_effort": "none",
         }
+        # Reasoning arrives in a separate reasoning_content delta that the
+        # non-streaming path never sees -- the earlier experiment read only
+        # "content" and concluded the model had answered nothing. When it is
+        # off we say so explicitly, because the model defaults to thinking.
+        if reasoning:
+            payload["max_tokens"] = max(max_tokens, 6000)
+        else:
+            payload["reasoning_effort"] = "none"
         url = f"{self.base_url.rstrip('/')}/chat/completions"
         body = json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
@@ -405,11 +413,15 @@ class LMStudioClient:
                     except json.JSONDecodeError:
                         continue
                     try:
-                        piece = chunk["choices"][0]["delta"].get("content") or ""
+                        delta = chunk["choices"][0]["delta"]
                     except (KeyError, IndexError, TypeError):
-                        piece = ""
+                        continue
+                    thinking = delta.get("reasoning_content") or ""
+                    if thinking:
+                        yield ("thinking", thinking)
+                    piece = delta.get("content") or ""
                     if piece:
-                        yield piece
+                        yield ("token", piece)
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             raise LMStudioError(

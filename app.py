@@ -1216,16 +1216,17 @@ class Handler(BaseHTTPRequestHandler):
                 history = conversation.load(visitor.root)
                 asked, chosen = conversation.resolve_followup(question, history)
                 streaming = bool(data.get("stream"))
+                reasoning = bool(data.get("reasoning")) and streaming
                 started = False
 
-                def emit(piece: str) -> None:
+                def emit(kind: str, piece: str) -> None:
                     nonlocal started
                     if not streaming:
                         return
                     if not started:
                         self.sse_start()
                         started = True
-                    self.sse_send("token", {"text": piece})
+                    self.sse_send(kind, {"text": piece})
 
                 try:
                     result = answer_question(
@@ -1235,6 +1236,7 @@ class Handler(BaseHTTPRequestHandler):
                         asked,
                         history=history,
                         on_token=emit if streaming else None,
+                        reasoning=reasoning,
                     )
                 except LMStudioError as exc:
                     if started:

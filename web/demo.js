@@ -298,6 +298,7 @@ function loadSample(sample) {
 /* ---------------- the thread ---------------- */
 
 function clearThread() {
+  exchangeCount = 0;
   const thread = $("#thread");
   thread.textContent = "";
   const empty = element("div", "thread-empty");
@@ -308,16 +309,33 @@ function clearThread() {
   thread.append(empty);
 }
 
-function showError(error) {
+function showError(error, block) {
   const note = element("div", "turn-a error", error.message || "Something failed.");
-  appendTurn(note);
+  appendTurn(note, block);
 }
 
-function appendTurn(node) {
+let exchangeCount = 0;
+
+/* One question and its answer share a block. After three or four turns an
+   undivided thread is a wall of quoted contract text; a rule and a turn
+   number make it navigable without adding another colour to a page whose
+   colours already mean something. */
+function openExchange(question) {
+  const empty = $("#threadEmpty");
+  if (empty) empty.remove();
+  exchangeCount += 1;
+  const block = element("div", "exchange");
+  block.append(element("span", "turn-index", `Q${exchangeCount}`));
+  block.append(element("div", "turn-q", question));
+  $("#thread").append(block);
+  return block;
+}
+
+function appendTurn(node, block) {
   const empty = $("#threadEmpty");
   if (empty) empty.remove();
   const thread = $("#thread");
-  thread.append(node);
+  (block || thread.lastElementChild || thread).append(node);
   thread.scrollTop = thread.scrollHeight;
 }
 
@@ -539,7 +557,7 @@ function evidenceCard(item, index, turnId) {
 
 let turnCounter = 0;
 
-function renderAnswer(result) {
+function renderAnswer(result, block) {
   turnCounter += 1;
   const turnId = `turn${turnCounter}`;
   const turn = element("div", "turn-a");
@@ -602,7 +620,7 @@ function renderAnswer(result) {
     });
     turn.append(drill);
   }
-  appendTurn(turn);
+  appendTurn(turn, block);
 }
 
 function ask(question) {
@@ -611,15 +629,26 @@ function ask(question) {
   state.busy = true;
   $("#askButton").disabled = true;
 
-  appendTurn(element("div", "turn-q", trimmed));
+  const block = openExchange(trimmed);
   const live = element("div", "turn-a streaming");
   const body = element("div", "answer-body");
   live.append(body);
   const cursor = element("span", "caret");
   body.append(cursor);
-  appendTurn(live);
+  appendTurn(live, block);
 
   let text = "";
+  let thinkingText = "";
+  let thinkingBox = null;
+  const thinkingBody = element("pre", "thinking-body");
+  const ensureThinking = () => {
+    if (thinkingBox) return;
+    thinkingBox = element("details", "thinking");
+    thinkingBox.open = true;
+    thinkingBox.append(element("summary", "", "The model's working"));
+    thinkingBox.append(thinkingBody);
+    live.before(thinkingBox);
+  };
   let finished = false;
 
   const settle = () => {
@@ -634,7 +663,12 @@ function ask(question) {
       "X-AgreementAtlas-Request": "1",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ question: trimmed, model: state.model, stream: true }),
+    body: JSON.stringify({
+      question: trimmed,
+      model: state.model,
+      stream: true,
+      reasoning: $("#thinkToggle").checked,
+    }),
   })
     .then(async (response) => {
       if (!response.ok || !response.body) {
@@ -662,7 +696,13 @@ function ask(question) {
           } catch {
             continue;
           }
-          if (nameLine[1] === "token") {
+          if (nameLine[1] === "thinking") {
+            thinkingText += payload.text || "";
+            ensureThinking();
+            thinkingBody.textContent = thinkingText;
+            const thread = $("#thread");
+            thread.scrollTop = thread.scrollHeight;
+          } else if (nameLine[1] === "token") {
             text += payload.text || "";
             body.replaceChildren();
             body.innerHTML = renderAnswerText(text, "live");
@@ -672,11 +712,12 @@ function ask(question) {
           } else if (nameLine[1] === "result") {
             finished = true;
             live.remove();
-            renderAnswer(payload);
+            if (thinkingBox) thinkingBox.open = false;
+            renderAnswer(payload, block);
           } else if (nameLine[1] === "error") {
             finished = true;
             live.remove();
-            showError(new Error(payload.error || "The model call failed."));
+            showError(new Error(payload.error || "The model call failed."), block);
           }
         }
       }

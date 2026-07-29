@@ -92,7 +92,7 @@ h2 { font-size: 1.7rem; max-width: var(--measure); }
 
 /* ---------------- hero ---------------- */
 
-.hero { max-width: var(--wide); margin: 0 auto; padding-top: 4rem; }
+.hero { max-width: var(--stage); margin: 0 auto; padding-top: 3.2rem; }
 .hero h1 {
   font-size: clamp(2.1rem, 5vw, 3.4rem);
   line-height: 1.12; letter-spacing: -0.01em;
@@ -215,8 +215,10 @@ h2 { font-size: 1.7rem; max-width: var(--measure); }
 
 .chat-panel {
   background: #fff; border: 1px solid var(--hairline); border-radius: 12px;
-  padding: 1.1rem 1.25rem; display: flex; flex-direction: column; min-height: 0;
+  padding: 1.1rem 1.25rem; display: flex; flex-direction: column;
+  max-height: 34rem;
 }
+.thread { min-height: 8rem; }
 .question-chips { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 1rem; }
 .question-chips button {
   font: 500 0.8rem var(--sans); cursor: pointer;
@@ -305,7 +307,9 @@ h2 { font-size: 1.7rem; max-width: var(--measure); }
 
 /* ---------------- why ---------------- */
 
-.why { max-width: var(--wide); margin: 0 auto; padding-top: 4rem; }
+.why { max-width: var(--stage); margin: 0 auto; background: var(--paper-tint);
+  border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+  max-width: none; padding-top: 2.6rem; padding-bottom: 2.6rem; }
 .why h1 {
   font-size: clamp(1.9rem, 4.2vw, 2.9rem);
   line-height: 1.15; letter-spacing: -0.01em; max-width: 56rem;
@@ -349,12 +353,12 @@ h2 { font-size: 1.7rem; max-width: var(--measure); }
 
 .console-zone {
   display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 1.25rem;
-  max-width: var(--stage); margin: 0 auto;
-  /* One screen, no column mismatch: the stage owns its height and each side
-     manages its own space instead of stacking scrollers down the page. */
-  height: calc(100vh - 8.5rem); min-height: 34rem;
+  max-width: var(--stage); margin: 0 auto; align-items: start;
 }
-.graph-column { display: flex; flex-direction: column; min-height: 0; }
+/* The graph sets the height of the stage; the chat starts short enough to
+   read as a chat -- thread and composer both visible without scrolling --
+   and grows with the conversation until it matches the graph. */
+.graph-column { display: flex; flex-direction: column; height: 34rem; }
 .graph-panel {
   background: #fff; border: 1px solid var(--hairline); border-radius: 12px;
   padding: 1rem 1.1rem;
@@ -541,3 +545,65 @@ h2 { font-size: 1.7rem; max-width: var(--measure); }
 }
 .upload-toggle:hover { color: var(--ink); }
 .upload-toggle.active { color: var(--actor); font-weight: 600; }
+
+/* ---------------- why: one screen, two columns ---------------- */
+
+.why-grid {
+  display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 2.4rem;
+  max-width: var(--wide); margin: 0 auto; align-items: start;
+}
+.why-grid h2 { font-size: 1.45rem; margin-bottom: 0.7rem; }
+.why-text { font-size: 0.92rem; color: var(--muted); margin: 0 0 0.8rem; max-width: 38rem; }
+
+.tech-panel .eyebrow { margin-bottom: 0.7rem; }
+.tech-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
+.tech-list li {
+  display: flex; gap: 0.75rem; align-items: flex-start;
+  background: #fff; border: 1px solid var(--hairline); border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+}
+.tech-list svg {
+  width: 2rem; height: 2rem; flex: none;
+  fill: none; stroke: var(--actor); stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.tech-list svg circle { fill: var(--actor-bg); }
+.tech-list svg .tick { stroke: var(--permission); stroke-width: 2.2; }
+.tech-list b { display: block; font: 600 0.85rem var(--sans); }
+.tech-list span { font-size: 0.78rem; color: var(--muted); }
+
+/* ---------------- chat: readable after several turns ---------------- */
+
+.thread { gap: 0; }
+.exchange { padding: 0.9rem 0; border-top: 1px solid var(--hairline); }
+.exchange:first-child { border-top: none; padding-top: 0.2rem; }
+.exchange .turn-q { margin-bottom: 0.7rem; }
+.exchange .turn-a { border-left: 2px solid var(--actor-bg); padding-left: 0.75rem; }
+.exchange .turn-index {
+  font: 600 0.62rem var(--mono); letter-spacing: 0.08em; color: var(--muted);
+  display: block; margin-bottom: 0.3rem;
+}
+
+@media (max-width: 860px) {
+  .why-grid { grid-template-columns: 1fr; gap: 1.4rem; }
+  .graph-column { height: auto; }
+  .chat-panel { max-height: none; }
+}
+
+.think-toggle {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none;
+  margin-right: 0.5rem; white-space: nowrap;
+}
+.thinking {
+  border: 1px dashed var(--hairline); border-radius: 8px;
+  background: var(--paper); margin-bottom: 0.6rem;
+}
+.thinking > summary {
+  cursor: pointer; padding: 0.4rem 0.7rem;
+  font: 500 0.72rem var(--mono); color: var(--muted);
+}
+.thinking-body {
+  margin: 0; padding: 0.2rem 0.8rem 0.7rem; max-height: 14rem; overflow-y: auto;
+  font: 0.72rem/1.55 var(--mono); color: var(--muted); white-space: pre-wrap;
+}
