@@ -1490,6 +1490,10 @@ def bm25_scores(question: str, records: list[dict]) -> dict[str, float]:
         if score:
             score *= {
                 "Rule": 1.65,
+                # A question about which document wins has one right answer and
+                # it is this record, so when the words match it should not be
+                # outranked by a rule that merely mentions both documents.
+                "Precedence": 1.8,
                 "Definition": 1.35,
                 "Clause": 1.0,
             }.get(str(search_record.get("_kind", "")), 1.0)
@@ -1607,6 +1611,75 @@ def search_records(root: Path) -> list[dict]:
                 "heading": clause.get("heading", ""),
                 "scope": "Licence models",
                 "evidence": item.get("summary", "") or clause.get("text", ""),
+            }
+        )
+        output.append(item)
+    # A resolved precedence pair is retrievable in its own right. "Which of these
+    # two documents controls" is a question about the ranking itself, and the
+    # ranking is in no clause's text -- the ladder clause lists six documents in
+    # an order and never says "the Support Schedule beats the GTC", which is the
+    # sentence the reader wants. Retrieval returned rules, clauses and
+    # definitions and no precedence record at all, so the one question the
+    # ladder exists to answer came back "the evidence does not settle it" while
+    # eleven correctly resolved pairs sat in the graph beside it.
+    for item in read_jsonl(legal / "precedence_rules.jsonl"):
+        item = dict(item)
+        higher = instruments.get(str(item.get("higher_instrument_id", "")), {})
+        lower = instruments.get(str(item.get("lower_instrument_id", "")), {})
+        clause = clauses.get(str(item.get("source_clause_id", "")), {})
+        stating = instruments.get(str(clause.get("document_id", "")), {})
+        higher_name = str(higher.get("title", "")) or str(higher.get("source", ""))
+        lower_name = str(lower.get("title", "")) or str(lower.get("source", ""))
+        if not (higher_name and lower_name):
+            continue
+        item.update(
+            {
+                "_kind": "Precedence",
+                # Spelled out both ways round, because the question arrives in
+                # either order and in whichever verb the reader reached for.
+                "_search_text": (
+                    f"order of precedence: {higher_name} takes precedence over "
+                    f"{lower_name}. {higher_name} controls, governs, prevails "
+                    f"over and outranks {lower_name}. Where {lower_name} and "
+                    f"{higher_name} conflict or are inconsistent, {higher_name} "
+                    f"wins. {scope_label(item.get('subject_scope'))} "
+                    f"{item.get('rationale', '')}"
+                ),
+                # The document the ranking was *read from*, which is routinely
+                # neither of the two it ranks: SAP's ladder lives in the Order
+                # Form and ranks the Support Schedule above the GTC. Citing the
+                # winner instead attributed the Order Form's words to whichever
+                # document they favoured, so every citation contradicted the
+                # text printed underneath it.
+                "document_id": clause.get("document_id", ""),
+                "source": stating.get("source", "") or higher.get("source", ""),
+                "instrument_title": stating.get("title", "") or higher_name,
+                "section_id": clause.get("section_id", ""),
+                "section_path": clause.get("section_path", ""),
+                "scope": scope_label(item.get("subject_scope")) or "Precedence",
+                "summary": f"{higher_name} takes precedence over {lower_name}",
+                # The resolved pair first, the clause it was read from second.
+                # Quoting only the clause put the ladder in front of the model
+                # and left it to do the ranking again: shown Order Form section
+                # 8, it answered that the list "does not explicitly state which
+                # document takes precedence over the other" -- which is true of
+                # the sentence and false of the list. The ordering is the
+                # finding; the clause is why it is trustworthy.
+                "evidence": (
+                    f"{higher_name} takes precedence over {lower_name}"
+                    + (
+                        f" for {scope_label(item.get('subject_scope'))}"
+                        if scope_label(item.get("subject_scope"))
+                        else ""
+                    )
+                    + ".\nStated in "
+                    + (
+                        f"§{clause.get('section_id')} of "
+                        if clause.get("section_id")
+                        else ""
+                    )
+                    + f"{stating.get('source', '')}: “{str(clause.get('text', ''))}”"
+                ),
             }
         )
         output.append(item)
@@ -2365,11 +2438,42 @@ def legal_resolution_trace(root: Path, question: str, evidence: list[dict]) -> d
         or definition_steps
         else "UNRESOLVED"
     )
+    # Which document outranks which, for every pair the evidence put in front of
+    # the reader. The trace is the channel the answering prompt is told to trust
+    # -- "do not claim a rule controls unless the trace supports it" -- so a
+    # ranking that exists only in the evidence text is a ranking the model is
+    # under instruction to disregard. It duly did: shown a resolved pair reading
+    # "Support Schedule takes precedence over the GTC", it replied that the
+    # order of precedence "does not explicitly state which document takes
+    # precedence over the other", which is the correct reading of the clause and
+    # the wrong answer to the question.
+    document_precedence = []
+    seen_pairs: set[tuple[str, str]] = set()
+    for record in read_jsonl(legal / "precedence_rules.jsonl"):
+        if str(record.get("status", "RESOLVED")) != "RESOLVED":
+            continue
+        higher = instruments.get(str(record.get("higher_instrument_id", "")), {})
+        lower = instruments.get(str(record.get("lower_instrument_id", "")), {})
+        if not (higher and lower):
+            continue
+        pair = (str(higher.get("id")), str(lower.get("id")))
+        if pair in seen_pairs:
+            continue
+        seen_pairs.add(pair)
+        document_precedence.append(
+            {
+                "higher": higher.get("title") or higher.get("source", ""),
+                "lower": lower.get("title") or lower.get("source", ""),
+                "subject_scope": scope_label(record.get("subject_scope")),
+                "basis": record.get("rationale", ""),
+            }
+        )
     return {
         "status": overall,
         "question_scope": sorted(query_terms(question)),
         "steps": steps,
         "definition_steps": definition_steps,
+        "document_precedence": document_precedence,
         "superseded_evidence": superseded_evidence,
         "unresolved_warnings": unresolved,
     }
