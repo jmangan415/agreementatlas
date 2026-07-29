@@ -189,6 +189,14 @@ SYNONYMS = {
     stem(key): {stem(word) for value in values for word in value.split()}
     for key, values in _SYNONYM_GROUPS.items()
 }
+# How much evidence an answer sees, and how long it may be. The window is not
+# the constraint it once was -- the tested model loads with 64k and a full
+# prompt runs about 4k -- but more candidates is not automatically better:
+# widening the pool has made retrieval worse here before, so both are settings
+# that get measured rather than assumed.
+EVIDENCE_LIMIT = int(os.environ.get("EVIDENCE_LIMIT", "14") or 14)
+ANSWER_MAX_TOKENS = int(os.environ.get("ANSWER_MAX_TOKENS", "1600") or 1600)
+
 PROMPT_VERSION = "legal-rule-v3.2"
 VALID_EFFECTS = {"PERMISSION", "OBLIGATION", "PROHIBITION"}
 VALID_MODALITIES = {"MAY", "MUST", "SHALL", "WILL", "CAN", "OTHER"}
@@ -382,7 +390,7 @@ class WorkspaceSchemaError(LMStudioError):
 class EvidenceRetriever(Protocol):
     name: str
 
-    def retrieve(self, root: Path, question: str, limit: int = 14) -> list[dict]: ...
+    def retrieve(self, root: Path, question: str, limit: int = EVIDENCE_LIMIT) -> list[dict]: ...
 
 
 class AgreementAtlasGraphRetriever:
@@ -391,7 +399,7 @@ class AgreementAtlasGraphRetriever:
     def __init__(self, client: LMStudioClient | None = None) -> None:
         self.client = client
 
-    def retrieve(self, root: Path, question: str, limit: int = 14) -> list[dict]:
+    def retrieve(self, root: Path, question: str, limit: int = EVIDENCE_LIMIT) -> list[dict]:
         return retrieve_evidence(root, question, limit, embedding_client=self.client)
 
 
@@ -2069,7 +2077,7 @@ def question_effects(question: str) -> set[str]:
 def retrieve_evidence(
     root: Path,
     question: str,
-    limit: int = 14,
+    limit: int = EVIDENCE_LIMIT,
     *,
     embedding_client: LMStudioClient | None = None,
 ) -> list[dict]:
@@ -2920,6 +2928,19 @@ def answer_question(
         # "Yes,".
         "open by denying evidence you are about to cite. Then give the reason, "
         "quoting the words of the agreement that decide it.\n\n"
+        # Asked how many Transactions 10,000 input files generate, with the
+        # definition in evidence and quoted correctly, the answer was "One".
+        # The model reads the definition and then declines to apply it to the
+        # quantity the question states. Gemma reasoning aloud in LM Studio
+        # reached 10,001 in a minute; the rule below reaches it in seconds,
+        # because the missing step was arithmetic made explicit, not thought.
+        "When the question supplies a quantity, count. A term defined as \"a "
+        "single instance of\" something applies to each item separately, so N "
+        "items are N, not one. Read the definition's limbs distributively: "
+        "where it reaches data input to, output from, or created by the "
+        "software, what goes in and what comes out are each counted. Name the "
+        "groups, count each, give the total, and say plainly if one group is "
+        "arguable.\n\n"
         "Read definitions to their limits. A defined term is satisfied if any of "
         "its limbs is met, so a definition reading 'input to, output from, "
         "created, processed, or manipulated' is satisfied by input alone. Do not "
@@ -2985,7 +3006,7 @@ def answer_question(
             system=system,
             user=user_message,
             temperature=0.1,
-            max_tokens=1600,
+            max_tokens=ANSWER_MAX_TOKENS,
         ):
             pieces.append(piece)
             on_token(piece)
@@ -3000,7 +3021,7 @@ def answer_question(
             system=system,
             user=user_message,
             temperature=0.1,
-            max_tokens=1600,
+            max_tokens=ANSWER_MAX_TOKENS,
         )
     if evidence and not re.search(r"\[\d+\]", answer):
         answer = f"{answer.rstrip()}\n\nSources reviewed: [1]."
