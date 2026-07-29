@@ -388,7 +388,11 @@ class LMStudioClient:
         # "content" and concluded the model had answered nothing. When it is
         # off we say so explicitly, because the model defaults to thinking.
         if reasoning:
-            payload["max_tokens"] = max(max_tokens, 6000)
+            # A deliberating model can cycle -- re-checking the same three
+            # facts until the budget dies. The window is 64k; the budget is
+            # generous so exhaustion is the exception, and the caller treats
+            # an empty answer as "stop thinking and answer" rather than fail.
+            payload["max_tokens"] = max(max_tokens, 12000)
         else:
             payload["reasoning_effort"] = "none"
         url = f"{self.base_url.rstrip('/')}/chat/completions"

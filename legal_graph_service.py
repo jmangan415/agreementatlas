@@ -3014,6 +3014,30 @@ def answer_question(
                 pieces.append(piece)
             on_token(kind, piece)
         answer = "".join(pieces)
+        if not answer.strip() and reasoning:
+            # The deliberation looped until the budget died and no answer
+            # ever started. The reader has watched a minute of thinking; a
+            # visible error here makes them re-ask by hand without the
+            # toggle, so do that for them: say so in the working stream,
+            # then answer directly.
+            on_token(
+                "thinking",
+                "\n\n[The thinking budget ran out before an answer emerged "
+                "-- answering directly.]",
+            )
+            pieces = []
+            for kind, piece in client.chat_stream(
+                model=model,
+                system=system,
+                user=user_message,
+                temperature=0.1,
+                max_tokens=ANSWER_MAX_TOKENS,
+                reasoning=False,
+            ):
+                if kind == "token":
+                    pieces.append(piece)
+                    on_token(kind, piece)
+            answer = "".join(pieces)
         if not answer.strip():
             raise LMStudioError(
                 "The selected model returned empty content; disable hidden reasoning."
