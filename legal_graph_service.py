@@ -2580,16 +2580,58 @@ def retrieve_evidence(
         if record_id in records_by_id
     ]
     ranked = directional_expand(root, ranked, records_by_id)
+    # One clause may not hold the whole prompt while other clauses that scored
+    # wait outside it. A long provision extracts into many rules, and each rule
+    # ranks on the same words, so the top of the list fills with one section:
+    # asked whether the liability cap is the same for a customer in Germany,
+    # ten of fourteen slots were sentences of §10.1 and the region-specific
+    # section never reached the model. Passages over the cap are not dropped,
+    # only deferred -- where a family really does answer from one clause, they
+    # come back as soon as the distinct ones are exhausted, so this costs
+    # nothing on a corpus that does not have the problem.
+    per_clause_limit = max(2, limit // 4)
     selected: list[dict] = []
+    deferred: list[dict] = []
     seen_text: set[str] = set()
+    per_clause: Counter = Counter()
+
+    def source_clause(item: dict) -> str:
+        """The unit a reader would call one passage, which is what may repeat.
+
+        A section of one instrument, not a clause record: a long section splits
+        into several clause records and dozens of rules, and capping the record
+        would not stop the section filling the prompt. Definitions are counted
+        by their term instead -- an alphabetical definitions article is one
+        section holding hundreds of unrelated passages, and capping it would
+        starve exactly the material most questions turn on.
+        """
+
+        record = records_by_id.get(str(item.get("id", "")), {})
+        term = str(record.get("term", "")).strip()
+        if term:
+            return f"term:{term.casefold()}"
+        section = str(record.get("section_id", "")).strip()
+        if not section:
+            return str(item.get("id", ""))
+        return f"{record.get('instrument_id', '')}#{section}"
+
     for item in ranked:
         fingerprint = compact_text(item["text"]).casefold()
         if not fingerprint or fingerprint in seen_text:
             continue
         seen_text.add(fingerprint)
+        clause = source_clause(item)
+        if per_clause[clause] >= per_clause_limit:
+            deferred.append(item)
+            continue
+        per_clause[clause] += 1
         selected.append(item)
         if len(selected) >= limit:
             break
+    for item in deferred:
+        if len(selected) >= limit:
+            break
+        selected.append(item)
     trace = legal_resolution_trace(root, question, selected)
     rule_status = {
         item["candidate_rule_id"]: item["final_status"] for item in trace["steps"]
