@@ -284,9 +284,27 @@ def run(model, structured, transcript):
         )
         if not fam:
             continue
+        # A case may open with unscored turns, so the scored question arrives
+        # as a real follow-up. History is recorded the way app.py records it:
+        # the standalone rewrite where one happened, the answer capped at 600.
+        history = []
+        for prior in case.get("prior", ()):
+            try:
+                first = answer_question(fam.root, client, model, prior)
+            except Exception:
+                break
+            history.append(
+                {
+                    "question": str(first.get("understood_as") or prior),
+                    "answer": str(first.get("answer", ""))[:600],
+                    "offered": first.get("offered") or [],
+                }
+            )
         started = time.monotonic()
         try:
-            answer = answer_question(fam.root, client, model, case["q"])["answer"]
+            answer = answer_question(
+                fam.root, client, model, case["q"], history=history
+            )["answer"]
         except Exception as error:
             answer = f"ERROR {error}"
         seconds += time.monotonic() - started

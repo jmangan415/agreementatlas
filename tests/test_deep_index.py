@@ -13,6 +13,8 @@ from legal_graph_service import (
     LMStudioError,
     answer_question,
     enrich_workspace,
+    expand_followup,
+    leans_on_context,
     query_terms,
     read_jsonl,
     resolve_returned_clause_id,
@@ -185,6 +187,21 @@ class FixedRetriever:
 class NoCitationChatClient:
     def chat(self, **_kwargs: object) -> str:
         return "Customer may allocate access only under the stated conditions."
+
+
+class QuestionCaptureRetriever(FixedRetriever):
+    def retrieve(self, root: Path, question: str) -> list[dict]:
+        self.question = question
+        return super().retrieve(root, question)
+
+
+class ExpandingChatClient:
+    """Answers as usual, and rewrites follow-ups when asked as the expander asks."""
+
+    def chat(self, *, system: str = "", **_kwargs: object) -> str:
+        if system.startswith("Rewrite the reader's follow-up"):
+            return "Can Customer allocate StreamFlow access to subsidiaries?"
+        return "Customer may allocate access only under the stated conditions [1]."
 
 
 class DeepIndexTests(unittest.TestCase):
@@ -422,6 +439,32 @@ class DeepIndexTests(unittest.TestCase):
             retriever=FixedRetriever(),  # type: ignore[arg-type]
         )
         self.assertIn("[1]", answer["answer"])
+
+    def test_a_followup_is_expanded_before_anything_reads_it(self) -> None:
+        # Retrieval, offering matching and the resolution trace all read the
+        # question text; the standalone rewrite must be what they read, and the
+        # reader must be told how the follow-up was understood.
+        retriever = QuestionCaptureRetriever()
+        result = answer_question(
+            self.workspace,
+            ExpandingChatClient(),  # type: ignore[arg-type]
+            "fake-model",
+            "what about for subsidiaries?",
+            retriever=retriever,  # type: ignore[arg-type]
+            history=[
+                {
+                    "question": "Can Customer allocate StreamFlow access to an Affiliate?",
+                    "answer": "Yes, Customer may allocate StreamFlow access to an "
+                    "Affiliate under the stated conditions.",
+                    "offered": [],
+                }
+            ],
+        )
+        self.assertEqual(
+            result.get("understood_as"),
+            "Can Customer allocate StreamFlow access to subsidiaries?",
+        )
+        self.assertEqual(retriever.question, result["understood_as"])
 
 
 class ModalityEffectTests(unittest.TestCase):
@@ -743,6 +786,125 @@ class TokenNormalisationTests(unittest.TestCase):
         # In a licence corpus "software" matches nearly every clause and drowns the
         # discriminating term.
         self.assertNotIn(stem("software"), query_terms("licence"))
+
+
+class RecordingExpanderClient:
+    """A chat fake that returns a scripted rewrite and counts its calls."""
+
+    def __init__(self, reply: str = "") -> None:
+        self.reply = reply
+        self.calls = 0
+
+    def chat(self, **kwargs: object) -> str:
+        self.calls += 1
+        self.kwargs = kwargs
+        if isinstance(self.reply, Exception):
+            raise self.reply
+        return self.reply
+
+
+REASSIGN_HISTORY = [
+    {
+        "question": "Can I reassign named user licenses when someone leaves the company",
+        "answer": (
+            "Yes, subject to conditions. Standard Named User licences may be "
+            "re-allocated to another individual provided the original user's "
+            "account is first deleted from the system."
+        ),
+        "offered": [],
+    }
+]
+
+
+class FollowupExpansionTests(unittest.TestCase):
+    """A follow-up is expanded only from words the conversation already used.
+
+    The live failure: "what about for standard named users?" retrieved almost
+    nothing, because retrieval, offering matching and the resolution trace all
+    read the question text and the question's meaning lived in the previous
+    turn. The rewrite is allowed to recombine the conversation's words and
+    nothing else -- an open paraphrase smooths "reassign" toward "assign",
+    which are different mechanisms in these agreements.
+    """
+
+    def test_standalone_question_never_calls_the_model(self) -> None:
+        client = RecordingExpanderClient("unused")
+        result = expand_followup(
+            client,
+            "fake",
+            "How long must Licensee keep records sufficient for an audit?",
+            REASSIGN_HISTORY,
+        )
+        self.assertEqual(result, "")
+        self.assertEqual(client.calls, 0)
+
+    def test_first_question_never_calls_the_model(self) -> None:
+        client = RecordingExpanderClient("unused")
+        self.assertEqual(expand_followup(client, "fake", "why?", []), "")
+        self.assertEqual(client.calls, 0)
+
+    def test_conversation_vocabulary_recombines_into_a_standalone_question(self) -> None:
+        client = RecordingExpanderClient(
+            "Can Standard Named User licences be re-allocated when someone "
+            "leaves the company?"
+        )
+        result = expand_followup(
+            client, "fake", "what about for standard named users?", REASSIGN_HISTORY
+        )
+        self.assertIn("Standard Named User", result)
+        self.assertEqual(client.calls, 1)
+
+    def test_substituting_a_users_term_is_rejected(self) -> None:
+        # "reassign" rewritten as "assign" is the exact conflation the synonym
+        # groups were deliberately never bridged across.
+        client = RecordingExpanderClient(
+            "Can Standard Named User licences be assigned when someone leaves "
+            "the company?"
+        )
+        result = expand_followup(
+            client, "fake", "what about reassigning standard named users?",
+            REASSIGN_HISTORY,
+        )
+        self.assertEqual(result, "")
+
+    def test_vocabulary_from_outside_the_conversation_is_rejected(self) -> None:
+        client = RecordingExpanderClient(
+            "Can Standard Named User licences be sublicensed to contractors "
+            "when someone leaves the company?"
+        )
+        result = expand_followup(
+            client, "fake", "what about for standard named users?", REASSIGN_HISTORY
+        )
+        self.assertEqual(result, "")
+
+    def test_an_unchanged_rewrite_reports_no_expansion(self) -> None:
+        client = RecordingExpanderClient("What about for standard named users?")
+        result = expand_followup(
+            client, "fake", "what about for standard named users?", REASSIGN_HISTORY
+        )
+        self.assertEqual(result, "")
+
+    def test_a_failed_model_call_never_costs_the_answer(self) -> None:
+        client = RecordingExpanderClient(LMStudioError("model offline"))
+        result = expand_followup(
+            client, "fake", "what about for standard named users?", REASSIGN_HISTORY
+        )
+        self.assertEqual(result, "")
+
+    def test_leans_on_context_reads_the_signals(self) -> None:
+        for question in (
+            "why?",
+            "and affiliates?",
+            "what about for standard named users?",
+            "does that apply to contractors?",
+        ):
+            with self.subTest(question=question):
+                self.assertTrue(leans_on_context(question))
+        self.assertFalse(
+            leans_on_context(
+                "Can I reassign named user licenses when someone leaves the company"
+            )
+        )
 
 
 if __name__ == "__main__":

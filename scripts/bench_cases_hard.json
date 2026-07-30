@@ -225,10 +225,8 @@
     "must": [
       "minutes"
     ],
-    "must_not": [
-      "hours"
-    ],
-    "note": "Enhanced DR terms: no more than five minutes."
+    "must_not": [],
+    "note": "Enhanced DR terms: no more than five minutes to enable read-only access, and no more than 24 hours for full-service restoration. must_not 'hours' was scoring the complete two-limb answer as a miss -- the clause itself says 24 hours for the second limb. 'minutes' alone still fails an hours-only answer."
   },
   {
     "id": "ot-reassign-standard",
@@ -242,5 +240,36 @@
     ],
     "must_not": [],
     "note": "Found live: the answer covered Actuate and Occasional reallocation and never mentioned the Standard Named User rule at \u00a77 -- which ranked 13th because the schedule spells it 're-allocated' and the question said 'reassign'. Hyphen-blind tokens and the reallocate synonym group are the fix; this case keeps them honest."
+  },
+  {
+    "id": "ot-followup-standard",
+    "family": "OpenText",
+    "prior": [
+      "Can I reassign named user licenses when someone leaves the company"
+    ],
+    "q": "what about for sandard named users?",
+    "opens": [],
+    "must": [
+      "standard",
+      "delet"
+    ],
+    "must_not": [],
+    "note": "The live two-turn failure verbatim, typo included. The follow-up alone retrieves almost nothing: it must be respelled, then expanded against the previous turn into a standalone question, and the answer must reach \u00a77's rule that the original user's account is first deleted."
+  },
+  {
+    "id": "sap-followup-missed-deadline",
+    "family": "SAP Cloud",
+    "prior": [
+      "How much notice must Customer give to stop auto-renewal, and how much notice must SAP give?"
+    ],
+    "q": "and what happens if we miss that deadline?",
+    "opens": [],
+    "must": [
+      "renew"
+    ],
+    "must_not": [
+      "accepted the modification"
+    ],
+    "note": "Anaphora on a different family: 'that deadline' names nothing retrievable. Expanded against the renewal turn, the answer is that the subscription renews for the next term. Fast mode was seen answering with the GTC modification-objection deadline instead -- 'deemed to have accepted the modification' -- and the keyword scorer passed it because 'auto-renewal' appeared in its restatement of the question; the must_not makes that wrong-deadline answer visible."
   }
 ]

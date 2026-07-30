@@ -1255,7 +1255,10 @@ class Handler(BaseHTTPRequestHandler):
                 conversation.append(
                     visitor.root,
                     {
-                        "question": asked,
+                        # The standalone rewrite, where one happened: the next
+                        # follow-up resolves against what the question meant,
+                        # not against "what about for standard named users?".
+                        "question": str(result.get("understood_as") or asked),
                         "answer": str(result.get("answer", ""))[:600],
                         "offered": result.get("offered") or [],
                     },

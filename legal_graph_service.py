@@ -2147,6 +2147,115 @@ def respell_question(records: list[dict], question: str) -> str:
     return repaired
 
 
+FOLLOWUP_LEAD = re.compile(
+    r"^(and|but|also|so|then|ok(?:ay)?|why|same|what about|how about|what if)\b",
+    re.IGNORECASE,
+)
+FOLLOWUP_ANAPHOR = re.compile(
+    r"\b(it|its|that|this|those|these|they|them|their|he|she|him|her)\b",
+    re.IGNORECASE,
+)
+# Connective words a standalone rewrite legitimately needs beyond the
+# conversation's own vocabulary: whether something "applies", what the "rules"
+# are. Stems, because the guard below compares stems.
+EXPANSION_SCAFFOLD = {
+    stem(word)
+    for word in (
+        "rule",
+        "apply",
+        "applies",
+        "allow",
+        "allowed",
+        "permit",
+        "permitted",
+        "mean",
+        "happen",
+        "require",
+        "condition",
+        "specifically",
+    )
+}
+
+
+def leans_on_context(question: str) -> bool:
+    """Whether a question's meaning depends on the turns before it."""
+
+    asked = question.strip()
+    if len(re.findall(r"[A-Za-z0-9']+", asked)) <= 4:
+        return True
+    return bool(FOLLOWUP_LEAD.match(asked)) or bool(FOLLOWUP_ANAPHOR.search(asked))
+
+
+def expand_followup(client, model: str, question: str, history: list[dict]) -> str:
+    """Rewrite a follow-up that leans on the conversation as the standalone
+    question it means.
+
+    "what about for standard named users?" carries one retrievable term; the
+    rest of its meaning lives in the previous turn. The answer model reads a
+    recap and copes, but retrieval, offering matching and the resolution trace
+    all read the question text, and each starved in turn. The rewrite may only
+    recombine words already in the conversation: an open paraphrase smooths
+    "reassign" toward "assign", and those are different mechanisms in these
+    agreements -- the distinction this service exists to keep. Returns "" unless
+    a rewrite happened and survived every check; the caller then runs the
+    question as asked, which is never worse than today.
+    """
+
+    recent = [item for item in history or [] if item.get("question")][-3:]
+    if not recent or not leans_on_context(question):
+        return ""
+    lines = []
+    for item in recent:
+        answer = " ".join(str(item.get("answer", "")).split())[:500]
+        lines.append(f"Q: {item['question']}\nA: {answer}")
+    system = (
+        "Rewrite the reader's follow-up as one standalone question about the "
+        "agreements, resolving what it refers to from the conversation. Keep "
+        "every term the follow-up uses and never swap a word for a synonym: "
+        "in these agreements near-synonyms name different mechanisms. Add "
+        "only words the conversation already contains. If the follow-up is "
+        "already self-contained, return it unchanged. Output the question and "
+        "nothing else."
+    )
+    user = "\n".join(lines) + f"\n\nFollow-up: {question}"
+    try:
+        raw = client.chat(
+            model=model, system=system, user=user, temperature=0.0, max_tokens=160
+        )
+    except Exception:
+        # A failed rewrite must never cost the answer.
+        return ""
+    rewrite = " ".join(str(raw).split()).strip()
+    if len(rewrite) > 1 and rewrite[0] in {'"', "'"} and rewrite[-1] == rewrite[0]:
+        rewrite = rewrite[1:-1].strip()
+    if not rewrite or len(rewrite) > 240:
+        return ""
+    if rewrite.rstrip("?. ").lower() == question.rstrip("?. ").lower():
+        return ""
+    def with_synonyms(words: set[str]) -> set[str]:
+        grown = set(words)
+        for word in words:
+            grown.update(SYNONYMS.get(word, ()))
+        return grown
+
+    asked_tokens = set(tokens(question))
+    rewrite_tokens = set(tokens(rewrite))
+    # A dropped word is a substituted word: "reassign" must survive the
+    # rewrite, or the expansion is quietly answering a different question.
+    # Comparison runs through the curated synonym groups, so "reallocate"
+    # satisfies "reassign" (the same seat-transfer family) and a licence
+    # spelled either way matches -- while "assign" still cannot stand in,
+    # because that group was never bridged.
+    if not asked_tokens <= with_synonyms(rewrite_tokens):
+        return ""
+    allowed = asked_tokens | EXPANSION_SCAFFOLD
+    for item in recent:
+        allowed.update(tokens(f"{item.get('question', '')} {item.get('answer', '')}"))
+    if not rewrite_tokens <= with_synonyms(allowed):
+        return ""
+    return rewrite
+
+
 def retrieve_evidence(
     root: Path,
     question: str,
@@ -2869,10 +2978,25 @@ def answer_question(
     """
 
     active_retriever = retriever or AgreementAtlasGraphRetriever(client)
+    # A follow-up that leans on the conversation is rewritten as the
+    # standalone question it means before anything reads it: retrieval,
+    # offering matching and the resolution trace all take the question text,
+    # and "what about for standard named users?" starves every one of them.
+    # Respelling runs first because the guard inside expand_followup requires
+    # every word of the follow-up to survive the rewrite, and a typo the
+    # model silently fixed would fail it.
+    understood_as = ""
+    if history:
+        corrected = respell_question(search_records(root), question)
+        expanded = expand_followup(client, model, corrected, history)
+        if expanded:
+            question = expanded
+            understood_as = expanded
     evidence = active_retriever.retrieve(root, question)
     if not evidence:
         status = schema_status(root)
         return {
+            **({"understood_as": understood_as} if understood_as else {}),
             "answer": (
                 "I could not locate agreement text that answers this question. "
                 "No contractual conclusion should be inferred from the uploaded family."
@@ -3157,7 +3281,10 @@ def answer_question(
             temperature=0.1,
             max_tokens=ANSWER_MAX_TOKENS,
         )
-    if evidence and not re.search(r"\[\d+\]", answer):
+    # "[2, 12]" is a citation too: requiring the closing bracket right after
+    # the digits appended a spurious "Sources reviewed: [1]." below a grouped
+    # citation the model had already written.
+    if evidence and not re.search(r"\[\d", answer):
         answer = f"{answer.rstrip()}\n\nSources reviewed: [1]."
     status = schema_status(root)
     components = {
@@ -3171,6 +3298,7 @@ def answer_question(
         "legal_resolver": True,
     }
     return {
+        **({"understood_as": understood_as} if understood_as else {}),
         "answer": answer,
         "evidence": evidence,
         "model": model,
