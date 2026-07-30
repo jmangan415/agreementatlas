@@ -157,7 +157,12 @@ def stem(word: str) -> str:
 # different legal entity) and allocation (assigning a seat to a user) are distinct
 # legal acts, and the answer prompt requires them to stay distinct.
 _SYNONYM_GROUPS = {
-    "allocate": {"allocation", "seat", "named user"},
+    "allocate": {"allocation", "seat", "named user", "reallocate", "reassign"},
+    # Reassigning a seat is reallocation. It is deliberately NOT in the
+    # "assign" group: that family is contract transfer, and bridging the two
+    # would re-create the assign/allocate conflation everywhere else.
+    "reassign": {"reallocate", "reallocation", "allocate"},
+    "reallocate": {"reassign", "allocate", "allocation"},
     "assign": {"assignment", "novate", "novation", "successor", "assigns", "transfer"},
     "transfer": {"assign", "assignment", "novate", "sublicense"},
     "access": {"use", "permitted", "permission", "login", "logged"},
@@ -404,11 +409,22 @@ class AgreementAtlasGraphRetriever:
 
 
 def tokens(value: str) -> list[str]:
-    return [
-        stem(word)
-        for word in (item.lower() for item in TOKEN.findall(value))
-        if word not in STOP
-    ]
+    # A hyphen makes one spelling invisible to the other: the schedule writes
+    # "re-allocated" where the EULA writes "reallocate", and the two stemmed
+    # to different tokens forever -- so the clause that answers "can I
+    # reassign a licence" ranked thirteenth behind clauses that share its
+    # meaning but not its punctuation. A hyphenated word also yields its
+    # joined form; both spellings then meet at the same stem.
+    output: list[str] = []
+    for word in (item.lower() for item in TOKEN.findall(value)):
+        if word in STOP:
+            continue
+        output.append(stem(word))
+        if "-" in word:
+            joined = word.replace("-", "")
+            if joined and joined not in STOP:
+                output.append(stem(joined))
+    return output
 
 
 def query_terms(value: str) -> Counter:
@@ -2074,6 +2090,63 @@ def question_effects(question: str) -> set[str]:
     return wanted
 
 
+
+def respell_question(records: list[dict], question: str) -> str:
+    """Mend a typo in a term the family itself defines.
+
+    "what about for sandard named users?" lost its one discriminating word to
+    a missing letter: "sandard" matches nothing, so retrieval fell back to the
+    generic "named users" and answered about the wrong licence models. The
+    repair is deliberately narrow -- a word of five letters or more that
+    appears in no record at all, exactly one edit from exactly one word of the
+    corpus's defined-term vocabulary. Anything looser starts rewriting the
+    reader's question.
+    """
+
+    vocabulary: set[str] = set()
+    for item in records:
+        if item.get("_kind") == "Definition":
+            for word in re.findall(r"[A-Za-z]{4,}", str(item.get("term", ""))):
+                vocabulary.add(word.lower())
+    if not vocabulary:
+        return question
+    corpus_stems = {
+        token for item in records for token in tokens(str(item.get("_search_text", "")))
+    }
+
+    def one_edit(a: str, b: str) -> bool:
+        if abs(len(a) - len(b)) > 1:
+            return False
+        if len(a) > len(b):
+            a, b = b, a
+        # a is shorter or equal; walk with one allowed divergence
+        i = j = edits = 0
+        while i < len(a) and j < len(b):
+            if a[i] == b[j]:
+                i += 1
+                j += 1
+                continue
+            edits += 1
+            if edits > 1:
+                return False
+            if len(a) == len(b):
+                i += 1
+            j += 1
+        return edits + (len(b) - j) + (len(a) - i) <= 1
+
+    repaired = question
+    for word in re.findall(r"[A-Za-z]{5,}", question):
+        lowered = word.lower()
+        if lowered in vocabulary or stem(lowered) in corpus_stems:
+            continue
+        candidates = {term for term in vocabulary if one_edit(lowered, term)}
+        if len(candidates) == 1:
+            repaired = re.sub(
+                rf"\b{re.escape(word)}\b", candidates.pop(), repaired, count=1
+            )
+    return repaired
+
+
 def retrieve_evidence(
     root: Path,
     question: str,
@@ -2084,6 +2157,7 @@ def retrieve_evidence(
     require_schema_v3(root)
     records = search_records(root)
     records_by_id = {str(item["id"]): item for item in records}
+    question = respell_question(records, question)
     bm25 = bm25_scores(question, records)
     vectors = vector_scores(root, question, embedding_client)
     fused, components = reciprocal_rank_fusion(bm25, vectors)
