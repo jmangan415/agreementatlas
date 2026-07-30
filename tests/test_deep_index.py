@@ -14,6 +14,7 @@ from legal_graph_service import (
     answer_question,
     enrich_workspace,
     expand_followup,
+    foreign_question_terms,
     leans_on_context,
     query_terms,
     read_jsonl,
@@ -890,6 +891,41 @@ class FollowupExpansionTests(unittest.TestCase):
             client, "fake", "what about for standard named users?", REASSIGN_HISTORY
         )
         self.assertEqual(result, "")
+
+    def test_foreign_terms_flag_only_true_vocabulary_gaps(self) -> None:
+        records = [
+            {
+                "_search_text": (
+                    "The Licensee may re-allocate Standard Named User licences "
+                    "after a notice period of 120 days, prior to deletion of "
+                    "the account."
+                )
+            },
+            {"_search_text": "This version of the Schedule states the material terms."},
+        ]
+        # The word the family never uses, in any spelling or curated synonym.
+        self.assertEqual(
+            foreign_question_terms(
+                records, "if I disable users do I still need a license for them?"
+            ),
+            ["disable"],
+        )
+        # "reassign" travels its synonym group to "re-allocate"; "before"
+        # travels to "prior"; "escrow" has no route and is flagged.
+        self.assertEqual(
+            foreign_question_terms(
+                records, "can we reassign the licences before the escrow?"
+            ),
+            ["escrow"],
+        )
+        # Everyday words, possessives and digit-bearing data never flag.
+        self.assertEqual(
+            foreign_question_terms(
+                records,
+                "what happens if someone misses the version's 120-day notice period?",
+            ),
+            [],
+        )
 
     def test_leans_on_context_reads_the_signals(self) -> None:
         for question in (

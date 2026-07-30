@@ -174,6 +174,19 @@ _SYNONYM_GROUPS = {
     # provision about undeleted accounts and sounded just as confident.
     "login": {"access", "use", "logon", "logged"},
     "logged": {"access", "use", "login"},
+    "logs": {"login", "logged", "access"},
+    # Same word, split stems: "deletion" and "compliant" stem apart from
+    # "delete" and "compliance", so a question using one spelling looked like
+    # it used a word the corpus lacks.
+    "delete": {"deletion"},
+    "deletion": {"delete"},
+    "comply": {"compliance", "compliant"},
+    "compliant": {"comply", "compliance"},
+    "materially": {"material"},
+    # Readers say "before" and "ceiling"; agreements say "prior" and
+    # "limit"/"cap"/"maximum".
+    "before": {"prior"},
+    "ceiling": {"limit", "cap", "maximum"},
     "person": {"individual", "human", "user", "employee"},
     "individual": {"person", "human", "user"},
     "availability": {"service", "level", "uptime"},
@@ -2147,6 +2160,100 @@ def respell_question(records: list[dict], question: str) -> str:
     return repaired
 
 
+# Everyday question words that need not appear in any agreement for the
+# question to be answerable. Consulted only for words the family's text lacks
+# entirely, so over-inclusion is cheap: wrongly listing a word here just means
+# no commentary, which is what happened before the list existed.
+COMMON_QUESTION_WORDS = {
+    "able", "anybody", "anyone", "anything", "back", "became", "become",
+    "becomes", "began", "begin", "best", "better", "bought", "buying", "buys",
+    "called", "calls", "came", "cases", "come", "comes", "coming", "company",
+    "days", "deadline", "deadlines", "doing", "done", "down", "each",
+    "early", "easy", "else", "ends",
+    "enough", "even", "ever", "every", "everybody", "everyone", "everything",
+    "feel", "felt", "find", "fine", "first", "found", "gave", "gets",
+    "getting", "give", "given", "gives", "goes", "going", "gone", "good",
+    "great", "half", "happen", "happened", "happens", "hard", "having",
+    "held", "help", "here", "high", "hold", "holding", "holds", "home",
+    "hope", "idea", "just", "keep", "keeping", "keeps", "kept", "kind",
+    "knew", "know", "known", "knows", "large", "last", "late", "later",
+    "least", "leave", "leaves", "leaving", "left", "less", "lets", "like",
+    "likely", "little", "long", "look", "looking", "looks", "lost", "lots",
+    "made", "make", "makes", "making", "many", "might", "mine", "miss",
+    "missed", "misses", "morning", "most", "move", "moved", "much", "near",
+    "nearly", "need", "needed", "needs", "never", "newer", "newest", "next",
+    "nice", "night", "none", "nothing", "okay", "older", "oldest", "once",
+    "ones", "only", "others", "over", "part", "people", "place", "please",
+    "puts", "quite", "rather", "real", "really", "running", "runs", "said",
+    "same", "says", "seen", "sees", "sell", "selling", "sells", "several",
+    "shows", "since", "small", "sold", "some", "somebody", "someone",
+    "something", "sometimes", "soon", "sort", "start", "started", "starts",
+    "still", "stop", "stopped", "stops", "stuff", "sure", "take", "taken",
+    "takes", "taking", "talk", "tell", "tells", "than", "then", "thing",
+    "things", "think", "thinks", "though", "although", "thought", "times",
+    "told", "tomorrow", "took", "tried", "tries", "turn", "turned", "turns",
+    "twice", "very", "family", "families",
+    "want", "wanted", "wants", "ways", "week", "weeks", "well", "went",
+    "whole", "wondering", "words", "wrote", "yeah", "year", "years",
+    "yesterday",
+}
+
+
+def foreign_question_terms(records: list[dict], question: str) -> list[str]:
+    """Question words this family's text never uses, by any curated route.
+
+    Asked "if I disable users do I still need a license for them?", the answer
+    opened "Yes, if a user suspends all of their sessions..." -- the model
+    silently translated "disable" into one mechanism and answered as though the
+    match were exact, when suspension and account deletion both plausibly bear.
+    "Disable" is precisely a word this family's text never uses; naming that is
+    what lets the answer say so instead of guessing. Everyday words are exempt
+    ("someone", "happens"), and a word whose curated synonyms reach the corpus
+    is translated deliberately, not silently ("reassign" -> reallocation).
+    """
+
+    corpus = {
+        token
+        for item in records
+        for token in tokens(str(item.get("_search_text", "")))
+    }
+    if not corpus:
+        return []
+    found: list[str] = []
+    for word in TOKEN.findall(question):
+        # "version's" is "version"; the possessive is the reader's grammar,
+        # not a word of its own.
+        word = re.sub(r"['’]s?$", "", word)
+        lowered = word.lower()
+        if (
+            len(lowered) < 4
+            or lowered in STOP
+            or lowered in COMMON_QUESTION_WORDS
+        ):
+            continue
+        # A token carrying a digit is data -- "120-day", "FY21", "10,001" --
+        # and data the corpus lacks is not a vocabulary mismatch.
+        if any(char.isdigit() for char in lowered):
+            continue
+        stems = tokens(word)
+        if not stems or any(item in corpus for item in stems):
+            continue
+        if any(
+            synonym in corpus
+            for item in stems
+            for synonym in SYNONYMS.get(item, ())
+        ):
+            continue
+        # A hyphenated coinage whose meaningful parts are corpus words is not
+        # foreign: "AI-generated" is made of words the AUP uses.
+        parts = [part.lower() for part in word.split("-") if len(part) >= 4]
+        if parts and all(stem(part) in corpus for part in parts):
+            continue
+        if lowered not in found:
+            found.append(lowered)
+    return found[:3]
+
+
 FOLLOWUP_LEAD = re.compile(
     r"^(and|but|also|so|then|ok(?:ay)?|why|same|what about|how about|what if)\b",
     re.IGNORECASE,
@@ -2978,17 +3085,19 @@ def answer_question(
     """
 
     active_retriever = retriever or AgreementAtlasGraphRetriever(client)
+    records = search_records(root)
+    # Respelling runs before anything reads the question: the guard inside
+    # expand_followup requires every word of a follow-up to survive the
+    # rewrite, and foreign_question_terms must not mistake a typo for a word
+    # the corpus lacks.
+    question = respell_question(records, question)
     # A follow-up that leans on the conversation is rewritten as the
     # standalone question it means before anything reads it: retrieval,
     # offering matching and the resolution trace all take the question text,
     # and "what about for standard named users?" starves every one of them.
-    # Respelling runs first because the guard inside expand_followup requires
-    # every word of the follow-up to survive the rewrite, and a typo the
-    # model silently fixed would fail it.
     understood_as = ""
     if history:
-        corrected = respell_question(search_records(root), question)
-        expanded = expand_followup(client, model, corrected, history)
+        expanded = expand_followup(client, model, question, history)
         if expanded:
             question = expanded
             understood_as = expanded
@@ -3093,6 +3202,33 @@ def answer_question(
         if len(variants) > 1
         else ""
     )
+    # Asked "if I disable users do I still need a license for them?", the
+    # answer opened "Yes, if a user suspends all of their sessions..." -- the
+    # model silently translated "disable" into one mechanism when suspension
+    # and account deletion both plausibly bear. The rule is supplied only when
+    # the question genuinely uses a word this family's text lacks; a standing
+    # order to flag uncertainty taught the model to manufacture doubt once
+    # already.
+    foreign = foreign_question_terms(records, question)
+    foreign_list = ", ".join(f'"{word}"' for word in foreign)
+    foreign_rule = (
+        (
+            f"WORDS THE AGREEMENTS DO NOT USE. The question says {foreign_list}, "
+            "and this family's text never uses "
+            + ("that word" if len(foreign) == 1 else "those words")
+            + ". If such a word names the action or thing the question turns "
+            "on, do not silently translate it into one mechanism and answer "
+            "as though the match were exact. Say plainly that the agreements "
+            "do not use the word, answer under each provision in the evidence "
+            "that could bear on it, calling each mechanism by the agreements' "
+            "own words, and close with one short line inviting the reader to "
+            "say which situation they mean -- that structure satisfies the "
+            "rules about how answers open. If the word is incidental to what "
+            "is asked, ignore this note and answer normally.\n\n"
+        )
+        if foreign
+        else ""
+    )
     earlier = conversation_recap(history or [])
     context_rule = (
         (
@@ -3133,6 +3269,7 @@ def answer_question(
         # is the worst thing this tool can be, and a licensing question almost
         # always turns on which variant the customer bought.
         + ambiguity_rule
+        + foreign_rule
         + "Answer the question asked, about the thing it names, in its first "
         "sentence. Asked about one contractual mechanism, answer for that "
         "mechanism before mentioning any other: asked about assignment, the "

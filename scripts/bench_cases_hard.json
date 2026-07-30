@@ -257,6 +257,19 @@
     "note": "The live two-turn failure verbatim, typo included. The follow-up alone retrieves almost nothing: it must be respelled, then expanded against the previous turn into a standalone question, and the answer must reach \u00a77's rule that the original user's account is first deleted."
   },
   {
+    "id": "ot-disable-vocab-gap",
+    "family": "OpenText",
+    "q": "if I disable users do I still need a license for them?",
+    "opens": [],
+    "must": [
+      "disable",
+      "delet",
+      "session"
+    ],
+    "must_not": [],
+    "note": "Found live: the answer opened 'Yes, if a user suspends all of their sessions...' -- silently translating 'disable', a word this family's text never uses, into one mechanism. With the vocabulary-gap rule the answer must say the agreements do not use the word, cover both session suspension and the account-deletion rule, and invite the reader to specify. 'disable' in the answer is the tell that the gap was named rather than smoothed over."
+  },
+  {
     "id": "sap-followup-missed-deadline",
     "family": "SAP Cloud",
     "prior": [
