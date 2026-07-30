@@ -34,3 +34,4 @@ samples/demo_bundles/
 .DS_Store
 .idea/
 .vscode/
+goal/logs/

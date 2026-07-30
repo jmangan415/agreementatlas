@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A live, local-first legal knowledge graph over published software licence agreements. Ask a licensing question; get an answer cited to the exact clause that controls it.">
+  <title>AgreementAtlas — a licence is not one document</title>
+  <link rel="canonical" href="https://agreementatlas.com/">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/agreementatlas-favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+  <meta name="theme-color" content="#0F1720">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AgreementAtlas">
+  <meta property="og:url" content="https://agreementatlas.com/">
+  <meta property="og:title" content="AgreementAtlas — a licence is not one document">
+  <meta property="og:description" content="One EULA forbids assigning a licence and permits allocating it, eleven pages apart. A live knowledge graph that reads licence families the way a licensing reader does.">
+  <meta property="og:image" content="https://agreementatlas.com/assets/og-card.png">
+
+  <link rel="stylesheet" href="/demo.css">
+</head>
+<body>
+
+<header class="masthead">
+  <a class="brand" href="/" aria-label="AgreementAtlas home">
+    <img src="/assets/agreementatlas-mark-dark.svg" width="30" height="30" alt="" aria-hidden="true">
+    <span class="brand-name">Agreement<b>Atlas</b></span>
+  </a>
+  <nav class="masthead-nav" aria-label="Page">
+    <a href="#why">Why this exists</a>
+    <a href="#console">Ask the system</a>
+    <a href="#measurement">Measured</a>
+    <a class="workbench-link" href="/app.html">Full workbench →</a>
+  </nav>
+  <span class="lm-state" id="lmState"><i class="dot" id="lmDot"></i><span id="lmLabel">Checking the local model…</span></span>
+</header>
+
+<main>
+
+<!-- ======================= HERO: the trap, diagrammed ======================= -->
+<section class="hero">
+  <p class="eyebrow">Experimental project to build AI-assisted license and cloud agreement intelligence</p>
+  <h1>“Can our affiliate use this software?”</h1>
+  <p class="lede">
+    Search the PDF for “use” and you will not find the answer. Read one document and the
+    answer is incomplete. OpenText’s EULA forbids <em>assigning</em> the licence at
+    §13.5, and permits <em>allocating</em> it to an Affiliate ten pages earlier at §3.3 —
+    while what those people may actually do turns on a licence model defined in a separate
+    schedule. Whether you can depends on what you mean by “use”, and you only see that by
+    reading all of it together. This project combines deterministic parsing with an
+    AI-assisted knowledge graph so the answer accounts for every document at once.
+  </p>
+
+  <div class="clause-pair">
+    <figure class="clause-card">
+      <figcaption>
+        <span class="cite">EULA §13.5 · Assignment</span>
+        <span class="method">deterministic parse</span>
+      </figcaption>
+      <blockquote class="diagrammed">
+        <span class="an actor">Licensee</span> <span class="an deontic prohibition">may not</span>
+        <span class="an action">assign, transfer, or sublicense</span>
+        <span class="an object">any portion of its interests, rights, or obligations under this
+        EULA</span> by written agreement, merger, consolidation, change of control, operation of
+        law, or otherwise, <span class="an condition">without the prior written consent of OT</span>.
+      </blockquote>
+      <div class="reading" aria-label="Structured reading">
+        <span class="chip effect-prohibition">PROHIBITION</span>
+        <span class="chip">MAY&nbsp;NOT</span>
+        <span class="chip">Licensee</span>
+        <span class="chip">assign</span>
+      </div>
+    </figure>
+
+    <figure class="clause-card">
+      <figcaption>
+        <span class="cite">EULA §3.3 · Allocation of Licenses to Affiliates</span>
+        <span class="method">read by the local model · span-validated</span>
+      </figcaption>
+      <blockquote class="diagrammed">
+        <span class="an condition">Unless prohibited under the applicable License Document</span>,
+        <span class="an actor">the Licensee</span> <span class="an deontic permission">may</span>
+        <span class="an action">allocate</span> <span class="an object">Software Licenses to its
+        Affiliates</span>, <span class="an condition">provided: (a) the Licensee remains
+        responsible for the Affiliate’s compliance with the License Documents; and (b) the
+        Licensee is liable for any breach of the License Documents by an Affiliate</span>.
+      </blockquote>
+      <div class="reading" aria-label="Structured reading">
+        <span class="chip effect-permission">PERMISSION</span>
+        <span class="chip">MAY</span>
+        <span class="chip">Licensee</span>
+        <span class="chip">allocate</span>
+      </div>
+    </figure>
+  </div>
+
+  <div class="legend" aria-label="Annotation key">
+    <span><i class="key actor"></i>actor</span>
+    <span><i class="key permission"></i>permission</span>
+    <span><i class="key prohibition"></i>prohibition</span>
+    <span><i class="key action"></i>action</span>
+    <span><i class="key object"></i>object</span>
+    <span><i class="key condition"></i>condition</span>
+  </div>
+  <p class="hero-note">
+    Both readings are records in the live graph below, each stored with the exact source span
+    that produced it. A reading is shown only when its span validates verbatim against the
+    document text.
+  </p>
+  <div class="hero-actions">
+    <a class="button primary" href="#console">Ask it yourself ↓</a>
+  </div>
+</section>
+
+<!-- ======================= WHY: the operator's problem ======================= -->
+<section class="why" id="why">
+  <div class="why-grid">
+    <div>
+      <p class="eyebrow">Why this exists</p>
+      <h2>Twenty-five years of these agreements, and they still surprise me.</h2>
+      <p class="why-text">
+        I spent my career in enterprise software licensing, reading and negotiating hundreds
+        of software and cloud agreements across the table from procurement and in-house
+        legal. Rights spread across master terms, schedules, orders and addenda;
+        acquisitions bolt inherited paper onto the stack; amendments accrete. The schedule
+        loaded here still carries licence models inherited through an acquisition I sold
+        through — the paper outlived the org chart.
+      </p>
+      <p class="why-text">
+        This asks whether that reading can move to agents, and what a system must be shaped
+        like to do it reliably. Frontier models can essentially do this work today, but
+        contracts are exactly the documents many organisations cannot send to a cloud API —
+        so everything here runs locally, and every answer is checkable against the clause it
+        came from.
+      </p>
+    </div>
+    <div class="tech-panel">
+      <p class="eyebrow">What it is built from</p>
+      <ul class="tech-list">
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="9" y="5" width="22" height="30" rx="2"/><path d="M14 13h12M14 19h12M14 25h7"/></svg>
+          <div><b>Deterministic parsing</b><span>Clauses, defined terms and precedence ladders, before any model runs</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 9v22M20 20l-9 8M20 20l9 8"/><circle cx="20" cy="8" r="3.4"/><circle cx="10" cy="30" r="3.4"/><circle cx="30" cy="30" r="3.4"/></svg>
+          <div><b>Legal knowledge graph</b><span>Rules, definitions and the edges that decide which one controls</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="12" cy="14" r="2.6"/><circle cx="24" cy="10" r="2.6"/><circle cx="29" cy="22" r="2.6"/><circle cx="15" cy="26" r="2.6"/><circle cx="25" cy="31" r="2.6"/><path d="M12 14l12-4M24 10l5 12M29 22l-14 4M15 26l10 5"/></svg>
+          <div><b>Embeddings + hybrid retrieval</b><span>Lexical and vector search fused, then resolved through the graph</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="12" y="12" width="16" height="16" rx="2"/><path d="M16 8v4M24 8v4M16 28v4M24 28v4M8 16h4M8 24h4M28 16h4M28 24h4"/></svg>
+          <div><b>A local language model</b><span>Gemma 4 on this machine — no document text leaves it</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M11 12h18M11 18h18M11 24h9"/><path class="tick" d="M22 28l4 4 7-8"/></svg>
+          <div><b>Span validation</b><span>A reading is kept only when its quote appears verbatim in the clause</span></div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= CONSOLE: the live system ======================= -->
+<section class="console" id="console">
+  <div class="console-head">
+    <p class="eyebrow">Ask the live system</p>
+    <h2>Choose a document set — or bring your own.</h2>
+    <p class="section-note">
+      Answers come from Gemma&nbsp;4 running on a MacBook&nbsp;Pro (M5&nbsp;Pro), reading only
+      evidence retrieved through the graph, and it must cite that evidence. Your session is
+      private and temporary — chat history and anything you upload are deleted within
+      {{RETENTION_HOURS}} hours. The sample families are always here.
+    </p>
+  </div>
+
+  <div class="set-bar">
+    <div id="sampleSelect" class="sample-select" role="group" aria-label="Choose a document set"></div>
+    <button id="uploadToggle" type="button" class="upload-toggle">Upload your own agreements</button>
+    <div id="uploadStrip" class="upload-strip" hidden>
+      <label class="consent-row">
+        <input id="uploadConsent" type="checkbox">
+        <span>I am authorised to upload these files and understand this is a temporary public demonstration.</span>
+      </label>
+      <button id="uploadPick" class="button quiet" type="button">Choose files</button>
+      <input id="uploadInput" type="file" multiple accept=".pdf,.txt,.md,.csv,.xls,.xlsx,.docx,.pptx" hidden>
+      <span id="uploadNote" class="upload-status"></span>
+    </div>
+    <div id="questionChips" class="question-row" aria-label="Curated questions"></div>
+  </div>
+  <details class="docs-fold">
+    <summary id="docsSummary">Documents in this family</summary>
+    <ol id="familyDocs" class="family-docs docs-strip"></ol>
+  </details>
+  <p id="enrichNote" class="enrich-note" role="status" hidden></p>
+  <div id="enrichBar" class="enrich-bar" hidden>
+    <button id="enrichStart" class="button quiet" type="button">Enrich with the local model</button>
+    <span class="enrich-hint">Optional — adds AI readings and embeddings to the deterministic graph. Questions queue behind it while it runs.</span>
+  </div>
+
+  <div class="console-zone">
+    <div class="graph-column">
+      <div class="graph-panel">
+        <div class="graph-toolbar">
+          <span class="eyebrow">Knowledge graph</span>
+        </div>
+        <div id="graphStage" class="graph-stage">
+          <canvas id="graphCanvas" aria-label="Interactive agreement knowledge graph"></canvas>
+          <div id="graphEmpty" class="graph-empty">
+            <p>The graph appears when a family is loaded.</p>
+          </div>
+          <div class="canvas-controls" aria-label="Graph controls">
+            <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
+            <button id="zoomOut" type="button" aria-label="Zoom out">−</button>
+            <button id="resetView" type="button" aria-label="Fit graph">Fit</button>
+          </div>
+          <div id="typeFilters" class="type-filters" aria-label="Node type filters"></div>
+          <aside id="inspectorPanel" class="inspector-panel" hidden>
+            <button id="inspectorClose" type="button" aria-label="Close inspector">×</button>
+            <section id="nodeInspector" class="node-inspector" aria-live="polite"></section>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-panel">
+      <div id="thread" class="thread" aria-live="polite">
+        <div class="thread-empty" id="threadEmpty">
+          <p>Pick a question above, or ask your own. The hard ones are the point.</p>
+        </div>
+      </div>
+      <div class="chat-bar">
+        <button id="resetChat" type="button" class="text-button">Clear chat &amp; reset</button>
+      </div>
+      <form id="askForm" class="composer">
+        <label class="sr-only" for="questionInput">Ask about these agreements</label>
+        <textarea id="questionInput" rows="2" maxlength="2000"
+          placeholder="Ask about rights, restrictions, renewal, audits, data…" required></textarea>
+        <label class="think-toggle" title="The model reasons aloud before answering and you can read the working. Much slower.">
+          <input id="thinkToggle" type="checkbox">
+          <span>Thinking mode with verbose reasoning</span>
+        </label>
+        <button id="askButton" class="button primary" type="submit" disabled>Ask</button>
+      </form>
+      <p class="disclaimer">AI-assisted document interpretation, not legal advice. Verify every conclusion against the cited text.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= MEASUREMENT ======================= -->
+<section class="measurement" id="measurement">
+  <p class="eyebrow">Measured, not asserted</p>
+  <h2>Gemma 4 on a MacBook Pro matches a frontier model on the traps — given the graph.</h2>
+  <table class="bench">
+    <thead>
+      <tr><th>Answering model</th><th>Runs on</th><th>Trap score</th><th>Wall clock</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Gemma 4 <span class="tag">local</span></td><td>this MacBook Pro (M5 Pro)</td><td>26 / 27</td><td>95 s</td></tr>
+      <tr><td>GPT-5 <span class="tag">cloud</span></td><td>OpenAI API</td><td>27 / 27</td><td>318 s</td></tr>
+    </tbody>
+  </table>
+  <p class="bench-note">
+    Twenty trap questions over four published agreement families — negation, variant
+    ambiguity, false premises, precedence invented where none exists, questions the corpus
+    cannot answer — scored mechanically on how the answer must open, what it must name and
+    what it must not claim, then read by hand. Both models received the same graph-retrieved
+    evidence, so this measures the answering model alone. Across three runs the two stayed
+    within one another's run-to-run variance; the local model answered in about a third of
+    the time with no document text leaving the machine. The sharper finding: with the
+    graph's structured clause readings withheld, the local model's misses turned into
+    confidently wrong answers — once inverting a permissions question — while with them its
+    only misses were explicit refusals. The readings do not change the score so much as the
+    failure mode, and a confident wrong answer is the one failure a licensing tool cannot
+    afford.
+  </p>
+</section>
+
+<!-- ======================= LIMITS + COLOPHON ======================= -->
+<footer class="colophon">
+  <div class="limits">
+    <h2>Honest limits</h2>
+    <p>
+      This is a portfolio demonstration built to understand the problem, not a product.
+      Deterministic labels on unusual sentence forms are still wrong on messy PDF
+      conversions — which is why the answer path reads full quoted clauses, never labels
+      alone, and why every conclusion links to the text that decides it.
+    </p>
+  </div>
+  <div class="colophon-meta">
+    <span>Operator: {{OPERATOR_NAME}}</span>
+    <a href="/story.html">Why this exists</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
+    <button id="deleteSession" class="text-button" type="button">Delete my session</button>
+  </div>
+</footer>
+
+</main>
+
+<script src="/demo.js"></script>
+<script src="/demo-graph.js"></script>
+</body>
+</html>
