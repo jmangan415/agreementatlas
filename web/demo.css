@@ -447,6 +447,12 @@ h2 { font-size: 1.7rem; max-width: var(--measure); }
   padding-left: 0.7rem;
 }
 .enrich-note.error { border-left-color: var(--prohibition); color: var(--prohibition); }
+.enrich-bar {
+  max-width: var(--stage); margin: -0.4rem auto 1rem;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem;
+}
+.enrich-bar[hidden] { display: none; }
+.enrich-bar .enrich-hint { font-size: 0.75rem; color: var(--muted); }
 
 .ev-hint {
   color: var(--muted); font-style: italic; font-weight: 400;
@@ -508,6 +514,9 @@ h2 { font-size: 1.7rem; max-width: var(--measure); }
   background: #fff; border: 1px dashed var(--hairline); border-radius: 10px;
   padding: 0.55rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.78rem;
 }
+/* display:flex above outranks the browser's [hidden] rule, so hidden must be
+   restated or the toggle does nothing. */
+.upload-strip[hidden] { display: none; }
 .upload-strip .consent-row { display: flex; gap: 0.45rem; align-items: flex-start; color: var(--muted); max-width: 34rem; }
 .upload-strip .upload-status { color: var(--muted); }
 .upload-strip .upload-status.error { color: var(--prohibition); }

@@ -1,3 +1,0 @@
-Contact: mailto:privacy@agreementatlas.com
-Preferred-Languages: en
-Canonical: https://agreementatlas.com/.well-known/security.txt

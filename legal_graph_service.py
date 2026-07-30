@@ -1828,6 +1828,69 @@ def offerings_matching(root: Path, question: str) -> list[dict]:
     return matched if len(matched) > 1 else []
 
 
+def offerings_bearing_on_evidence(
+    records: Sequence[dict], evidence: Sequence[dict]
+) -> list[dict]:
+    """The licence models whose terms the retrieved evidence actually cites.
+
+    `offerings_matching` finds variants only when the question names one and
+    opens like a menu request -- both tests of the question's surface form.
+    "Can our affiliate use this software" fails both: it names no model and
+    opens with "Can", so no VARIANTS reached the prompt, and the answer
+    promoted one model's condition -- "provided the software is used with an
+    MFP" -- into the general gate on affiliate use, against a family licensing
+    fifty other models on other terms. Whether the answer varies by model is a
+    fact about the evidence, not about the question's first word: when the
+    retrieved rules hang off different licence models, the model answering
+    must be told, whatever was asked.
+
+    Attribution is structural, never prose: an offering bears on the evidence
+    when the evidence holds the offering itself, a record anchored to the
+    offering's defining clause, a rule extraction scoped to the model, or a
+    record whose section heading names it. A model merely mentioned in body
+    text attributes nothing.
+    """
+
+    offerings = [item for item in records if item.get("_kind") == "Offering"]
+    if len(offerings) < 2:
+        return []
+    by_id = {str(item.get("id", "")): item for item in records}
+    by_clause = {str(item.get("clause_id", "")): item for item in offerings}
+    named = {
+        str(item.get("name", "")).casefold(): item
+        for item in offerings
+        if len(str(item.get("name", "")).strip()) >= 4
+    }
+    matched: dict[str, dict] = {}
+    for item in evidence:
+        record = by_id.get(str(item.get("id", "")))
+        if record is None:
+            continue
+        if record.get("_kind") == "Offering":
+            matched[str(record.get("id", ""))] = record
+            continue
+        anchor = by_clause.get(str(record.get("clause_id", "")))
+        if anchor is not None:
+            matched[str(anchor.get("id", ""))] = anchor
+        scope = record.get("scope")
+        scoped = scope.get("license_models", []) if isinstance(scope, dict) else []
+        haystack = " ".join(
+            [
+                *(
+                    str(record.get(key, ""))
+                    for key in ("section_path", "heading", "section_id")
+                ),
+                *(str(value) for value in scoped),
+            ]
+        ).casefold()
+        for name, offering in named.items():
+            if name in haystack:
+                matched[str(offering.get("id", ""))] = offering
+    if len(matched) < 2:
+        return []
+    return sorted(matched.values(), key=lambda item: str(item.get("name", "")))
+
+
 def load_vectors(root: Path) -> tuple[list[dict], bytes]:
     index = read_jsonl(root / "legal" / "embeddings.index.jsonl")
     path = root / "legal" / "embeddings.f32"
@@ -3162,32 +3225,72 @@ def answer_question(
     # The graph knows the licence models exactly, including their metric and
     # what each inherits; the text scan is a fallback for families whose
     # variants are not expressed as offerings.
-    variants = [
-        " · ".join(
-            part
-            for part in (
-                str(item.get("name", "")),
-                str(item.get("metric", "")),
-                f"inherits {item['inherits_from']}"
-                if item.get("inherits_from")
-                else "",
-                str(item.get("basis", ""))[:70],
+    def offering_lines(items: Sequence[dict]) -> list[str]:
+        return [
+            " · ".join(
+                part
+                for part in (
+                    str(item.get("name", "")),
+                    str(item.get("metric", "")),
+                    f"inherits {item['inherits_from']}"
+                    if item.get("inherits_from")
+                    else "",
+                    str(item.get("basis", ""))[:70],
+                )
+                if part
             )
-            if part
-        )
-        for item in matched
-    ] or (
-        competing_variants(question, evidence)
-        if ASKS_WHICH.match(question.strip())
-        else []
-    )
+            for item in items
+        ]
+
+    # Three routes to the variant list, in order of confidence. The question
+    # names the thing (offerings_matching); the question asks for a menu and
+    # the prose holds variants (competing_variants); or the question names no
+    # variant at all but the evidence's rules hang off several licence models
+    # anyway -- the hero-question case, where the variant-dependence is in the
+    # evidence and the question's phrasing says nothing about it.
+    evidence_variants = False
+    if matched:
+        variants = offering_lines(matched)
+    elif ASKS_WHICH.match(question.strip()):
+        variants = competing_variants(question, evidence)
+    else:
+        variants = offering_lines(offerings_bearing_on_evidence(records, evidence))
+        evidence_variants = len(variants) > 1
     # The rule is supplied only when there is something for it to govern.
     # Standing in the prompt unconditionally, it taught the model the format:
     # gpt-5 answered "may Actuate licences be allocated to shared processes"
     # with a VARIANTS list and no answer, having been told ambiguity comes
     # first and no variants having been found.
-    ambiguity_rule = (
-        (
+    ambiguity_rule = ""
+    if len(variants) > 1 and evidence_variants:
+        # The evidence-triggered form is conditional where the question-named
+        # form is absolute: a question that never mentioned a licence model
+        # may still have one answer across all of them, and listing models at
+        # a visitor who asked a yes/no question would repeat the gpt-5
+        # regression above. The one thing it forbids outright is the hero
+        # failure: presenting a condition one model states as though it
+        # governed every model in the family.
+        ambiguity_rule = (
+            "THE ANSWER MAY DIFFER BY LICENCE MODEL. The question names no "
+            "licence model, but the evidence cites terms belonging to "
+            "several, listed under VARIANTS below. First check whether the "
+            "evidence decides the question the same way under every one of "
+            "them; if it does, answer once, normally, and do not list them. "
+            "A question that turns on a defined term the family shares -- a "
+            "definition, not one model's terms -- is decided alike for every "
+            "model, and gets the one answer the definition gives. Only the "
+            "models' own differing terms make answers differ. Where they do, "
+            "never promote a condition that one model states "
+            "-- \"only with an MFP\", \"named users only\" -- into a general "
+            "condition of the answer. Open by saying the answer depends on "
+            "which licence model applies -- that opening satisfies every "
+            "rule about how answers open, including the Yes/No rule -- give "
+            "the one line per model the evidence supports, and end by asking "
+            "which one applies. The list is a starting point: drop any entry "
+            "the evidence does not support and add any it missed.\n\n"
+        )
+    elif len(variants) > 1:
+        ambiguity_rule = (
             "AMBIGUITY COMES FIRST. The thing asked about has several named "
             "variants in this family, listed under VARIANTS below. Do not "
             "answer for one of them and do not silently choose. Say how many "
@@ -3199,9 +3302,6 @@ def answer_question(
             "starting point: drop any entry the evidence does not support and "
             "add any it missed.\n\n"
         )
-        if len(variants) > 1
-        else ""
-    )
     # Asked "if I disable users do I still need a license for them?", the
     # answer opened "Yes, if a user suspends all of their sessions..." -- the
     # model silently translated "disable" into one mechanism when suspension
@@ -3341,8 +3441,13 @@ def answer_question(
         "Note conditions, limits, exceptions and amendments only where they change "
         "the answer. Do not claim a rule controls unless the trace supports it. "
         "Be brief: a short answer that is correct beats a long one that hedges, "
-        "and naming five variants in five lines is brief. Cite [1], [2] etc. Do "
-        "not give legal advice."
+        # The trace is context, not citable evidence: the interface renders
+        # [1], [2] as links to the evidence list, so a "[trace]" token reaches
+        # the reader as literal bracketed text pointing at nothing.
+        "and naming five variants in five lines is brief. Cite evidence as [1], "
+        "[2] etc.; those are the only citation tokens -- never write [trace] or "
+        "any other bracketed label. When the deterministic trace decides a "
+        "point, state that in words. Do not give legal advice."
     )
     variant_context = (
         f"\n\nVARIANTS FOUND IN THIS FAMILY ({len(variants)}):\n"
