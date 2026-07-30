@@ -1732,7 +1732,61 @@ def search_records(root: Path) -> list[dict]:
             ]
         )
         output.append(item)
+    mark_ambiguous_numbers(output)
     return output
+
+
+LEADING_NUMBER = re.compile(r"^\d{1,2}(?:\.\d{1,2}){0,3}\s+")
+
+
+def record_heading(record: dict) -> str:
+    """The title of the section a record sits under, however the record spells it.
+
+    Clauses carry it as `heading`; rules carry only `section_path`, which is
+    the parent's number and title run together ("10 LIMITATION OF LIABILITY").
+    """
+
+    heading = str(record.get("heading") or "").strip()
+    if heading:
+        return heading
+    path = str(record.get("section_path") or "").strip()
+    return LEADING_NUMBER.sub("", path).strip()
+
+
+def mark_ambiguous_numbers(records: list[dict]) -> None:
+    """Flag section numbers that name more than one section of their document.
+
+    A number is a reference only while it points at one passage. Agreements
+    restate a provision for a territory, a variant or a party and print the
+    original's number on the restatement: this corpus has an MSA carrying both
+    "10.1 LIMITATION OF LIABILITY" and "10.1 LIMITATION OF LIABILITY FOR
+    CUSTOMERS DOMICILED IN GERMANY". Both rendered as "§10.1", so the answer
+    could not name which one it was quoting, the reader clicking the citation
+    could not tell them apart, and nothing downstream could either.
+
+    Deliberately per document and per distinct heading: many rules extracted
+    from one section share its number and title, and those are one section, not
+    a collision. Definitions are left alone -- they are already cited by term.
+    """
+
+    headings: defaultdict[tuple[str, str], set[str]] = defaultdict(set)
+    for record in records:
+        if record.get("term"):
+            continue
+        section = str(record.get("section_id", "")).strip()
+        if not NUMBERED_SECTION.match(section):
+            continue
+        heading = record_heading(record)
+        if heading:
+            document = str(record.get("document_id") or record.get("instrument_id") or "")
+            headings[(document, section)].add(heading.casefold())
+    for record in records:
+        if record.get("term"):
+            continue
+        section = str(record.get("section_id", "")).strip()
+        document = str(record.get("document_id") or record.get("instrument_id") or "")
+        if len(headings.get((document, section), ())) > 1:
+            record["_ambiguous_number"] = True
 
 
 # "what is a named user", "which licence models are there", "how many editions".
@@ -2004,6 +2058,12 @@ def citation_label(record: dict) -> str:
     if term:
         return f"“{term}” (Definitions)" if not base else f"§{base} “{term}”"
     if NUMBERED_SECTION.match(section):
+        # Where the document prints this number on more than one section, the
+        # number alone is not a reference; the heading is what separates them.
+        if record.get("_ambiguous_number"):
+            heading = record_heading(record)
+            if heading:
+                return f"§{section} {heading}"
         return f"§{section}"
     label = str(record.get("list_label", "")).strip()
     if label and base:
