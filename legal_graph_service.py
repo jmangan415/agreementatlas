@@ -1828,6 +1828,38 @@ def offerings_matching(root: Path, question: str) -> list[dict]:
     return matched if len(matched) > 1 else []
 
 
+def offerings_named_in_question(records: Sequence[dict], question: str) -> list[dict]:
+    """The offerings the reader has already told us they hold.
+
+    The variants rules exist for one reason: to stop the engine silently
+    choosing a licence model the reader never chose. A question that names its
+    models -- "can we downgrade a Standard Named User to an Occasional Named
+    User" -- has made that choice, and there is nothing left to disambiguate;
+    opening such an answer with "the answer depends on which licence model
+    applies" refuses a question the reader already narrowed.
+
+    Matching is on the graph's own offering names, in order, not on prose: a
+    name is taken as named only when its words appear as a run in the question.
+    One-word names ("Client") are ignored, because a bare common noun in a
+    sentence is not evidence that the reader meant the licence model of that
+    name.
+    """
+
+    asked = " ".join(tokens(question))
+    named = []
+    for record in records:
+        if record.get("_kind") != "Offering":
+            continue
+        name = " ".join(tokens(str(record.get("name", ""))))
+        if len(name.split()) < 2:
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(name)}(?![a-z0-9])", asked):
+            named.append(record)
+    # The longest name wins where one contains another, so "Standard Named User
+    # Subscription" does not also report the "Standard Named User" it extends.
+    return sorted(named, key=lambda item: -len(str(item.get("name", ""))))
+
+
 def offerings_bearing_on_evidence(
     records: Sequence[dict], evidence: Sequence[dict]
 ) -> list[dict]:
@@ -3253,6 +3285,11 @@ def answer_question(
         variants = offering_lines(matched)
     elif ASKS_WHICH.match(question.strip()):
         variants = competing_variants(question, evidence)
+    elif offerings_named_in_question(records, question):
+        # The reader named the models they hold. Evidence spanning other models
+        # is still evidence, but there is no choice left to put to them, and the
+        # rule below would put one anyway.
+        variants = []
     else:
         variants = offering_lines(offerings_bearing_on_evidence(records, evidence))
         evidence_variants = len(variants) > 1
