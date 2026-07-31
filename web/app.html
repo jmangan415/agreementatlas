@@ -112,6 +112,14 @@
           <option value="">No local model available</option>
         </select>
         <button id="enrichButton" class="primary-button" disabled>AI-enrich this family</button>
+        <div id="enrichConfirm" class="enrich-confirm" hidden>
+          <strong>Runs on this machine, not a cloud.</strong>
+          <p id="enrichEstimate"></p>
+          <div class="inline-form-actions">
+            <button id="enrichStart" type="button" class="primary-button">Start enrichment</button>
+            <button id="enrichCancelArm" type="button" class="text-button">Cancel</button>
+          </div>
+        </div>
         <div class="progress-track" aria-hidden="true"><span id="enrichProgress"></span></div>
         <p id="enrichMessage" class="inline-status">Deterministic rules appear immediately; AI enrichment is optional.</p>
       </section>

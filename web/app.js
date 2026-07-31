@@ -167,6 +167,35 @@ function renderRuntime() {
   renderEnrichment();
 }
 
+// Measured on this hardware: the live acceptance ran 31 clause batches in
+// 92 seconds (~3 s each); say 4 to stay honest when clauses run long.
+const ENRICH_SECONDS_PER_CLAUSE = 4;
+
+function enrichEstimate() {
+  const coverage = state.status.enrichment_coverage || {};
+  const remaining = Math.max(
+    0,
+    (coverage.total_clauses || 0) - (coverage.completed_clauses || 0)
+  );
+  if (!remaining) {
+    return (
+      "Structured extraction reads every substantive clause with the local " +
+      "model, a few seconds each — a typical agreement takes a few minutes. " +
+      "Progress is saved as it goes."
+    );
+  }
+  const minutes = Math.max(
+    1,
+    Math.round((remaining * ENRICH_SECONDS_PER_CLAUSE) / 60)
+  );
+  return (
+    `Structured extraction reads ~${remaining} clause${remaining === 1 ? "" : "s"} ` +
+    `with the local model, about ${ENRICH_SECONDS_PER_CLAUSE} seconds each — ` +
+    `roughly ${minutes} minute${minutes === 1 ? "" : "s"} in total. Progress is ` +
+    "saved as it goes; you can keep exploring meanwhile."
+  );
+}
+
 function renderEnrichment() {
   const job = state.status.enrichment;
   const running = job.state === "running";
@@ -193,6 +222,15 @@ function renderEnrichment() {
   $("#enrichButton").textContent = coverageState === "partial"
     ? "Continue AI enrichment"
     : "AI-enrich this family";
+  // First click arms; the confirm box says where this runs and for how long,
+  // and only its Start button spends the visitor's minutes.
+  const confirmBox = $("#enrichConfirm");
+  if (confirmBox) {
+    const armed = Boolean(state.enrichArmed) && canEnrich;
+    $("#enrichButton").hidden = armed;
+    confirmBox.hidden = !armed;
+    if (armed) $("#enrichEstimate").textContent = enrichEstimate();
+  }
   const labels = {
     idle: "Not started",
     running: "Running",
@@ -372,6 +410,7 @@ function resetWorkspaceView() {
   state.graph = { nodes: [], relationships: [] };
   state.positions.clear();
   state.selectedId = null;
+  state.enrichArmed = false;
   renderGraphState();
   renderInspector();
   $("#chat").replaceChildren(createChatEmpty());
@@ -650,8 +689,17 @@ $("#modelSelect").addEventListener("change", () => {
   renderRuntime();
 });
 
-$("#enrichButton").addEventListener("click", async () => {
-  $("#enrichButton").disabled = true;
+$("#enrichButton").addEventListener("click", () => {
+  state.enrichArmed = true;
+  renderEnrichment();
+});
+$("#enrichCancelArm")?.addEventListener("click", () => {
+  state.enrichArmed = false;
+  renderEnrichment();
+});
+$("#enrichStart")?.addEventListener("click", async () => {
+  state.enrichArmed = false;
+  $("#enrichStart").disabled = true;
   try {
     await api(withFamily("/api/enrich"), {
       method: "POST",
@@ -662,6 +710,8 @@ $("#enrichButton").addEventListener("click", async () => {
   } catch (error) {
     setStatus($("#enrichMessage"), error.message, true);
     renderEnrichment();
+  } finally {
+    $("#enrichStart").disabled = false;
   }
 });
 

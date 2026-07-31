@@ -207,6 +207,15 @@ select {
 .workspace-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #e4e8ea; }
 .workspace-footer .inline-status { margin: 0 0 6px; font-size: 9px; }
 .upload-privacy { max-width: 240px; color: #88949f; }
+/* An honest pause before minutes of local model work: what will run, where,
+   and roughly how long, stated where the click happens. */
+.enrich-confirm {
+  margin-top: 9px; padding: 10px 12px; border-left: 3px solid var(--amber);
+  border-radius: 6px; background: #fff8ec; font-size: 10px; line-height: 1.45;
+}
+.enrich-confirm strong { display: block; color: var(--ink-2); font-size: 11px; }
+.enrich-confirm p { margin: 4px 0 2px; color: var(--muted); }
+.enrich-confirm .inline-form-actions .primary-button { margin-top: 6px; padding: 7px 12px; }
 .privacy-links { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .privacy-links a, .text-button { padding: 0; border: 0; color: var(--cyan); background: none; cursor: pointer; text-decoration: none; font-size: 9px; font-weight: 700; }
 .danger { color: var(--red); }
