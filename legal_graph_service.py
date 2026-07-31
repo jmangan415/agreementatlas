@@ -1914,6 +1914,78 @@ def offerings_named_in_question(records: Sequence[dict], question: str) -> list[
     return sorted(named, key=lambda item: -len(str(item.get("name", ""))))
 
 
+def attributed_offerings(record: dict, offerings: Sequence[dict]) -> list[dict]:
+    """The licence models one record's terms structurally belong to.
+
+    An offering claims a record when the record is the offering itself, is
+    anchored to the offering's defining clause, was scoped to the model by
+    extraction, or sits under a section heading that names it. Body prose
+    that merely mentions a model claims nothing. An empty result is itself a
+    fact: this record's rule binds every model alike.
+    """
+
+    if record.get("_kind") == "Offering":
+        return [record]
+    claimed: list[dict] = []
+    record_clause = str(record.get("clause_id", ""))
+    scope = record.get("scope")
+    scoped = scope.get("license_models", []) if isinstance(scope, dict) else []
+    haystack = " ".join(
+        [
+            *(
+                str(record.get(key, ""))
+                for key in ("section_path", "heading", "section_id")
+            ),
+            *(str(value) for value in scoped),
+        ]
+    ).casefold()
+    for offering in offerings:
+        name = str(offering.get("name", "")).casefold().strip()
+        if record_clause and record_clause == str(offering.get("clause_id", "")):
+            claimed.append(offering)
+        elif len(name) >= 4 and name in haystack:
+            claimed.append(offering)
+    return claimed
+
+
+def uniform_mechanism_in_evidence(
+    question: str, evidence: Sequence[dict], records: Sequence[dict], limit: int = 6
+) -> bool:
+    """Does the mechanism the question names have a model-independent rule?
+
+    Asked "can I assign my licence to an affiliate", the top evidence held the
+    EULA's blanket assignment prohibition beside allocation rules that vary by
+    licence model -- and the variants rule split the ASSIGNMENT answer per
+    model, though no model touches assignment. The question's own verb is the
+    scope: when a top-ranked rule whose action leads with that verb belongs to
+    no licence model, the mechanism asked about is uniform, and the licence
+    models are an alternative to mention, not a fork in the answer.
+
+    The action's first word is the verb by construction of the extraction
+    schema; matching deeper into the action phrase matched shared nouns
+    ("licence", "affiliate") and suppressed genuinely model-split questions.
+    """
+
+    asked = {stem(word) for word in tokens(question)}
+    if not asked:
+        return False
+    offerings = [item for item in records if item.get("_kind") == "Offering"]
+    if len(offerings) < 2:
+        return False
+    by_id = {str(item.get("id", "")): item for item in records}
+    for item in list(evidence)[:limit]:
+        rule = item.get("rule") or {}
+        action_words = tokens(str(rule.get("action", "")))
+        if not action_words or stem(action_words[0]) not in asked:
+            continue
+        record = by_id.get(str(item.get("id", "")))
+        if record is None:
+            continue
+        if not attributed_offerings(record, offerings):
+            return True
+    return False
+
+
 def offerings_bearing_on_evidence(
     records: Sequence[dict], evidence: Sequence[dict]
 ) -> list[dict]:
@@ -1941,37 +2013,13 @@ def offerings_bearing_on_evidence(
     if len(offerings) < 2:
         return []
     by_id = {str(item.get("id", "")): item for item in records}
-    by_clause = {str(item.get("clause_id", "")): item for item in offerings}
-    named = {
-        str(item.get("name", "")).casefold(): item
-        for item in offerings
-        if len(str(item.get("name", "")).strip()) >= 4
-    }
     matched: dict[str, dict] = {}
     for item in evidence:
         record = by_id.get(str(item.get("id", "")))
         if record is None:
             continue
-        if record.get("_kind") == "Offering":
-            matched[str(record.get("id", ""))] = record
-            continue
-        anchor = by_clause.get(str(record.get("clause_id", "")))
-        if anchor is not None:
-            matched[str(anchor.get("id", ""))] = anchor
-        scope = record.get("scope")
-        scoped = scope.get("license_models", []) if isinstance(scope, dict) else []
-        haystack = " ".join(
-            [
-                *(
-                    str(record.get(key, ""))
-                    for key in ("section_path", "heading", "section_id")
-                ),
-                *(str(value) for value in scoped),
-            ]
-        ).casefold()
-        for name, offering in named.items():
-            if name in haystack:
-                matched[str(offering.get("id", ""))] = offering
+        for offering in attributed_offerings(record, offerings):
+            matched[str(offering.get("id", ""))] = offering
     if len(matched) < 2:
         return []
     return sorted(matched.values(), key=lambda item: str(item.get("name", "")))
@@ -3492,6 +3540,14 @@ def answer_question(
         # is still evidence, but there is no choice left to put to them, and the
         # rule below would put one anyway.
         variants = []
+    elif uniform_mechanism_in_evidence(question, evidence, records):
+        # The mechanism the question names is governed by a rule no licence
+        # model claims. Injecting the variants rule here split a uniform
+        # assignment prohibition into per-model answers because ALLOCATION
+        # rules nearby varied; withholding it lets the mechanism rule in the
+        # standing prompt do its work -- answer for what was asked, present
+        # the differently-named route as an alternative.
+        variants = []
     else:
         variants = offering_lines(offerings_bearing_on_evidence(records, evidence))
         evidence_variants = len(variants) > 1
@@ -3529,7 +3585,15 @@ def answer_question(
             "entry the evidence does not support and add any it missed. "
             "Opening with the licence models when they all agree is the same "
             "failure as answering for one model when they do not: both leave "
-            "the question the reader asked unanswered.\n\n"
+            "the question the reader asked unanswered. And the check is "
+            "scoped to the mechanism the question names: if the rule "
+            "governing THAT mechanism reads the same for every model, answer "
+            "once for it -- asked about assignment, a uniform assignment "
+            "prohibition is one No, even while allocation rules nearby in "
+            "the evidence vary by model. A differently-named mechanism that "
+            "varies by model is presented as the distinct alternative it is, "
+            "after the answer, never as grounds to split the answer "
+            "itself.\n\n"
         )
     elif len(variants) > 1:
         ambiguity_rule = (
