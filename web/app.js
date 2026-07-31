@@ -205,8 +205,17 @@ function renderEnrichment() {
   // fully enriched -- the family list and provenance line carry the status.
   const card = $("#enrichCard");
   if (card) {
+    // Read-only samples never invite enrichment, whatever their coverage:
+    // the operator maintains the samples, visitors enrich their own families.
+    const readOnlySample = Boolean(
+      !state.status.persistent &&
+      state.status.family &&
+      state.status.family.is_sample
+    );
     card.hidden =
-      !state.status.documents.length || (coverageState === "complete" && !running);
+      !state.status.documents.length ||
+      readOnlySample ||
+      (coverageState === "complete" && !running);
     card.classList.toggle(
       "single-model",
       (state.status.lmstudio.models || []).length <= 1
