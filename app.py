@@ -84,7 +84,14 @@ session_store = SessionStore(DATA_ROOT, ttl_seconds=SESSION_TTL_HOURS * 60 * 60)
 library_store = LibraryStore(LIBRARY_ROOT) if PERSISTENT else None
 rate_limiter = RateLimiter()
 lm_client = LMStudioClient()
-lm_slots = threading.BoundedSemaphore(env_int("LMSTUDIO_MAX_CONCURRENT_JOBS", 1))
+# Two independent gates on the local model. An enrichment holds its slot for
+# the whole run -- minutes -- and used to hold the only slot, so every chat
+# question during an enrichment answered 429. Questions now have their own
+# lane: the app stays answerable while it extracts. (LM Studio itself should
+# allow 2 parallel predictions, or the second request queues behind the first
+# batch for a few seconds; it still answers either way.)
+enrich_slots = threading.BoundedSemaphore(env_int("LMSTUDIO_MAX_CONCURRENT_JOBS", 1))
+query_slots = threading.BoundedSemaphore(env_int("LMSTUDIO_MAX_CONCURRENT_QUERIES", 1))
 
 # The public demo nests a family library inside every visitor session, so the
 # pre-built samples and the visitor's own uploads are separate workspaces that
@@ -698,11 +705,12 @@ def start_enrichment(visitor, model: str, store) -> dict:
                 "enrichment_running",
                 "Enrichment is already running for this session.",
             )
-        if not lm_slots.acquire(blocking=False):
+        if not enrich_slots.acquire(blocking=False):
             raise APIError(
                 429,
                 "model_busy",
-                "The local model is busy with another request. Please try again shortly.",
+                "Another enrichment is already using the local model. "
+                "Please try again shortly.",
             )
         job_id = secrets.token_hex(16)
         jobs[visitor.id] = {
@@ -769,7 +777,7 @@ def start_enrichment(visitor, model: str, store) -> dict:
                     if value["state"] == "error":
                         value["error"] = safe_lm_error(exc)
         finally:
-            lm_slots.release()
+            enrich_slots.release()
 
     threading.Thread(
         target=run, name=f"agreementatlas-enrich-{visitor.id[:8]}", daemon=True
@@ -1291,11 +1299,12 @@ class Handler(BaseHTTPRequestHandler):
                         413, "question_length", "Keep questions under 2,000 characters."
                     )
                 model = select_model(str(data.get("model", "")).strip())
-                if not lm_slots.acquire(blocking=False):
+                if not query_slots.acquire(blocking=False):
                     raise APIError(
                         429,
                         "model_busy",
-                        "The local model is busy. Please try again shortly.",
+                        "The local model is answering another question. "
+                        "Please try again shortly.",
                     )
                 # The assistant may have ended the previous turn by asking
                 # which variant applies. Without this the reply to that question
@@ -1331,15 +1340,15 @@ class Handler(BaseHTTPRequestHandler):
                         # The stream is already open, so an error has to travel
                         # inside it rather than as a status code.
                         self.sse_send("error", {"error": safe_lm_error(exc)})
-                        lm_slots.release()
+                        query_slots.release()
                         return
-                    lm_slots.release()
+                    query_slots.release()
                     raise APIError(502, "model_error", safe_lm_error(exc)) from None
                 except Exception:
-                    lm_slots.release()
+                    query_slots.release()
                     raise
                 else:
-                    lm_slots.release()
+                    query_slots.release()
                 conversation.append(
                     visitor.root,
                     {

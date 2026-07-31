@@ -163,7 +163,8 @@ The safe default is `APP_MODE=local`. Relevant values are documented in
 | `LMSTUDIO_AUTOMANAGE_MODELS` | `false` | Let the server load configured models |
 | `LMSTUDIO_BATCH_CLAUSES` | `1` | Maximum clauses per resumable batch |
 | `LMSTUDIO_BATCH_CHARS` | `12000` | Conservative batch character budget |
-| `LMSTUDIO_MAX_CONCURRENT_JOBS` | `1` | Global inference concurrency |
+| `LMSTUDIO_MAX_CONCURRENT_JOBS` | `1` | Concurrent enrichment jobs (chat has its own slot) |
+| `LMSTUDIO_MAX_CONCURRENT_QUERIES` | `1` | Concurrent chat answers, independent of enrichment |
 
 AgreementAtlas reads `/api/v1/models`, so it distinguishes downloaded models
 from genuinely loaded instances. Anonymous visitors cannot choose arbitrary

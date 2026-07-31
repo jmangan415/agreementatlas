@@ -84,14 +84,16 @@ class AgreementAtlasAPITests(unittest.TestCase):
         cls.original_library = app.library_store
         cls.original_limiter = app.rate_limiter
         cls.original_client = app.lm_client
-        cls.original_slots = app.lm_slots
+        cls.original_enrich_slots = app.enrich_slots
+        cls.original_query_slots = app.query_slots
         app.session_store = SessionStore(
             Path(cls.temporary.name) / "sessions", ttl_seconds=3600
         )
         app.library_store = LibraryStore(Path(cls.temporary.name) / "library")
         app.rate_limiter = RateLimiter()
         app.lm_client = FakeLMStudioClient()
-        app.lm_slots = threading.BoundedSemaphore(1)
+        app.enrich_slots = threading.BoundedSemaphore(1)
+        app.query_slots = threading.BoundedSemaphore(1)
         app.lm_status_cache = (0.0, {})
         app.jobs.clear()
         cls.server = app.create_server("127.0.0.1", 0)
@@ -108,7 +110,8 @@ class AgreementAtlasAPITests(unittest.TestCase):
         app.library_store = cls.original_library
         app.rate_limiter = cls.original_limiter
         app.lm_client = cls.original_client
-        app.lm_slots = cls.original_slots
+        app.enrich_slots = cls.original_enrich_slots
+        app.query_slots = cls.original_query_slots
         app.jobs.clear()
         cls.temporary.cleanup()
 
@@ -403,6 +406,61 @@ class AgreementAtlasAPITests(unittest.TestCase):
         )
         self.assertEqual(status, 201, payload)
 
+    def test_query_stays_available_while_enrichment_holds_its_slot(self) -> None:
+        family = self.new_session()
+        content_type, body = multipart(
+            [
+                (
+                    "busy-agreement.md",
+                    b"# Busy Agreement\n\n1. Security\n\n"
+                    b"Customer must protect credentials.",
+                )
+            ]
+        )
+        status, _, _ = self.request(
+            "POST",
+            "/api/upload" + family,
+            body=body,
+            headers={
+                "Content-Type": content_type,
+                "Content-Length": str(len(body)),
+                "X-AgreementAtlas-Request": "1",
+            },
+        )
+        self.assertEqual(status, 201)
+        # An enrichment holds its slot for the whole run; the chat must not care.
+        self.assertTrue(app.enrich_slots.acquire(blocking=False))
+        try:
+            query = json.dumps(
+                {"question": "What must Customer do?", "model": "local-test-model"}
+            ).encode()
+            status, _, payload = self.request(
+                "POST",
+                "/api/query" + family,
+                body=query,
+                headers={
+                    "Content-Type": "application/json",
+                    "Content-Length": str(len(query)),
+                    "X-AgreementAtlas-Request": "1",
+                },
+            )
+            self.assertEqual(status, 200, payload)
+            request = json.dumps({"model": "local-test-model"}).encode()
+            status, _, payload = self.request(
+                "POST",
+                "/api/enrich" + family,
+                body=request,
+                headers={
+                    "Content-Type": "application/json",
+                    "Content-Length": str(len(request)),
+                    "X-AgreementAtlas-Request": "1",
+                },
+            )
+            self.assertEqual(status, 429)
+            self.assertEqual(json.loads(payload)["code"], "model_busy")
+        finally:
+            app.enrich_slots.release()
+
     def test_removing_a_document_removes_what_was_extracted_from_it(self) -> None:
         # The opposite guarantee: the graph must never cite a document that is
         # no longer in the family.
@@ -483,7 +541,8 @@ class PublicDemoFamilyTests(unittest.TestCase):
             "session_store": app.session_store,
             "rate_limiter": app.rate_limiter,
             "lm_client": app.lm_client,
-            "lm_slots": app.lm_slots,
+            "enrich_slots": app.enrich_slots,
+            "query_slots": app.query_slots,
             "persistent": app.PERSISTENT,
             "demo_root": app.DEMO_ROOT,
             "demo_order": app.DEMO_ORDER,
@@ -491,7 +550,8 @@ class PublicDemoFamilyTests(unittest.TestCase):
         app.session_store = SessionStore(base / "sessions", ttl_seconds=3600)
         app.rate_limiter = RateLimiter()
         app.lm_client = FakeLMStudioClient()
-        app.lm_slots = threading.BoundedSemaphore(1)
+        app.enrich_slots = threading.BoundedSemaphore(1)
+        app.query_slots = threading.BoundedSemaphore(1)
         app.lm_status_cache = (0.0, {})
         app.jobs.clear()
         app.session_libraries.clear()
@@ -511,7 +571,8 @@ class PublicDemoFamilyTests(unittest.TestCase):
         app.session_store = cls.originals["session_store"]
         app.rate_limiter = cls.originals["rate_limiter"]
         app.lm_client = cls.originals["lm_client"]
-        app.lm_slots = cls.originals["lm_slots"]
+        app.enrich_slots = cls.originals["enrich_slots"]
+        app.query_slots = cls.originals["query_slots"]
         app.PERSISTENT = cls.originals["persistent"]
         app.DEMO_ROOT = cls.originals["demo_root"]
         app.DEMO_ORDER = cls.originals["demo_order"]
