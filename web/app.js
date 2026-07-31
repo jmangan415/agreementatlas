@@ -134,6 +134,13 @@ function shortType(value) {
   return labels[value] || "DOC";
 }
 
+// "google/gemma-4-26b-a4b-qat" is an artifact path, not a name. Show the
+// model, not its registry: vendor prefix off, first letter up.
+function modelLabel(id) {
+  const bare = String(id || "").split("/").pop();
+  return bare ? bare.charAt(0).toUpperCase() + bare.slice(1) : "";
+}
+
 function renderRuntime() {
   const localModel = state.status.lmstudio;
   $("#lmDot").classList.toggle("ok", localModel.available);
@@ -162,7 +169,7 @@ function renderRuntime() {
   );
   $("#askButton").disabled = !canAsk;
   $("#questionHint").textContent = canAsk
-    ? `Using ${select.value}`
+    ? modelLabel(select.value)
     : "Requires uploaded agreements and a loaded LM Studio model";
   renderEnrichment();
 }
@@ -1556,9 +1563,14 @@ function drawGraph() {
       labelled.add(node.id);
     }
   }
+  // Filtering down is a request to read, not to squint: a set small enough
+  // to label gets labelled in full -- solo the Defined term pill and every
+  // definition introduces itself. Beyond that, nearness still decides.
   const byNearness = [...ordered].reverse();
+  const budget =
+    nodes.length <= 120 ? nodes.length : 24 + state.answerIds.size;
   for (const node of byNearness) {
-    if (labelled.size >= 14 + state.answerIds.size) break;
+    if (labelled.size >= budget) break;
     labelled.add(node.id);
   }
   for (const node of byNearness) {
