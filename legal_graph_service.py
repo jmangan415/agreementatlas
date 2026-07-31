@@ -2136,8 +2136,9 @@ def directional_expand(
     root: Path,
     ranked: list[dict],
     records_by_id: dict[str, dict],
+    edges: list[dict] | None = None,
 ) -> list[dict]:
-    edges = relationship_records(root)
+    edges = relationship_records(root) if edges is None else edges
     outgoing: defaultdict[str, list[dict]] = defaultdict(list)
     incoming: defaultdict[str, list[dict]] = defaultdict(list)
     for edge in edges:
@@ -2643,7 +2644,10 @@ def retrieve_evidence(
         )
         if record_id in records_by_id
     ]
-    ranked = directional_expand(root, ranked, records_by_id)
+    # Read once and shared: the expansion and the definition closure below both
+    # walk the same edges, and this file is thousands of rows per family.
+    edges = relationship_records(root)
+    ranked = directional_expand(root, ranked, records_by_id, edges)
     # One clause may not hold the whole prompt while other clauses that scored
     # wait outside it. A long provision extracts into many rules, and each rule
     # ranks on the same words, so the top of the list fills with one section:
@@ -2718,7 +2722,7 @@ def retrieve_evidence(
             return []
         chosen = {item["id"] for item in selected}
         support: Counter = Counter()
-        for edge in relationship_records(root):
+        for edge in edges:
             if str(edge.get("type", "")) != "USES_TERM":
                 continue
             source = str(edge.get("source", ""))
