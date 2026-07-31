@@ -1459,14 +1459,6 @@ $("#newFamilyName").addEventListener("keydown", (event) => {
 $("#graphSearch").addEventListener("input", drawGraph);
 new ResizeObserver(drawGraph).observe($("#graphStage"));
 
-for (const button of $$(".view-switch button")) {
-  button.addEventListener("click", async () => {
-    state.view = button.dataset.view;
-    $$(".view-switch button").forEach((item) => item.classList.toggle("active", item === button));
-    await loadGraph();
-  });
-}
-
 // The canvas is the largest thing on screen and, until an evidence card was
 // clicked, it showed the same picture whatever was asked. An answer already
 // names the records it used, so light exactly those and dim the rest: the graph
@@ -1557,7 +1549,7 @@ function showEvidenceOnlyInspector(item) {
     );
   }
   wrap.append(element("p", "",
-    `This provision is cited by the answer but is not drawn in the ${state.view === "overview" ? "overview" : "rule detail"} view.`));
+    "This provision is cited by the answer but is not drawn in the graph view."));
   inspector.append(wrap);
 }
 
