@@ -1379,10 +1379,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def serve_static(self, path: str) -> None:
         if path in {"/", ""}:
-            # The public demo leads with the question-led page; the local
-            # workbench keeps its working interface. Both remain reachable by
-            # name in either mode.
-            path = "/index.html" if PERSISTENT else "/demo.html"
+            # One interface in both modes. The tool page reads as a working
+            # product in a way the essay page never did; the essay's job moves
+            # to the story page and the engineering log. demo.html stays
+            # reachable by name while the convergence settles.
+            path = "/index.html"
         target = WEB / path.lstrip("/")
         # A section address ("/blog/") means that section's index, the same
         # convention every static host honours.
