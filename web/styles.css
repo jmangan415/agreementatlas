@@ -597,3 +597,8 @@ i.family { background: #0d1d33; } i.document { background: #18385d; } i.rule { b
 }
 .think-toggle { font-size: 12px; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; margin-right: auto; padding-left: 10px; }
 
+.family-group-label {
+  font: 700 10.5px var(--brand-font); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 12px 2px 4px;
+}
+.family-group-label:first-child { margin-top: 2px; }

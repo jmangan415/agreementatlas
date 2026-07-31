@@ -267,15 +267,33 @@ function renderLibrary() {
     list.appendChild(element("p", "inline-status", "No agreement families yet."));
     return;
   }
-  for (const family of families) {
-    const row = element("button", "family-row");
-    if (family.id === state.familyId) row.classList.add("is-active");
-    row.type = "button";
-    row.appendChild(element("span", "family-name", family.name));
-    const count = `${family.document_count} document${family.document_count === 1 ? "" : "s"}`;
-    row.appendChild(element("span", "family-meta", family.enriched ? `${count} · enriched` : count));
-    row.addEventListener("click", () => selectFamily(family.id));
-    list.appendChild(row);
+  // Two groups, each alphabetical: the samples the product ships, then the
+  // families this library's owner brought. Recency ordering made the list
+  // shuffle under the reader every time a family was touched.
+  const sampleNames = new Set(
+    (state.status.samples || []).map((item) => String(item.name || ""))
+  );
+  const isSample = (family) =>
+    sampleNames.has(family.name) || /\(sample\)\s*$/i.test(family.name);
+  const alphabetical = (a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  const groups = [
+    ["Samples", families.filter(isSample).sort(alphabetical)],
+    ["Your agreement families", families.filter((f) => !isSample(f)).sort(alphabetical)],
+  ];
+  for (const [label, members] of groups) {
+    if (!members.length) continue;
+    list.appendChild(element("p", "family-group-label", label));
+    for (const family of members) {
+      const row = element("button", "family-row");
+      if (family.id === state.familyId) row.classList.add("is-active");
+      row.type = "button";
+      row.appendChild(element("span", "family-name", family.name));
+      const count = `${family.document_count} document${family.document_count === 1 ? "" : "s"}`;
+      row.appendChild(element("span", "family-meta", family.enriched ? `${count} · enriched` : count));
+      row.addEventListener("click", () => selectFamily(family.id));
+      list.appendChild(row);
+    }
   }
   const heading = state.status.family ? state.status.family.name : "Source documents";
   $("#familyHeading").textContent = heading;
@@ -781,9 +799,14 @@ function documentTitle(source) {
   return (match && match.title) || String(source || "document");
 }
 
+// Card id -> the evidence item it shows, so a citation click in the answer
+// text can light the same node the card click would.
+const evidenceByCardId = new Map();
+
 function evidenceCard(item, index, turnId) {
   const details = element("details", "evidence-item");
   details.id = `${turnId}-ev-${index}`;
+  evidenceByCardId.set(details.id, item);
   const summary = element("summary");
   summary.append(element("span", "ev-index", `[${index}]`));
   summary.append(element("span", "ev-doc", documentTitle(item.source)));
@@ -1052,6 +1075,11 @@ $("#chat").addEventListener("click", (event) => {
     if (node.tagName === "DETAILS") node.open = true;
   }
   target.scrollIntoView({ block: "nearest" });
+  // A citation is a claim about a place in the graph; clicking it goes there.
+  // Selection lights the node and every edge it touches, and the inspector
+  // shows the record -- the same journey the evidence card offers.
+  const item = evidenceByCardId.get(target.id);
+  if (item) selectGraphNode(item.id, item);
 });
 
 $("#askForm").addEventListener("submit", (event) => {
