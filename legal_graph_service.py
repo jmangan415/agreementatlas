@@ -1791,8 +1791,15 @@ def mark_ambiguous_numbers(records: list[dict]) -> None:
 
 # "what is a named user", "which licence models are there", "how many editions".
 # Not "is X counted as Y", "may X do Z" -- those want an answer, not a menu.
+# Anchored to the start of ANY sentence, not the start of the question. "Our
+# Transaction Document names no License Model at all. Which licence model
+# governs our use?" is a which-question in its second sentence; matching only
+# the first word routed it to the evidence-variants machinery, which answered
+# with circular per-model lines ("if the Streamserve model applies, the model
+# is the Streamserve model") ahead of the one line that answers.
 ASKS_WHICH = re.compile(
-    r"^\W*(?:what|which|how\s+many|list|describe|explain|tell\s+me\s+about)\b", re.I
+    r"(?:^|[.!?]\s+)\W*(?:what|which|how\s+many|list|describe|explain|tell\s+me\s+about)\b",
+    re.I,
 )
 
 
@@ -1865,7 +1872,7 @@ def offerings_matching(root: Path, question: str) -> list[dict]:
     # happen to meter, and answering it with a list of those models leaves the
     # question unanswered -- which is what gpt-5 did, obeying the ambiguity rule
     # more literally than the local model. A yes/no question wants yes or no.
-    if not ASKS_WHICH.match(question.strip()):
+    if not ASKS_WHICH.search(question):
         return []
     wanted = {word for word in tokens(question) if len(word) > 2} - QUESTION_WORDS
     if not wanted:
@@ -3533,7 +3540,7 @@ def answer_question(
     evidence_variants = False
     if matched:
         variants = offering_lines(matched)
-    elif ASKS_WHICH.match(question.strip()):
+    elif ASKS_WHICH.search(question):
         variants = competing_variants(question, evidence)
     elif offerings_named_in_question(records, question):
         # The reader named the models they hold. Evidence spanning other models
@@ -3581,7 +3588,11 @@ def answer_question(
             "depends on which licence model applies -- that opening satisfies "
             "every rule about how answers open, including the Yes/No rule -- "
             "give the one line per model the evidence supports, and end by "
-            "asking which one applies. The list is a starting point: drop any "
+            "asking which one applies. A per-model line must state that "
+            "model's DIFFERING term; a line that would only restate the "
+            "model's name -- \"if the X model applies, the model is X\" -- "
+            "says the models do not differ for this question, so drop the "
+            "listing and answer once. The list is a starting point: drop any "
             "entry the evidence does not support and add any it missed. "
             "Opening with the licence models when they all agree is the same "
             "failure as answering for one model when they do not: both leave "
