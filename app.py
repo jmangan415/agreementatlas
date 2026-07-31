@@ -1384,6 +1384,10 @@ class Handler(BaseHTTPRequestHandler):
             # name in either mode.
             path = "/index.html" if PERSISTENT else "/demo.html"
         target = WEB / path.lstrip("/")
+        # A section address ("/blog/") means that section's index, the same
+        # convention every static host honours.
+        if target.is_dir() and (target / "index.html").is_file():
+            target = target / "index.html"
         try:
             resolved = target.resolve()
         except OSError:
