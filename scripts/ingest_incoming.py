@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from legal_ingest import rebuild_workspace  # noqa: E402
+from legal_ingest import SUPPORTED, rebuild_workspace  # noqa: E402
 from library_store import LibraryStore  # noqa: E402
 
 
@@ -33,7 +33,11 @@ def main() -> int:
     failures = 0
     for vendor_dir in sorted(item for item in incoming.iterdir() if item.is_dir()):
         name = vendor_dir.name.capitalize()
-        documents = sorted(vendor_dir.glob("*.pdf"))
+        documents = sorted(
+            item
+            for item in vendor_dir.iterdir()
+            if item.suffix.lower() in SUPPORTED
+        )
         if not documents:
             continue
         if name.casefold() in existing:
