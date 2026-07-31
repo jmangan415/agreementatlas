@@ -282,6 +282,20 @@ DEMO_ORDER = ("opentext", "sap")
 SAMPLE_MARKER = ".sample"
 
 
+def sample_flagged(family) -> dict:
+    """A family's public record plus whether it is a shipped sample.
+
+    The client used to guess from names, which filed the SAP bundle under the
+    owner's families the moment its name drifted from the catalogue's. The
+    marker the sample loader already writes is the fact itself.
+    """
+
+    return {
+        **family.public_record(),
+        "is_sample": (family.root / SAMPLE_MARKER).exists(),
+    }
+
+
 def demo_manifests() -> dict[str, dict]:
     """Every installed sample bundle, keyed by directory name, default first."""
 
@@ -976,7 +990,7 @@ class Handler(BaseHTTPRequestHandler):
 
         return {
             "persistent": True,
-            "families": [item.public_record() for item in library_store.list()],
+            "families": [sample_flagged(item) for item in library_store.list()],
             "family": None,
             "session": {
                 "expires_at": 0,
@@ -1025,7 +1039,7 @@ class Handler(BaseHTTPRequestHandler):
         return {
             "persistent": PERSISTENT,
             "families": (
-                [item.public_record() for item in library_store.list()]
+                [sample_flagged(item) for item in library_store.list()]
                 if PERSISTENT
                 else []
             ),
@@ -1099,7 +1113,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response(
                     {
                         "families": [
-                            item.public_record() for item in library_store.list()
+                            sample_flagged(item) for item in library_store.list()
                         ]
                     }
                 )
