@@ -2716,6 +2716,7 @@ def retrieve_evidence(
     selected: list[dict] = []
     deferred: list[dict] = []
     seen_text: set[str] = set()
+    kept_tokens: list[set[str]] = []
     per_clause: Counter = Counter()
 
     def source_clause(item: dict) -> str:
@@ -2752,11 +2753,24 @@ def retrieve_evidence(
             if not fingerprint or fingerprint in seen_text:
                 continue
             seen_text.add(fingerprint)
+            # Exact-text dedup misses elided variants of one passage: three
+            # near-identical copies of an allocation rule burned three slots
+            # while the deciding limb of another section waited outside the
+            # budget. Token-set overlap catches what elision hides; near-twins
+            # defer rather than drop, like everything else here.
+            item_tokens = set(fingerprint.split())
+            if item_tokens and any(
+                len(item_tokens & kept) / max(1, len(item_tokens | kept)) >= 0.75
+                for kept in kept_tokens
+            ):
+                deferred.append(item)
+                continue
             clause = source_clause(item)
             if per_clause[clause] >= per_clause_limit:
                 deferred.append(item)
                 continue
             per_clause[clause] += 1
+            kept_tokens.append(item_tokens)
             selected.append(item)
 
     def relied_on_definitions(budget: int) -> list[dict]:
@@ -3635,19 +3649,23 @@ def answer_question(
             + ("that word" if len(foreign) == 1 else "those words")
             + ". If such a word names the action or thing the question turns "
             "on, do not silently translate it into one mechanism and answer "
-            "as though the match were exact. Answer in the first sentence "
-            "anyway -- where the provisions in evidence decide the question, "
-            "the first sentence is that decision, and where they do not "
-            "reach it at all, the first sentence says the agreements do not "
-            "address it. Only then note that the agreements do not use the "
-            "word, answer under each provision in the evidence that could "
-            "bear on it, calling each mechanism by the agreements' own words, "
-            "and close with one short line inviting the reader to say which "
-            "situation they mean. A note about which words the agreements use "
-            "is never the answer to the question and never opens one: the "
-            "reader asked about their situation, not about our vocabulary. "
-            "If the word is incidental to what is asked, ignore this note "
-            "and answer normally.\n\n"
+            "as though the match were exact -- but a defined term whose "
+            "definition DESCRIBES the questioned thing IS the agreements' "
+            "word for it: a definition covering \"software or hardware that "
+            "reduces the Software's ability to distinguish users\" is the "
+            "agreements addressing a pooling proxy, whatever the question "
+            "called it. Answer under that term, saying what the agreements "
+            "call it. Answer in the first sentence always -- where any "
+            "provision or definition in evidence decides or describes the "
+            "questioned thing, the first sentence is that decision. Reserve "
+            "\"the agreements do not address it\" for when nothing in "
+            "evidence describes the thing at all. Only after answering, note "
+            "the vocabulary difference in one line. Invite the reader to "
+            "clarify only when two different mechanisms could each genuinely "
+            "be their situation -- never as a reflex. A note about which "
+            "words the agreements use is never the answer to the question "
+            "and never opens one. If the word is incidental to what is "
+            "asked, ignore this note and answer normally.\n\n"
         )
         if foreign
         else ""
