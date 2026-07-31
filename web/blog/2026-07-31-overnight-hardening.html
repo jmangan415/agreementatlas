@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The first automated hardening pass over AgreementAtlas: a frozen cross-vendor golden set, four universal PDF parsing defects, and an instrument that caught its own bug.">
+  <title>One night, 106 questions, four ways PDFs lie to parsers — AgreementAtlas</title>
+  <link rel="icon" href="/assets/agreementatlas-favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="story-page">
+<header class="topbar">
+  <a class="brand" href="/" aria-label="AgreementAtlas home">
+    <img class="brand-mark" src="/assets/agreementatlas-mark-dark.svg" width="34" height="34" alt="" aria-hidden="true">
+    <span class="wordmark">
+      <span class="wordmark-name"><span class="wm-a">Agreement</span><span class="wm-b">Atlas</span></span>
+      <small>License Intelligence</small>
+    </span>
+  </a>
+  <div class="product-promise">
+    <span class="eyebrow">LOCAL-FIRST LEGAL RAG</span>
+    <span>Map obligations, permissions, scope and precedence to exact clauses.</span>
+  </div>
+  <a class="topbar-cta" href="/app.html">Open the live tool →</a>
+</header>
+
+<main class="story-main">
+  <article class="story-section blog-post">
+    <p class="eyebrow">Improvement pass · 31 July 2026</p>
+    <h1>One night, 106 questions, four ways PDFs lie to parsers</h1>
+
+    <p>
+      Last night this project ran its first automated hardening pass: an exam
+      written against the agreements themselves, and a loop that only accepts a
+      fix when the failure behind it can be named as a mechanism. This is a
+      summary of what it found. The score moved from 69 to 77 out of 106 — but
+      the score is the least interesting part.
+    </p>
+
+    <h2>The exam came first, and it was written by hand</h2>
+    <p>
+      106 questions across seven vendors' published agreements — OpenText, SAP,
+      Salesforce, Okta, Adobe, Qlik, and a synthetic vendor with a full order
+      form. Every expected answer was vetted by reading the deciding clauses in
+      the source documents, never by asking the engine: the student does not
+      get to write the answer key. The set was then frozen, with thirty
+      questions held out as a surprise quiz the fixing process never saw. It
+      also includes questions whose correct answer is <em>"the agreements do
+      not address this"</em> — an engine that cannot say that will confidently
+      invent rights no contract grants.
+    </p>
+
+    <h2>Four ways PDFs lie to parsers</h2>
+    <p>
+      The most valuable findings were not in the answering engine at all. They
+      were in the gap between what a PDF shows a human and what it yields to a
+      machine — and none of them are any vendor's fault in particular:
+    </p>
+    <ul>
+      <li><strong>Sentences that cross a page turn get cut.</strong> One
+      family's order-of-precedence clause — the sentence that says which
+      document wins a conflict — ends mid-sentence in extraction because its
+      list starts at the bottom of a page. The engine had zero precedence
+      records for a seven-document family and no idea anything was missing.</li>
+      <li><strong>Several sections can fuse into one.</strong> Five distinct
+      mechanisms (beta terms, AI terms, free-trial terms, free-service terms,
+      personnel) extracted as one clause with one label.</li>
+      <li><strong>Text can shatter into spaced glyphs</strong> — "i s d efined
+      a s" — invisible to any word search while looking perfectly readable to
+      a human.</li>
+      <li><strong>Two-column layouts can interleave</strong>, weaving two
+      sentences into confident nonsense.</li>
+    </ul>
+    <p>
+      The generalization matters more than any instance: these are properties
+      of vendor PDF styles at large. A parser that has not been made to fail on
+      them simply has not met enough PDFs yet.
+    </p>
+
+    <h2>The measuring stick was bent, and the loop noticed</h2>
+    <p>
+      Eighteen of the original failures were not engine failures at all: the
+      scoring script counted grouped citations like <code>[10, 11, 12]</code>
+      as no citation. The overnight worker checked the instrument before
+      trusting the grades, fixed it, and re-scored. A benchmark that is not
+      itself audited will cheerfully report improvements that do not exist —
+      and failures that do not either.
+    </p>
+
+    <h2>The deepest finding: citations that cannot say "I'm not sure"</h2>
+    <p>
+      Three separate defects — a stale heading claimed by nineteen clauses, one
+      section number naming two different sections, and the bent measuring
+      stick above — are the same defect in different clothes. A citation is a
+      claim about provenance, and this pipeline had no way for such a claim to
+      be uncertain: every label is asserted with full confidence, right or
+      wrong. Teaching the labelling layer to say "don't know" is the one
+      architectural change this pass put on the roadmap.
+    </p>
+
+    <h2>Honesty section</h2>
+    <p>
+      The practice questions improved by six; the surprise quiz by one, then by
+      one again in a follow-up pass. With a thirty-question holdout, that is
+      statistically indistinguishable both from real generalization and from
+      teaching to the test — which is itself the finding: the golden set needs
+      to grow, and the next corpus expansion is already underway. Several
+      failures were deliberately left standing: questions the current product
+      cannot answer until it learns to model <em>products</em> as first-class
+      graph citizens, and parser fixes that require re-extracting a family.
+      Recorded, not rounded away.
+    </p>
+
+    <p class="proposition-note">
+      Method note: fixes were only accepted when stated vendor-neutrally, and
+      the same legal pattern was planted across multiple vendors — the
+      purchase-order-void clause appears in three corpora in three phrasings,
+      and merger-assignment rules that differ (consent required vs. notice
+      sufficient) sit one golden apart — so a fix that memorizes one vendor's
+      wording fails its sibling.
+    </p>
+  </article>
+</main>
+
+<footer class="story-footer">
+  <a href="/blog/">Engineering log</a>
+  <a href="/app.html">Live tool</a>
+  <a href="/privacy.html">Privacy</a>
+  <a href="/terms.html">Terms</a>
+</footer>
+</body>
+</html>

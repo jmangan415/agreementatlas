@@ -11,24 +11,36 @@ const state = {
   view: "overview",
   filters: new Set(),
   transform: { x: 0, y: 0, k: 1 },
+  // The canvas is a window on a 3D cloud: yaw/pitch orbit it, and each draw
+  // caches every node's projected screen point and depth for picking and
+  // labels. The idle spin sells the depth; the first touch hands over control.
+  rot: { yaw: -0.55, pitch: 0.32 },
+  spin: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  projected: new Map(),
   drag: null,
   poll: null,
   answerIds: new Set(),
   familyId: window.localStorage.getItem("agreementatlas.family") || "",
 };
 
+// One palette across the product: the page's ink and slate for structure, the
+// jade brand accent reserved for AI enrichment (the thing this product adds),
+// and the console's annotation colors reused for the concepts they already
+// mean there -- precedence wears the prohibition red of a conflict, defined
+// terms the actor blue of vocabulary, scope the condition amber. A reader who
+// learned the answer highlighting has already learned the graph.
 const nodeStyle = {
-  document: { color: "#18385d", radius: 9, label: "Agreement" },
-  agreement_family: { color: "#0d1d33", radius: 11, label: "Agreement family" },
-  rule: { color: "#c77f27", radius: 5, label: "Deterministic rule" },
-  llm_rule: { color: "#a45c9d", radius: 5, label: "AI-enriched rule" },
-  precedence_rule: { color: "#a83d46", radius: 7, label: "Precedence" },
-  definition: { color: "#5a6eb4", radius: 6, label: "Defined term" },
-  amendment: { color: "#8a5a3b", radius: 7, label: "Amendment" },
-  party_or_role: { color: "#788a9d", radius: 6, label: "Party / role" },
-  clause: { color: "#94a1ad", radius: 4, label: "Source clause" },
-  contract_scope: { color: "#218899", radius: 7, label: "Contract scope" },
-  party_or_subject: { color: "#788a9d", radius: 6, label: "Party / subject" },
+  document: { color: "#14233a", radius: 9, label: "Agreement" },
+  agreement_family: { color: "#0F1720", radius: 11, label: "Agreement family" },
+  rule: { color: "#3A4150", radius: 5, label: "Deterministic rule" },
+  llm_rule: { color: "#2F7D6E", radius: 5, label: "AI-enriched rule" },
+  precedence_rule: { color: "#A02A20", radius: 7, label: "Precedence" },
+  definition: { color: "#1D3B66", radius: 6, label: "Defined term" },
+  amendment: { color: "#7A5230", radius: 7, label: "Amendment" },
+  party_or_role: { color: "#65738a", radius: 6, label: "Party / role" },
+  clause: { color: "#9AA5B1", radius: 4, label: "Source clause" },
+  contract_scope: { color: "#8A5A08", radius: 7, label: "Contract scope" },
+  party_or_subject: { color: "#65738a", radius: 6, label: "Party / subject" },
 };
 
 // Every workspace-scoped call names the family it addresses. Local mode has no
@@ -267,15 +279,44 @@ function renderLibrary() {
     list.appendChild(element("p", "inline-status", "No agreement families yet."));
     return;
   }
-  for (const family of families) {
-    const row = element("button", "family-row");
-    if (family.id === state.familyId) row.classList.add("is-active");
-    row.type = "button";
-    row.appendChild(element("span", "family-name", family.name));
-    const count = `${family.document_count} document${family.document_count === 1 ? "" : "s"}`;
-    row.appendChild(element("span", "family-meta", family.enriched ? `${count} · enriched` : count));
-    row.addEventListener("click", () => selectFamily(family.id));
-    list.appendChild(row);
+  // Two groups, each alphabetical: the samples the product ships, then the
+  // families this library's owner brought. The server says which is which via
+  // the sample marker -- the client guessed from names once and filed the SAP
+  // bundle under the owner's families. Recency ordering made the list shuffle
+  // under the reader every time a family was touched.
+  const isSample = (family) => Boolean(family.is_sample);
+  const alphabetical = (a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  const groups = [
+    ["Samples", families.filter(isSample).sort(alphabetical)],
+    ["Your agreement families", families.filter((f) => !isSample(f)).sort(alphabetical)],
+  ];
+  for (const [label, members] of groups) {
+    if (!members.length && label === "Samples") continue;
+    list.appendChild(element("p", "family-group-label", label));
+    if (!members.length) {
+      // A new visitor owns nothing yet, and the empty state should say so
+      // rather than leaving a bare heading -- or worse, claiming someone
+      // else's corpora as theirs.
+      list.appendChild(
+        element(
+          "p",
+          "inline-status",
+          "None yet — create a family and add your own agreements."
+        )
+      );
+      continue;
+    }
+    for (const family of members) {
+      const row = element("button", "family-row");
+      if (family.id === state.familyId) row.classList.add("is-active");
+      row.type = "button";
+      row.appendChild(element("span", "family-name", family.name));
+      const count = `${family.document_count} document${family.document_count === 1 ? "" : "s"}`;
+      row.appendChild(element("span", "family-meta", family.enriched ? `${count} · enriched` : count));
+      row.addEventListener("click", () => selectFamily(family.id));
+      list.appendChild(row);
+    }
   }
   const heading = state.status.family ? state.status.family.name : "Source documents";
   $("#familyHeading").textContent = heading;
@@ -390,9 +431,12 @@ const GENERIC_QUESTIONS = [
 function suggestionButton(question) {
   const button = element("button", "suggestion", question);
   button.type = "button";
+  // One click asks. A screener will not type; the chip is the demo doing
+  // itself. The question lands in the composer too, so what was asked stays
+  // visible and editable.
   button.addEventListener("click", () => {
     $("#question").value = question;
-    $("#question").focus();
+    ask(question);
   });
   return button;
 }
@@ -400,16 +444,23 @@ function suggestionButton(question) {
 function renderSuggestions() {
   const host = $("#suggestions");
   if (!host) return;
-  // Server-reported, not inferred from a filename. Switching away from the
-  // sample has to restore the generic questions too: the swap used to be
-  // one-way, so selecting a vendor family after the sample left it offering to
-  // answer questions about InsightHub and NDS, neither of which was loaded.
-  const mode = state.status.is_sample ? "sample" : "generic";
+  // Server-reported, not inferred from a filename -- and per sample, not per
+  // "a sample". The hardcoded list belonged to the SAP bundle, so with the
+  // OpenText sample loaded the chips offered Joule questions against a corpus
+  // that has never heard of Joule, and a one-click chip asks immediately now.
+  // The catalogue each bundle ships is the source of truth; the hardcoded
+  // list survives only as the fallback for old workspaces without one.
+  const active = String(state.status.sample_name || "");
+  const catalogued = (state.status.samples || []).find(
+    (item) => item.name === active
+  );
+  const mode = state.status.is_sample ? `sample:${active}` : "generic";
   if (host.dataset.mode === mode) return;
   host.dataset.mode = mode;
-  host.replaceChildren(
-    ...(mode === "sample" ? SAMPLE_QUESTIONS : GENERIC_QUESTIONS).map(suggestionButton)
-  );
+  const questions = !state.status.is_sample
+    ? GENERIC_QUESTIONS
+    : (catalogued && catalogued.questions) || SAMPLE_QUESTIONS;
+  host.replaceChildren(...questions.map(suggestionButton));
 }
 
 function renderSampleOffer() {
@@ -604,80 +655,300 @@ function evidenceHeading(item, index) {
   return `[${index + 1}] ${item.source} · ${where}${graphReason}`;
 }
 
-// The model answers in markdown, and the bubble printed it literally: a reader
-// asking what a licence costs was shown "**SAP SuccessFactors Cloud Services:**"
-// and a column of asterisks. Only the marks the model actually uses are handled
-// -- bold, bullets, nesting, paragraphs -- and every node is built rather than
-// assigned as HTML, so nothing in an answer can turn into markup.
-function renderInline(target, line) {
-  for (const [index, part] of line.split("**").entries()) {
-    if (!part) continue;
-    target.append(
-      index % 2 ? element("strong", "", part) : document.createTextNode(part)
+/* ---------------- the console, transplanted from the public demo ----------
+   The workbench used to render answers as one settled bubble: no streaming,
+   no visible thinking, evidence as bare buttons. The demo console earned its
+   keep with visitors -- exchange blocks, a live token stream, the model's
+   working shown in a fold, cited clauses as annotated quotes -- so the
+   workbench adopts it wholesale, keeping its own graph integration
+   (selectGraphNode / highlightAnswerEvidence) and family-scoped API. */
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+/* Citations arrive alone ("[6]") and grouped ("[10, 11, 12]") -- both forms
+   must link, and both count as cited. */
+const CITATION_GROUP = /\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\]/g;
+
+function citedIndices(text) {
+  const found = new Set();
+  for (const hit of String(text).matchAll(CITATION_GROUP)) {
+    hit[1].split(",").forEach((part) => found.add(Number(part.trim())));
+  }
+  return found;
+}
+
+function renderAnswerText(text, turnId) {
+  let safe = escapeHtml(text);
+  safe = safe.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  safe = safe.replace(
+    /[“"]([^”"\n]{6,240})[”"]/g,
+    (match, quoted) => `<q class="agq">${quoted}</q>`
+  );
+  safe = safe.replace(CITATION_GROUP, (match, group) =>
+    group
+      .split(",")
+      .map((part) => {
+        const index = part.trim();
+        return `<a class="cite-ref" href="#${turnId}-ev-${index}">[${index}]</a>`;
+      })
+      .join(" ")
+  );
+  return safe;
+}
+
+const MODALITY_FORMS = {
+  MAY: /\b(may not|may only|may)\b/gi,
+  MUST: /\b(must not|must)\b/gi,
+  SHALL: /\b(shall not|shall)\b/gi,
+  WILL: /\b(will not|will)\b/gi,
+  CAN: /\b(cannot|can not|can)\b/gi,
+};
+const ANY_MODAL = /\b(may not|may only|may|must not|must|shall not|shall|will not|will|cannot|can)\b/gi;
+const EFFECT_CLASS = {
+  PERMISSION: "permission",
+  PROHIBITION: "prohibition",
+  OBLIGATION: "obligation",
+};
+
+function propositionCount(text) {
+  const found = String(text || "").match(ANY_MODAL);
+  return found ? found.length : 0;
+}
+
+/* A reading is painted only when it reads as a rule: a named actor and a
+   short verb phrase. No reading, no paint. */
+function presentableRule(rule) {
+  if (!rule) return null;
+  const actor = String(rule.actor || "").trim();
+  const action = String(rule.action || "").trim();
+  if (!actor || actor.split(/\s+/).length > 6) return null;
+  if (!action || action.split(/\s+/).length > 8) return null;
+  return rule;
+}
+
+/* Paint a rule's fields inside its own quote -- but only fields whose text
+   locates exactly once in the quote. Anything ambiguous stays plain. */
+function annotatedQuote(text, rule) {
+  const quote = element("blockquote");
+  const shown = String(text || "").slice(0, 1200);
+  if (!rule) {
+    quote.textContent = shown;
+    return quote;
+  }
+  const lower = shown.toLowerCase();
+  const spans = [];
+  const claim = (needle, cls, maxChars) => {
+    const wanted = String(needle || "").trim().toLowerCase();
+    if (wanted.length < 3 || wanted.length > (maxChars || 90)) return;
+    const first = lower.indexOf(wanted);
+    if (first < 0 || lower.indexOf(wanted, first + 1) >= 0) return;
+    spans.push({ start: first, end: first + wanted.length, cls });
+  };
+  claim(rule.actor, "actor", 60);
+  claim(rule.action, "action", 60);
+  claim(rule.object, "object", 90);
+  (rule.conditions || []).forEach((value) => claim(value, "condition", 140));
+  (rule.carve_outs || []).forEach((value) => claim(value, "condition", 140));
+  const effectClass = EFFECT_CLASS[String(rule.effect || "")];
+  const forms = MODALITY_FORMS[String(rule.modality || "").toUpperCase()];
+  if (forms && effectClass) {
+    const actionSpan = spans.find((span) => span.cls === "action");
+    const anchor = actionSpan ? actionSpan.start : 0;
+    let chosen = null;
+    forms.lastIndex = 0;
+    for (let hit = forms.exec(shown); hit; hit = forms.exec(shown)) {
+      const distance = Math.abs(hit.index - anchor);
+      if (!chosen || distance < chosen.distance) {
+        chosen = { start: hit.index, end: hit.index + hit[0].length, distance };
+      }
+    }
+    if (chosen) {
+      spans.push({ start: chosen.start, end: chosen.end, cls: `deontic ${effectClass}` });
+    }
+  }
+  spans.sort((a, b) => a.start - b.start);
+  let cursor = 0;
+  spans.forEach((span) => {
+    if (span.start < cursor) return;
+    quote.append(document.createTextNode(shown.slice(cursor, span.start)));
+    quote.append(
+      element("span", `an ${span.cls}`, shown.slice(span.start, span.end))
+    );
+    cursor = span.end;
+  });
+  quote.append(document.createTextNode(shown.slice(cursor)));
+  return quote;
+}
+
+function evidenceReading(item, rule) {
+  const host = element("div", "ev-reading");
+  if (item.term) {
+    host.append(element("span", "chip", "DEFINES"));
+    host.append(element("span", "chip", String(item.term).slice(0, 48)));
+    return host;
+  }
+  if (!rule) {
+    host.append(element("span", "chip chip-none", "no validated reading"));
+    return host;
+  }
+  const effect = String(rule.effect || "");
+  if (effect) {
+    const chip = element("span", "chip", effect);
+    if (effect === "PERMISSION") chip.classList.add("effect-permission");
+    if (effect === "PROHIBITION") chip.classList.add("effect-prohibition");
+    host.append(chip);
+  }
+  ["modality", "actor", "action"].forEach((key) => {
+    const value = String(rule[key] || "").trim();
+    if (value) host.append(element("span", "chip", value.slice(0, 48)));
+  });
+  const propositions = propositionCount(item.text);
+  if (propositions > 1) {
+    host.append(
+      element("span", "chip chip-none", `1 of ${propositions} propositions here`)
     );
   }
+  return host;
 }
 
-function renderAnswer(target, text) {
-  target.replaceChildren();
-  let list = null;
-  let paragraph = null;
-  for (const raw of String(text).split("\n")) {
-    const bullet = raw.match(/^(\s*)[*-]\s+(.*)$/);
-    if (bullet) {
-      paragraph = null;
-      const depth = Math.min(2, Math.floor(bullet[1].length / 2));
-      if (!list || Number(list.dataset.depth) !== depth) {
-        list = element("ul", `answer-list depth-${depth}`);
-        list.dataset.depth = String(depth);
-        target.append(list);
-      }
-      const item = element("li");
-      renderInline(item, bullet[2]);
-      list.append(item);
-      continue;
-    }
-    list = null;
-    if (!raw.trim()) {
-      paragraph = null;
-      continue;
-    }
-    if (!paragraph) {
-      paragraph = element("p", "answer-para");
-      target.append(paragraph);
-    } else {
-      paragraph.append(document.createTextNode(" "));
-    }
-    renderInline(paragraph, raw.trim());
-  }
+function documentTitle(source) {
+  const documents = (state.status || {}).documents || [];
+  const match = documents.find((doc) => doc.name === source);
+  return (match && match.title) || String(source || "document");
 }
 
-function addMessage(role, text, evidence = []) {
+// Card id -> the evidence item it shows, so a citation click in the answer
+// text can light the same node the card click would.
+const evidenceByCardId = new Map();
+
+function evidenceCard(item, index, turnId) {
+  const details = element("details", "evidence-item");
+  details.id = `${turnId}-ev-${index}`;
+  evidenceByCardId.set(details.id, item);
+  const summary = element("summary");
+  summary.append(element("span", "ev-index", `[${index}]`));
+  summary.append(element("span", "ev-doc", documentTitle(item.source)));
+  summary.append(element("span", "", item.citation || `§${item.section || "—"}`));
+  if (item.term) summary.append(element("span", "", `“${item.term}”`));
+  const hint = item.term
+    ? ""
+    : String((presentableRule(item.rule) || {}).action || item.text || "").slice(0, 60);
+  if (hint) summary.append(element("span", "ev-hint", hint));
+  // Opening the card shows the annotated quote; the click also locates the
+  // record on the workbench canvas and inspector -- the integration the demo
+  // never had.
+  summary.addEventListener("click", () => selectGraphNode(item.id, item));
+  details.append(summary);
+  const reading = presentableRule(item.rule);
+  details.append(annotatedQuote(item.text, reading));
+  details.append(evidenceReading(item, reading));
+  return details;
+}
+
+let exchangeCount = 0;
+let turnCounter = 0;
+
+function openExchange(question) {
   const empty = $("#chatEmpty");
   if (empty) empty.remove();
-  const message = element("div", `message ${role}`);
-  message.append(
-    element("div", "role", role === "user" ? "YOU" : "AGREEMENTATLAS"),
-  );
-  message.append(element("div", "bubble", text));
-  if (evidence.length) {
-    const list = element("div", "evidence-list");
-    evidence.forEach((item, index) => {
-      const card = element("button", "evidence-card");
-      card.type = "button";
-      card.append(
-        element("b", "", evidenceHeading(item, index)),
-        element("span", "", item.text)
-      );
-      card.addEventListener("click", () => selectGraphNode(item.id, item));
-      list.append(card);
-    });
-    message.append(list);
-  }
-  $("#chat").append(message);
+  exchangeCount += 1;
+  const block = element("div", "exchange");
+  block.append(element("span", "turn-index", `Q${exchangeCount}`));
+  block.append(element("div", "turn-q", question));
+  $("#chat").append(block);
+  return block;
+}
+
+function appendTurn(node, block) {
   const chat = $("#chat");
-  chat.scrollTop = Math.max(0, message.offsetTop - chat.offsetTop - 8);
-  return message.querySelector(".bubble");
+  (block || chat.lastElementChild || chat).append(node);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showAskError(error, block) {
+  const note = element("div", "turn-a error", error.message || "Something failed.");
+  appendTurn(note, block);
+}
+
+function renderResultTurn(result, block) {
+  turnCounter += 1;
+  const turnId = `turn${turnCounter}`;
+  const turn = element("div", "turn-a");
+  turn.id = turnId;
+
+  if (result.understood_as) {
+    turn.append(
+      element("p", "understood", `Understood as: ${result.understood_as}`)
+    );
+  }
+  const body = element("div", "answer-body");
+  const answerText = String(result.answer || "");
+  body.innerHTML = renderAnswerText(answerText, turnId);
+  turn.append(body);
+
+  const evidence = result.evidence || [];
+  if (evidence.length) {
+    const cited = citedIndices(answerText);
+    const list = element("div", "evidence-list");
+    const citedCards = [];
+    const rest = [];
+    evidence.forEach((item, position) => {
+      const index = position + 1;
+      const card = evidenceCard(item, index, turnId);
+      card.dataset.cited = cited.has(index) ? "1" : "0";
+      (cited.has(index) ? citedCards : rest).push(card);
+    });
+    if (citedCards.length) {
+      const fold = element("details", "more-evidence cited-evidence");
+      fold.append(element("summary", "", `Cited clauses (${citedCards.length})`));
+      citedCards.forEach((card) => fold.append(card));
+      list.append(fold);
+    }
+    if (rest.length) {
+      const more = element("details", "more-evidence");
+      more.append(
+        element("summary", "", `Also retrieved but not cited (${rest.length})`)
+      );
+      rest.forEach((card) => more.append(card));
+      list.append(more);
+    }
+    turn.append(list);
+    highlightAnswerEvidence(evidence);
+  }
+
+  if (result.resolution_trace) {
+    const trace = element("div", `resolution-trace ${result.resolution_trace.status.toLowerCase()}`);
+    trace.append(
+      element("b", "", `Legal resolution: ${result.resolution_trace.status}`),
+      element("span", "", `${result.resolution_trace.steps.length} candidate rule${result.resolution_trace.steps.length === 1 ? "" : "s"} · ${result.graph_build_mode} graph`)
+    );
+    if (result.resolution_trace.unresolved_warnings?.length) {
+      trace.append(element("small", "", result.resolution_trace.unresolved_warnings.join(" · ")));
+    }
+    turn.append(trace);
+  }
+
+  const offered = result.offered || [];
+  if (offered.length > 1) {
+    const drill = element("div", "variant-drill");
+    drill.append(element("span", "drill-label", "Drill into:"));
+    offered.forEach((name) => {
+      const chip = element("button", "", String(name));
+      chip.type = "button";
+      chip.addEventListener("click", () => ask(String(name)));
+      drill.append(chip);
+    });
+    turn.append(drill);
+  }
+  appendTurn(turn, block);
+  // Show the top of the answer, not the bottom of everything after it.
+  const chat = $("#chat");
+  chat.scrollTop = Math.max(0, turn.offsetTop - chat.offsetTop - 8);
 }
 
 $("#chat").addEventListener("click", (event) => {
@@ -694,74 +965,149 @@ $("#question").addEventListener("keydown", (event) => {
   }
 });
 
-$("#askForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const question = $("#question").value.trim();
-  if (!question) return;
-  addMessage("user", question);
-  $("#question").value = "";
-  clearAnswerHighlight();
-  const pending = addMessage("assistant", "Retrieving exact clauses and asking the local model…");
+/* Streaming ask, from the demo console: SSE frames named thinking / token /
+   result / error. The family scoping, model picker and graph highlighting are
+   the workbench's own. */
+function ask(question) {
+  const trimmed = String(question || "").trim();
+  if (trimmed.length < 2 || state.asking) return;
+  state.asking = true;
   $("#askButton").disabled = true;
-  try {
-    const result = await api(withFamily("/api/query"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, model: $("#modelSelect").value }),
-    });
-    renderAnswer(pending, `${result.answer}\n\n${result.disclaimer}`);
-    const parent = pending.parentElement;
-    // A one-word reply is rewritten into the question it answers. Say so, or
-    // the reader cannot tell which variant was actually addressed.
-    if (result.selected_variant) {
-      parent.insertBefore(
-        element("div", "understood-as", `Understood as: ${result.understood_as}`),
-        pending.nextSibling
-      );
-    }
-    if (result.evidence?.length) {
-      // Fourteen expanded cards pushed the answer off screen, and the scroll
-      // below then landed past all of them, so the reader had to scroll back up
-      // to read what was said. Collapsed by default; the count is the summary.
-      const details = element("details", "evidence-details");
-      const summary = element("summary", "", `${result.evidence.length} source${result.evidence.length === 1 ? "" : "s"} · click any to locate it in the graph`);
-      details.append(summary);
-      const list = element("div", "evidence-list");
-      result.evidence.forEach((item, index) => {
-        const card = element("button", "evidence-card");
-        card.type = "button";
-        card.append(
-          element("b", "", evidenceHeading(item, index)),
-          element("span", "", item.text)
-        );
-        card.addEventListener("click", () => selectGraphNode(item.id, item));
-        list.append(card);
-      });
-      details.append(list);
-      parent.append(details);
-      highlightAnswerEvidence(result.evidence);
-    }
-    if (result.resolution_trace) {
-      const trace = element("div", `resolution-trace ${result.resolution_trace.status.toLowerCase()}`);
-      trace.append(
-        element("b", "", `Legal resolution: ${result.resolution_trace.status}`),
-        element("span", "", `${result.resolution_trace.steps.length} candidate rule${result.resolution_trace.steps.length === 1 ? "" : "s"} · ${result.graph_build_mode} graph`)
-      );
-      if (result.resolution_trace.unresolved_warnings?.length) {
-        trace.append(element("small", "", result.resolution_trace.unresolved_warnings.join(" · ")));
-      }
-      parent.append(trace);
-    }
-  } catch (error) {
-    pending.textContent = `AgreementAtlas could not answer yet: ${error.message}`;
-  } finally {
+  clearAnswerHighlight();
+
+  const block = openExchange(trimmed);
+  const live = element("div", "turn-a streaming");
+  const body = element("div", "answer-body");
+  live.append(body);
+  const cursor = element("span", "caret");
+  body.append(cursor);
+  appendTurn(live, block);
+
+  let text = "";
+  let thinkingText = "";
+  let thinkingBox = null;
+  const thinkingBody = element("pre", "thinking-body");
+  const ensureThinking = () => {
+    if (thinkingBox) return;
+    thinkingBox = element("details", "thinking");
+    thinkingBox.open = true;
+    thinkingBox.append(element("summary", "", "The model's working"));
+    thinkingBox.append(thinkingBody);
+    live.before(thinkingBox);
+  };
+  let finished = false;
+
+  const settle = () => {
+    state.asking = false;
+    $("#askButton").disabled = false;
+    $("#question").value = "";
     renderRuntime();
-    // Show the top of the answer, not the bottom of everything after it.
-    const bubble = pending.parentElement;
-    const chat = $("#chat");
-    chat.scrollTop = Math.max(0, bubble.offsetTop - chat.offsetTop - 8);
     $("#question").focus();
+  };
+
+  fetch(withFamily("/api/query"), {
+    method: "POST",
+    headers: {
+      "X-AgreementAtlas-Request": "1",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      question: trimmed,
+      model: $("#modelSelect").value,
+      stream: true,
+      reasoning: Boolean($("#thinkToggle")?.checked),
+    }),
+  })
+    .then(async (response) => {
+      if (!response.ok || !response.body) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "The request failed.");
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE frames are separated by a blank line; keep the tail for the
+        // next chunk rather than parsing a half-written frame.
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() || "";
+        for (const frame of frames) {
+          const nameLine = frame.match(/^event: (.+)$/m);
+          const dataLine = frame.match(/^data: ([\s\S]*)$/m);
+          if (!nameLine || !dataLine) continue;
+          let payload = {};
+          try {
+            payload = JSON.parse(dataLine[1]);
+          } catch {
+            continue;
+          }
+          const chat = $("#chat");
+          if (nameLine[1] === "thinking") {
+            thinkingText += payload.text || "";
+            ensureThinking();
+            const stick =
+              thinkingBody.scrollHeight -
+                thinkingBody.scrollTop -
+                thinkingBody.clientHeight <
+              48;
+            thinkingBody.textContent = thinkingText;
+            if (stick) thinkingBody.scrollTop = thinkingBody.scrollHeight;
+            if (chat.scrollHeight - chat.scrollTop - chat.clientHeight < 160) {
+              chat.scrollTop = chat.scrollHeight;
+            }
+          } else if (nameLine[1] === "token") {
+            text += payload.text || "";
+            body.replaceChildren();
+            body.innerHTML = renderAnswerText(text, "live");
+            body.append(cursor);
+            chat.scrollTop = chat.scrollHeight;
+          } else if (nameLine[1] === "result") {
+            finished = true;
+            live.remove();
+            if (thinkingBox) thinkingBox.open = false;
+            renderResultTurn(payload, block);
+          } else if (nameLine[1] === "error") {
+            finished = true;
+            live.remove();
+            showAskError(new Error(payload.error || "The model call failed."), block);
+          }
+        }
+      }
+      if (!finished) {
+        live.classList.remove("streaming");
+        cursor.remove();
+      }
+    })
+    .catch((error) => {
+      live.remove();
+      showAskError(error, block);
+    })
+    .finally(settle);
+}
+
+$("#chat").addEventListener("click", (event) => {
+  const link = event.target.closest("a.cite-ref");
+  if (!link) return;
+  event.preventDefault();
+  const target = document.getElementById(link.getAttribute("href").slice(1));
+  if (!target) return;
+  for (let node = target; node; node = node.parentElement) {
+    if (node.tagName === "DETAILS") node.open = true;
   }
+  target.scrollIntoView({ block: "nearest" });
+  // A citation is a claim about a place in the graph; clicking it goes there.
+  // Selection lights the node and every edge it touches, and the inspector
+  // shows the record -- the same journey the evidence card offers.
+  const item = evidenceByCardId.get(target.id);
+  if (item) selectGraphNode(item.id, item);
+});
+
+$("#askForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  ask($("#question").value);
 });
 
 async function loadGraph() {
@@ -821,13 +1167,19 @@ function initialisePositions() {
     indexes[node.type] = index + 1;
     const total = counts[node.type];
     const jitter = (hash(node.id) % 1000) / 1000;
+    const lift = (hash(`${node.id}#z`) % 1000) / 1000;
     const angle = ((index + jitter) / Math.max(1, total)) * Math.PI * 2;
     const radius = rings[node.type] || 380;
     state.positions.set(node.id, {
       x: Math.cos(angle) * radius,
       y: Math.sin(angle) * radius * .68,
+      // Each ring becomes a shell: the type still sets the distance from the
+      // family at the centre, and the lift spreads the ring through depth so
+      // the cloud is a cloud rather than a postcard.
+      z: (lift - 0.5) * radius * 0.85,
       vx: 0,
       vy: 0,
+      vz: 0,
       radius: style.radius,
     });
     fresh.push(node.id);
@@ -849,7 +1201,8 @@ function layoutStep() {
       const b = state.positions.get(nodes[j].id);
       let dx = b.x - a.x;
       let dy = b.y - a.y;
-      const distance2 = Math.max(100, dx * dx + dy * dy);
+      let dz = b.z - a.z;
+      const distance2 = Math.max(100, dx * dx + dy * dy + dz * dz);
       // Repulsion with no range limit means every node pushes every other one
       // however far apart they are, so the cloud has to grow until the inverse
       // square drops far enough -- and it grows with the node count. Enrichment
@@ -861,8 +1214,9 @@ function layoutStep() {
       const force = Math.min(.55, 680 / distance2);
       dx *= force;
       dy *= force;
-      a.vx -= dx; a.vy -= dy;
-      b.vx += dx; b.vy += dy;
+      dz *= force;
+      a.vx -= dx; a.vy -= dy; a.vz -= dz;
+      b.vx += dx; b.vy += dy; b.vz += dz;
     }
   }
   for (const edge of state.graph.relationships) {
@@ -871,20 +1225,24 @@ function layoutStep() {
     if (!a || !b) continue;
     const dx = b.x - a.x;
     const dy = b.y - a.y;
-    const distance = Math.max(1, Math.hypot(dx, dy));
+    const dz = b.z - a.z;
+    const distance = Math.max(1, Math.hypot(dx, dy, dz));
     const target = edge.type === "GOVERNS" ? 150 : 95;
     const force = (distance - target) * .0025;
-    a.vx += dx / distance * force; a.vy += dy / distance * force;
-    b.vx -= dx / distance * force; b.vy -= dy / distance * force;
+    a.vx += dx / distance * force; a.vy += dy / distance * force; a.vz += dz / distance * force;
+    b.vx -= dx / distance * force; b.vy -= dy / distance * force; b.vz -= dz / distance * force;
   }
   for (const node of nodes) {
     const point = state.positions.get(node.id);
     point.vx += -point.x * .0007;
     point.vy += -point.y * .0007;
+    point.vz += -point.z * .0009;
     point.vx *= .76;
     point.vy *= .76;
+    point.vz *= .76;
     point.x += point.vx;
     point.y += point.vy;
+    point.z += point.vz;
   }
 }
 
@@ -893,15 +1251,35 @@ function createFilters() {
   const present = [...new Set(state.graph.nodes.map((node) => node.type))];
   if (!state.filters.size) present.forEach((type) => state.filters.add(type));
   container.replaceChildren();
+  const inputs = new Map();
+  const syncChecks = () => {
+    for (const [checkType, box] of inputs) {
+      box.checked = state.filters.has(checkType);
+    }
+  };
   for (const type of present) {
     const style = nodeStyle[type] || nodeStyle.rule;
     const label = element("label", "filter-chip");
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = state.filters.has(type);
+    inputs.set(type, input);
+    // The box is surgical: it adds or removes this one type.
     input.addEventListener("change", () => {
       if (input.checked) state.filters.add(type);
       else state.filters.delete(type);
+      drawGraph();
+    });
+    // The pill is a lens: click it and only this type remains -- click the
+    // same pill again and everything comes back. Without the guard, a label
+    // click would also flip its own checkbox and the two gestures fight.
+    label.addEventListener("click", (event) => {
+      if (event.target === input) return;
+      event.preventDefault();
+      const solo = state.filters.size === 1 && state.filters.has(type);
+      state.filters.clear();
+      (solo ? present : [type]).forEach((kept) => state.filters.add(kept));
+      syncChecks();
       drawGraph();
     });
     const dot = document.createElement("i");
@@ -931,10 +1309,27 @@ function canvasMetrics() {
   return { canvas, rect, ratio, context: canvas.getContext("2d") };
 }
 
-function screenPoint(point, rect) {
+/* The camera sits on the +z axis looking at the origin; yaw and pitch turn
+   the cloud under it. FOCAL sets how strong the perspective is -- lower is
+   more dramatic, higher approaches isometric. */
+const FOCAL = 1150;
+
+function project(point, rect) {
+  const cy = Math.cos(state.rot.yaw);
+  const sy = Math.sin(state.rot.yaw);
+  const cp = Math.cos(state.rot.pitch);
+  const sp = Math.sin(state.rot.pitch);
+  const x1 = point.x * cy + point.z * sy;
+  const z1 = -point.x * sy + point.z * cy;
+  const y1 = point.y * cp - z1 * sp;
+  const depth = point.y * sp + z1 * cp;
+  const persp = FOCAL / Math.max(220, FOCAL - depth);
+  const s = state.transform.k * persp;
   return {
-    x: point.x * state.transform.k + state.transform.x + rect.width / 2,
-    y: point.y * state.transform.k + state.transform.y + rect.height / 2,
+    x: x1 * s + state.transform.x + rect.width / 2,
+    y: y1 * s + state.transform.y + rect.height / 2,
+    depth,
+    persp,
   };
 }
 
@@ -944,21 +1339,31 @@ function drawGraph() {
   context.clearRect(0, 0, rect.width, rect.height);
   if (!state.graph.nodes.length) return;
 
-  const visible = new Set(visibleNodes().map((node) => node.id));
+  const nodes = visibleNodes();
+  const visible = new Set(nodes.map((node) => node.id));
   const connected = state.selectedId ? state.adjacency.get(state.selectedId) || new Set() : new Set();
-  context.lineWidth = 1;
+
+  state.projected.clear();
+  for (const node of nodes) {
+    state.projected.set(node.id, project(state.positions.get(node.id), rect));
+  }
+  // Depth fades with distance so the far side of the cloud reads as far.
+  const fade = (persp) => Math.min(1, Math.max(0.3, (persp - 0.62) * 1.6 + 0.45));
+
   for (const edge of state.graph.relationships) {
     if (!visible.has(edge.source) || !visible.has(edge.target)) continue;
-    const source = screenPoint(state.positions.get(edge.source), rect);
-    const target = screenPoint(state.positions.get(edge.target), rect);
+    const source = state.projected.get(edge.source);
+    const target = state.projected.get(edge.target);
     const inAnswer = state.answerIds.size
       && state.answerIds.has(edge.source) && state.answerIds.has(edge.target);
     const highlighted = state.selectedId && (
       edge.source === state.selectedId || edge.target === state.selectedId
     );
+    const depthAlpha = fade((source.persp + target.persp) / 2);
+    context.globalAlpha = depthAlpha;
     context.strokeStyle = inAnswer
       ? "rgba(47,125,110,.75)"
-      : highlighted ? "rgba(27,130,149,.68)" : "rgba(92,112,130,.16)";
+      : highlighted ? "rgba(63,165,143,.7)" : "rgba(92,112,130,.16)";
     context.lineWidth = inAnswer ? 2 : highlighted ? 1.8 : .75;
     context.beginPath();
     context.moveTo(source.x, source.y);
@@ -967,8 +1372,12 @@ function drawGraph() {
   }
 
   const query = $("#graphSearch").value.trim().toLowerCase();
-  for (const node of visibleNodes()) {
-    const point = screenPoint(state.positions.get(node.id), rect);
+  // Painter's order: far nodes first, near nodes over them.
+  const ordered = [...nodes].sort(
+    (a, b) => state.projected.get(a.id).depth - state.projected.get(b.id).depth
+  );
+  for (const node of ordered) {
+    const point = state.projected.get(node.id);
     const style = nodeStyle[node.type] || nodeStyle.rule;
     const matches = !query || [
       node.label, node.description, node.source, node.scope, node.section
@@ -976,10 +1385,11 @@ function drawGraph() {
     const related = !state.selectedId || node.id === state.selectedId || connected.has(node.id);
     const cited = state.answerIds.has(node.id);
     const inAnswerView = !state.answerIds.size || cited;
-    context.globalAlpha = matches && related && inAnswerView ? 1 : cited ? 1 : .10;
+    const emphasis = matches && related && inAnswerView ? 1 : cited ? 1 : .10;
+    context.globalAlpha = emphasis * fade(point.persp);
     context.fillStyle = style.color;
     context.beginPath();
-    context.arc(point.x, point.y, style.radius * Math.sqrt(state.transform.k), 0, Math.PI * 2);
+    context.arc(point.x, point.y, style.radius * Math.sqrt(state.transform.k) * point.persp, 0, Math.PI * 2);
     context.fill();
     if (cited && node.id !== state.selectedId) {
       context.strokeStyle = "#2F7D6E";
@@ -987,19 +1397,45 @@ function drawGraph() {
       context.stroke();
     }
     if (node.id === state.selectedId || node.id === state.hoveredId) {
-      context.strokeStyle = node.id === state.selectedId ? "#0d1d33" : "#218899";
+      context.strokeStyle = node.id === state.selectedId ? "#0F1720" : "#3FA58F";
       context.lineWidth = 2;
       context.stroke();
     }
-    const showLabel = cited || node.type === "document" || node.id === state.selectedId ||
-      node.id === state.hoveredId || (node.type === "contract_scope" && state.transform.k > .72);
-    if (showLabel) {
-      context.globalAlpha = matches ? 1 : .2;
-      context.fillStyle = "#203047";
-      context.font = `${node.type === "document" ? "600 " : ""}10px Inter, sans-serif`;
-      context.textAlign = "center";
-      context.fillText(truncate(node.label, 32), point.x, point.y + style.radius + 13);
+  }
+
+  // Labels belong to whatever is nearest the reader right now: spin the cloud
+  // and the foreground introduces itself. Cited, selected and hovered nodes
+  // always speak; documents always speak; the rest earn a label by depth.
+  const labelled = new Set();
+  for (const node of ordered) {
+    if (
+      state.answerIds.has(node.id) || node.type === "document" ||
+      node.id === state.selectedId || node.id === state.hoveredId
+    ) {
+      labelled.add(node.id);
     }
+  }
+  const byNearness = [...ordered].reverse();
+  for (const node of byNearness) {
+    if (labelled.size >= 14 + state.answerIds.size) break;
+    labelled.add(node.id);
+  }
+  for (const node of byNearness) {
+    if (!labelled.has(node.id)) continue;
+    const point = state.projected.get(node.id);
+    const style = nodeStyle[node.type] || nodeStyle.rule;
+    const matches = !query || [
+      node.label, node.description, node.source, node.scope, node.section
+    ].some((value) => String(value || "").toLowerCase().includes(query));
+    context.globalAlpha = (matches ? 1 : .2) * fade(point.persp);
+    context.fillStyle = "#203047";
+    context.font = `${node.type === "document" ? "600 " : ""}10px Inter, sans-serif`;
+    context.textAlign = "center";
+    context.fillText(
+      truncate(node.label, 32),
+      point.x,
+      point.y + style.radius * point.persp + 13
+    );
   }
   context.globalAlpha = 1;
   canvas.classList.toggle("dragging", Boolean(state.drag));
@@ -1014,8 +1450,24 @@ function fitGraph() {
   const nodes = visibleNodes();
   const rect = $("#graphCanvas").getBoundingClientRect();
   if (!nodes.length || !rect.width || !rect.height) return;
-  const xs = nodes.map((node) => state.positions.get(node.id).x);
-  const ys = nodes.map((node) => state.positions.get(node.id).y);
+  // Fit against the cloud as currently rotated: project each node at unit
+  // scale (perspective included) and size the view to that footprint.
+  const cy = Math.cos(state.rot.yaw);
+  const sy = Math.sin(state.rot.yaw);
+  const cp = Math.cos(state.rot.pitch);
+  const sp = Math.sin(state.rot.pitch);
+  const xs = [];
+  const ys = [];
+  for (const node of nodes) {
+    const point = state.positions.get(node.id);
+    const x1 = point.x * cy + point.z * sy;
+    const z1 = -point.x * sy + point.z * cy;
+    const y1 = point.y * cp - z1 * sp;
+    const depth = point.y * sp + z1 * cp;
+    const persp = FOCAL / Math.max(220, FOCAL - depth);
+    xs.push(x1 * persp);
+    ys.push(y1 * persp);
+  }
   const width = Math.max(180, Math.max(...xs) - Math.min(...xs) + 100);
   const height = Math.max(180, Math.max(...ys) - Math.min(...ys) + 100);
   state.transform.k = Math.min(1.25, Math.max(.03, Math.min(rect.width / width, rect.height / height)));
@@ -1024,43 +1476,54 @@ function fitGraph() {
   drawGraph();
 }
 
-function worldFromEvent(event) {
-  const rect = $("#graphCanvas").getBoundingClientRect();
-  return {
-    screenX: event.clientX - rect.left,
-    screenY: event.clientY - rect.top,
-    x: (event.clientX - rect.left - rect.width / 2 - state.transform.x) / state.transform.k,
-    y: (event.clientY - rect.top - rect.height / 2 - state.transform.y) / state.transform.k,
-  };
-}
+// The idle spin: a slow turn that shows the cloud is a cloud, running only
+// until the reader takes the controls, and never for readers who asked the
+// OS for reduced motion.
+(function idleSpin() {
+  if (state.spin && !document.hidden && state.graph.nodes.length && !state.drag) {
+    state.rot.yaw += 0.0022;
+    drawGraph();
+  }
+  window.requestAnimationFrame(idleSpin);
+})();
 
+// Picking reads the projection the last draw cached: whatever the reader can
+// see is exactly what they can hit, and among overlaps the nearest one wins.
 function nodeAt(event) {
-  const point = worldFromEvent(event);
+  const rect = $("#graphCanvas").getBoundingClientRect();
+  const sx = event.clientX - rect.left;
+  const sy = event.clientY - rect.top;
   let best = null;
-  let distance = Infinity;
+  let bestDepth = -Infinity;
   for (const node of visibleNodes()) {
-    const position = state.positions.get(node.id);
-    const current = Math.hypot(position.x - point.x, position.y - point.y);
-    const radius = (nodeStyle[node.type] || nodeStyle.rule).radius / Math.sqrt(state.transform.k) + 5;
-    if (current < radius && current < distance) {
+    const point = state.projected.get(node.id);
+    if (!point) continue;
+    const radius =
+      (nodeStyle[node.type] || nodeStyle.rule).radius *
+        Math.sqrt(state.transform.k) * point.persp + 5;
+    if (Math.hypot(point.x - sx, point.y - sy) > radius) continue;
+    if (point.depth > bestDepth) {
       best = node;
-      distance = current;
+      bestDepth = point.depth;
     }
   }
   return best;
 }
 
 $("#graphCanvas").addEventListener("pointerdown", (event) => {
+  state.spin = false;
   const node = nodeAt(event);
-  const point = worldFromEvent(event);
   state.drag = {
     nodeId: node?.id || null,
     startX: event.clientX,
     startY: event.clientY,
-    screenX: point.screenX,
-    screenY: point.screenY,
+    lastX: event.clientX,
+    lastY: event.clientY,
     originX: state.transform.x,
     originY: state.transform.y,
+    originYaw: state.rot.yaw,
+    originPitch: state.rot.pitch,
+    pan: event.shiftKey,
     moved: false,
   };
   $("#graphCanvas").setPointerCapture(event.pointerId);
@@ -1080,15 +1543,33 @@ $("#graphCanvas").addEventListener("pointermove", (event) => {
   const dy = event.clientY - state.drag.startY;
   if (Math.hypot(dx, dy) > 3) state.drag.moved = true;
   if (state.drag.nodeId) {
-    const world = worldFromEvent(event);
+    // Dragging a node moves it in the camera plane: the screen delta is
+    // rotated back into world space, so the node follows the pointer whatever
+    // the current orbit.
     const position = state.positions.get(state.drag.nodeId);
-    position.x = world.x;
-    position.y = world.y;
-    position.vx = 0; position.vy = 0;
-  } else {
+    const point = state.projected.get(state.drag.nodeId);
+    const scale = state.transform.k * (point ? point.persp : 1);
+    const ax = (event.clientX - state.drag.lastX) / scale;
+    const ay = (event.clientY - state.drag.lastY) / scale;
+    const cy = Math.cos(state.rot.yaw);
+    const sy = Math.sin(state.rot.yaw);
+    const cp = Math.cos(state.rot.pitch);
+    const sp = Math.sin(state.rot.pitch);
+    position.x += ax * cy + ay * sp * sy;
+    position.y += ay * cp;
+    position.z += ax * sy - ay * sp * cy;
+    position.vx = 0; position.vy = 0; position.vz = 0;
+  } else if (state.drag.pan) {
     state.transform.x = state.drag.originX + dx;
     state.transform.y = state.drag.originY + dy;
+  } else {
+    // Empty-canvas drag orbits: the cloud turns under the pointer. Panning
+    // moved to shift-drag, the rarer act now that rotation recentres the eye.
+    state.rot.yaw = state.drag.originYaw + dx * 0.006;
+    state.rot.pitch = Math.min(1.35, Math.max(-1.35, state.drag.originPitch + dy * 0.006));
   }
+  state.drag.lastX = event.clientX;
+  state.drag.lastY = event.clientY;
   drawGraph();
 });
 
@@ -1123,7 +1604,11 @@ function zoom(factor) {
 }
 $("#zoomIn").addEventListener("click", () => zoom(1.25));
 $("#zoomOut").addEventListener("click", () => zoom(.8));
-$("#resetView").addEventListener("click", fitGraph);
+$("#resetView").addEventListener("click", () => {
+  state.rot.yaw = -0.55;
+  state.rot.pitch = 0.32;
+  fitGraph();
+});
 $("#newFamilyButton").addEventListener("click", () => toggleFamilyForm(true));
 $("#newFamilyCancel").addEventListener("click", () => toggleFamilyForm(false));
 $("#newFamilyForm").addEventListener("submit", (event) => {
@@ -1135,14 +1620,6 @@ $("#newFamilyName").addEventListener("keydown", (event) => {
 });
 $("#graphSearch").addEventListener("input", drawGraph);
 new ResizeObserver(drawGraph).observe($("#graphStage"));
-
-for (const button of $$(".view-switch button")) {
-  button.addEventListener("click", async () => {
-    state.view = button.dataset.view;
-    $$(".view-switch button").forEach((item) => item.classList.toggle("active", item === button));
-    await loadGraph();
-  });
-}
 
 // The canvas is the largest thing on screen and, until an evidence card was
 // clicked, it showed the same picture whatever was asked. An answer already
@@ -1234,7 +1711,7 @@ function showEvidenceOnlyInspector(item) {
     );
   }
   wrap.append(element("p", "",
-    `This provision is cited by the answer but is not drawn in the ${state.view === "overview" ? "overview" : "rule detail"} view.`));
+    "This provision is cited by the answer but is not drawn in the graph view."));
   inspector.append(wrap);
 }
 

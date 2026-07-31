@@ -133,10 +133,6 @@
           <span class="eyebrow">LEGAL RELATIONSHIP MAP</span>
           <h2>Knowledge graph</h2>
         </div>
-        <div class="view-switch" role="group" aria-label="Graph detail">
-          <button class="active" data-view="overview">Overview</button>
-          <button data-view="detail">Rule detail</button>
-        </div>
         <label class="graph-search">
           <span aria-hidden="true">⌕</span>
           <input id="graphSearch" type="search" placeholder="Find a clause, party or rule" aria-label="Search graph">
@@ -203,6 +199,7 @@
         <textarea id="question" rows="3" maxlength="2000" placeholder="Ask about rights, restrictions, renewal, data, service levels…" required></textarea>
         <div>
           <span id="questionHint">Requires a loaded LM Studio model</span>
+          <label class="think-toggle"><input id="thinkToggle" type="checkbox"> Thinking mode</label>
           <button id="askButton" type="submit" disabled>Ask AgreementAtlas <span aria-hidden="true">→</span></button>
         </div>
       </form>

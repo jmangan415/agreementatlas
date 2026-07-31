@@ -1791,8 +1791,15 @@ def mark_ambiguous_numbers(records: list[dict]) -> None:
 
 # "what is a named user", "which licence models are there", "how many editions".
 # Not "is X counted as Y", "may X do Z" -- those want an answer, not a menu.
+# Anchored to the start of ANY sentence, not the start of the question. "Our
+# Transaction Document names no License Model at all. Which licence model
+# governs our use?" is a which-question in its second sentence; matching only
+# the first word routed it to the evidence-variants machinery, which answered
+# with circular per-model lines ("if the Streamserve model applies, the model
+# is the Streamserve model") ahead of the one line that answers.
 ASKS_WHICH = re.compile(
-    r"^\W*(?:what|which|how\s+many|list|describe|explain|tell\s+me\s+about)\b", re.I
+    r"(?:^|[.!?]\s+)\W*(?:what|which|how\s+many|list|describe|explain|tell\s+me\s+about)\b",
+    re.I,
 )
 
 
@@ -1865,7 +1872,7 @@ def offerings_matching(root: Path, question: str) -> list[dict]:
     # happen to meter, and answering it with a list of those models leaves the
     # question unanswered -- which is what gpt-5 did, obeying the ambiguity rule
     # more literally than the local model. A yes/no question wants yes or no.
-    if not ASKS_WHICH.match(question.strip()):
+    if not ASKS_WHICH.search(question):
         return []
     wanted = {word for word in tokens(question) if len(word) > 2} - QUESTION_WORDS
     if not wanted:
@@ -1914,6 +1921,78 @@ def offerings_named_in_question(records: Sequence[dict], question: str) -> list[
     return sorted(named, key=lambda item: -len(str(item.get("name", ""))))
 
 
+def attributed_offerings(record: dict, offerings: Sequence[dict]) -> list[dict]:
+    """The licence models one record's terms structurally belong to.
+
+    An offering claims a record when the record is the offering itself, is
+    anchored to the offering's defining clause, was scoped to the model by
+    extraction, or sits under a section heading that names it. Body prose
+    that merely mentions a model claims nothing. An empty result is itself a
+    fact: this record's rule binds every model alike.
+    """
+
+    if record.get("_kind") == "Offering":
+        return [record]
+    claimed: list[dict] = []
+    record_clause = str(record.get("clause_id", ""))
+    scope = record.get("scope")
+    scoped = scope.get("license_models", []) if isinstance(scope, dict) else []
+    haystack = " ".join(
+        [
+            *(
+                str(record.get(key, ""))
+                for key in ("section_path", "heading", "section_id")
+            ),
+            *(str(value) for value in scoped),
+        ]
+    ).casefold()
+    for offering in offerings:
+        name = str(offering.get("name", "")).casefold().strip()
+        if record_clause and record_clause == str(offering.get("clause_id", "")):
+            claimed.append(offering)
+        elif len(name) >= 4 and name in haystack:
+            claimed.append(offering)
+    return claimed
+
+
+def uniform_mechanism_in_evidence(
+    question: str, evidence: Sequence[dict], records: Sequence[dict], limit: int = 6
+) -> bool:
+    """Does the mechanism the question names have a model-independent rule?
+
+    Asked "can I assign my licence to an affiliate", the top evidence held the
+    EULA's blanket assignment prohibition beside allocation rules that vary by
+    licence model -- and the variants rule split the ASSIGNMENT answer per
+    model, though no model touches assignment. The question's own verb is the
+    scope: when a top-ranked rule whose action leads with that verb belongs to
+    no licence model, the mechanism asked about is uniform, and the licence
+    models are an alternative to mention, not a fork in the answer.
+
+    The action's first word is the verb by construction of the extraction
+    schema; matching deeper into the action phrase matched shared nouns
+    ("licence", "affiliate") and suppressed genuinely model-split questions.
+    """
+
+    asked = {stem(word) for word in tokens(question)}
+    if not asked:
+        return False
+    offerings = [item for item in records if item.get("_kind") == "Offering"]
+    if len(offerings) < 2:
+        return False
+    by_id = {str(item.get("id", "")): item for item in records}
+    for item in list(evidence)[:limit]:
+        rule = item.get("rule") or {}
+        action_words = tokens(str(rule.get("action", "")))
+        if not action_words or stem(action_words[0]) not in asked:
+            continue
+        record = by_id.get(str(item.get("id", "")))
+        if record is None:
+            continue
+        if not attributed_offerings(record, offerings):
+            return True
+    return False
+
+
 def offerings_bearing_on_evidence(
     records: Sequence[dict], evidence: Sequence[dict]
 ) -> list[dict]:
@@ -1941,37 +2020,13 @@ def offerings_bearing_on_evidence(
     if len(offerings) < 2:
         return []
     by_id = {str(item.get("id", "")): item for item in records}
-    by_clause = {str(item.get("clause_id", "")): item for item in offerings}
-    named = {
-        str(item.get("name", "")).casefold(): item
-        for item in offerings
-        if len(str(item.get("name", "")).strip()) >= 4
-    }
     matched: dict[str, dict] = {}
     for item in evidence:
         record = by_id.get(str(item.get("id", "")))
         if record is None:
             continue
-        if record.get("_kind") == "Offering":
-            matched[str(record.get("id", ""))] = record
-            continue
-        anchor = by_clause.get(str(record.get("clause_id", "")))
-        if anchor is not None:
-            matched[str(anchor.get("id", ""))] = anchor
-        scope = record.get("scope")
-        scoped = scope.get("license_models", []) if isinstance(scope, dict) else []
-        haystack = " ".join(
-            [
-                *(
-                    str(record.get(key, ""))
-                    for key in ("section_path", "heading", "section_id")
-                ),
-                *(str(value) for value in scoped),
-            ]
-        ).casefold()
-        for name, offering in named.items():
-            if name in haystack:
-                matched[str(offering.get("id", ""))] = offering
+        for offering in attributed_offerings(record, offerings):
+            matched[str(offering.get("id", ""))] = offering
     if len(matched) < 2:
         return []
     return sorted(matched.values(), key=lambda item: str(item.get("name", "")))
@@ -2661,6 +2716,7 @@ def retrieve_evidence(
     selected: list[dict] = []
     deferred: list[dict] = []
     seen_text: set[str] = set()
+    kept_tokens: list[set[str]] = []
     per_clause: Counter = Counter()
 
     def source_clause(item: dict) -> str:
@@ -2697,11 +2753,24 @@ def retrieve_evidence(
             if not fingerprint or fingerprint in seen_text:
                 continue
             seen_text.add(fingerprint)
+            # Exact-text dedup misses elided variants of one passage: three
+            # near-identical copies of an allocation rule burned three slots
+            # while the deciding limb of another section waited outside the
+            # budget. Token-set overlap catches what elision hides; near-twins
+            # defer rather than drop, like everything else here.
+            item_tokens = set(fingerprint.split())
+            if item_tokens and any(
+                len(item_tokens & kept) / max(1, len(item_tokens | kept)) >= 0.75
+                for kept in kept_tokens
+            ):
+                deferred.append(item)
+                continue
             clause = source_clause(item)
             if per_clause[clause] >= per_clause_limit:
                 deferred.append(item)
                 continue
             per_clause[clause] += 1
+            kept_tokens.append(item_tokens)
             selected.append(item)
 
     def relied_on_definitions(budget: int) -> list[dict]:
@@ -3485,12 +3554,20 @@ def answer_question(
     evidence_variants = False
     if matched:
         variants = offering_lines(matched)
-    elif ASKS_WHICH.match(question.strip()):
+    elif ASKS_WHICH.search(question):
         variants = competing_variants(question, evidence)
     elif offerings_named_in_question(records, question):
         # The reader named the models they hold. Evidence spanning other models
         # is still evidence, but there is no choice left to put to them, and the
         # rule below would put one anyway.
+        variants = []
+    elif uniform_mechanism_in_evidence(question, evidence, records):
+        # The mechanism the question names is governed by a rule no licence
+        # model claims. Injecting the variants rule here split a uniform
+        # assignment prohibition into per-model answers because ALLOCATION
+        # rules nearby varied; withholding it lets the mechanism rule in the
+        # standing prompt do its work -- answer for what was asked, present
+        # the differently-named route as an alternative.
         variants = []
     else:
         variants = offering_lines(offerings_bearing_on_evidence(records, evidence))
@@ -3525,11 +3602,23 @@ def answer_question(
             "depends on which licence model applies -- that opening satisfies "
             "every rule about how answers open, including the Yes/No rule -- "
             "give the one line per model the evidence supports, and end by "
-            "asking which one applies. The list is a starting point: drop any "
+            "asking which one applies. A per-model line must state that "
+            "model's DIFFERING term; a line that would only restate the "
+            "model's name -- \"if the X model applies, the model is X\" -- "
+            "says the models do not differ for this question, so drop the "
+            "listing and answer once. The list is a starting point: drop any "
             "entry the evidence does not support and add any it missed. "
             "Opening with the licence models when they all agree is the same "
             "failure as answering for one model when they do not: both leave "
-            "the question the reader asked unanswered.\n\n"
+            "the question the reader asked unanswered. And the check is "
+            "scoped to the mechanism the question names: if the rule "
+            "governing THAT mechanism reads the same for every model, answer "
+            "once for it -- asked about assignment, a uniform assignment "
+            "prohibition is one No, even while allocation rules nearby in "
+            "the evidence vary by model. A differently-named mechanism that "
+            "varies by model is presented as the distinct alternative it is, "
+            "after the answer, never as grounds to split the answer "
+            "itself.\n\n"
         )
     elif len(variants) > 1:
         ambiguity_rule = (
@@ -3560,19 +3649,23 @@ def answer_question(
             + ("that word" if len(foreign) == 1 else "those words")
             + ". If such a word names the action or thing the question turns "
             "on, do not silently translate it into one mechanism and answer "
-            "as though the match were exact. Answer in the first sentence "
-            "anyway -- where the provisions in evidence decide the question, "
-            "the first sentence is that decision, and where they do not "
-            "reach it at all, the first sentence says the agreements do not "
-            "address it. Only then note that the agreements do not use the "
-            "word, answer under each provision in the evidence that could "
-            "bear on it, calling each mechanism by the agreements' own words, "
-            "and close with one short line inviting the reader to say which "
-            "situation they mean. A note about which words the agreements use "
-            "is never the answer to the question and never opens one: the "
-            "reader asked about their situation, not about our vocabulary. "
-            "If the word is incidental to what is asked, ignore this note "
-            "and answer normally.\n\n"
+            "as though the match were exact -- but a defined term whose "
+            "definition DESCRIBES the questioned thing IS the agreements' "
+            "word for it: a definition covering \"software or hardware that "
+            "reduces the Software's ability to distinguish users\" is the "
+            "agreements addressing a pooling proxy, whatever the question "
+            "called it. Answer under that term, saying what the agreements "
+            "call it. Answer in the first sentence always -- where any "
+            "provision or definition in evidence decides or describes the "
+            "questioned thing, the first sentence is that decision. Reserve "
+            "\"the agreements do not address it\" for when nothing in "
+            "evidence describes the thing at all. Only after answering, note "
+            "the vocabulary difference in one line. Invite the reader to "
+            "clarify only when two different mechanisms could each genuinely "
+            "be their situation -- never as a reflex. A note about which "
+            "words the agreements use is never the answer to the question "
+            "and never opens one. If the word is incidental to what is "
+            "asked, ignore this note and answer normally.\n\n"
         )
         if foreign
         else ""
