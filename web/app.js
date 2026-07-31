@@ -422,7 +422,20 @@ function resetWorkspaceView() {
   state.enrichArmed = false;
   renderGraphState();
   renderInspector();
+  clearChatView();
+}
+
+// The visible thread, the exchange numbering and the answer highlighting go
+// together: clearing one without the others leaves Q3 with no Q1 above it, or
+// a graph still lit for an answer that is gone.
+function clearChatView() {
+  exchangeCount = 0;
+  turnCounter = 0;
+  clearAnswerHighlight();
   $("#chat").replaceChildren(createChatEmpty());
+  if (state.status) renderSuggestions();
+  const button = $("#clearChat");
+  if (button) button.hidden = true;
 }
 
 async function selectFamily(id) {
@@ -971,6 +984,8 @@ let turnCounter = 0;
 function openExchange(question) {
   const empty = $("#chatEmpty");
   if (empty) empty.remove();
+  const clear = $("#clearChat");
+  if (clear) clear.hidden = false;
   exchangeCount += 1;
   const block = element("div", "exchange");
   block.append(element("span", "turn-index", `Q${exchangeCount}`));
@@ -1223,6 +1238,17 @@ $("#chat").addEventListener("click", (event) => {
 $("#askForm").addEventListener("submit", (event) => {
   event.preventDefault();
   ask($("#question").value);
+});
+
+$("#clearChat")?.addEventListener("click", async () => {
+  try {
+    // Server first: the stored history resolves follow-ups, so it must not
+    // outlive the thread on screen.
+    await api(withFamily("/api/conversation"), { method: "DELETE" });
+    clearChatView();
+  } catch (error) {
+    showAskError(error);
+  }
 });
 
 async function loadGraph() {

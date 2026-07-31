@@ -1426,6 +1426,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.require_same_origin_request()
             path = urlparse(self.path).path
+            if path == "/api/conversation":
+                # Clearing the chat clears the history that resolves follow-ups,
+                # or the next "logical" would answer a question nobody can see.
+                visitor = self.ensure_workspace()
+                self.check_rate("conversation", visitor, limit=30, window=60 * 60)
+                conversation.clear(visitor.root)
+                self.json_response({"cleared": True})
+                return
             if PERSISTENT:
                 if path not in {"/api/families", "/api/session"}:
                     raise APIError(404, "not_found", "The API endpoint was not found.")

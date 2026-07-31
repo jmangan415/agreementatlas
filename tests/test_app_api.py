@@ -406,6 +406,53 @@ class AgreementAtlasAPITests(unittest.TestCase):
         )
         self.assertEqual(status, 201, payload)
 
+    def test_clearing_the_conversation_forgets_the_history(self) -> None:
+        family = self.new_session()
+        content_type, body = multipart(
+            [
+                (
+                    "chat-agreement.md",
+                    b"# Chat Agreement\n\n1. Security\n\n"
+                    b"Customer must protect credentials.",
+                )
+            ]
+        )
+        status, _, _ = self.request(
+            "POST",
+            "/api/upload" + family,
+            body=body,
+            headers={
+                "Content-Type": content_type,
+                "Content-Length": str(len(body)),
+                "X-AgreementAtlas-Request": "1",
+            },
+        )
+        self.assertEqual(status, 201)
+        query = json.dumps(
+            {"question": "What must Customer protect?", "model": "local-test-model"}
+        ).encode()
+        status, _, _ = self.request(
+            "POST",
+            "/api/query" + family,
+            body=query,
+            headers={
+                "Content-Type": "application/json",
+                "Content-Length": str(len(query)),
+                "X-AgreementAtlas-Request": "1",
+            },
+        )
+        self.assertEqual(status, 200)
+        root = app.library_store.get(family.split("=")[1]).root
+        self.assertTrue((root / ".conversation.jsonl").is_file())
+        status, _, payload = self.request(
+            "DELETE",
+            "/api/conversation" + family,
+            headers={"X-AgreementAtlas-Request": "1"},
+        )
+        self.assertEqual(status, 200, payload)
+        self.assertTrue(json.loads(payload)["cleared"])
+        self.assertFalse((root / ".conversation.jsonl").exists())
+
     def test_query_stays_available_while_enrichment_holds_its_slot(self) -> None:
         family = self.new_session()
         content_type, body = multipart(

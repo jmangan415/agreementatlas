@@ -89,12 +89,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   height: calc(100vh - 76px);
   min-height: 650px;
   display: grid;
-  grid-template-columns: 300px minmax(540px, 1fr) 380px;
+  grid-template-columns: 300px minmax(480px, 1fr) 460px;
 }
 .source-panel, .answer-panel { overflow: auto; background: var(--white); }
 .source-panel { padding: 22px 18px; border-right: 1px solid var(--line); }
 .answer-panel { border-left: 1px solid var(--line); display: flex; flex-direction: column; padding: 24px 21px 16px; }
 .panel-heading, .answer-heading, .graph-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.answer-tools { display: flex; align-items: center; gap: 12px; }
+.answer-tools .text-button { font-size: 10px; }
 h1, h2, h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-weight: 600; }
 h1 { margin-top: 3px; font-size: 24px; }
 h2 { margin-top: 2px; font-size: 25px; }
@@ -331,7 +333,7 @@ i.family { background: #0d1d33; } i.document { background: #18385d; } i.rule { b
 .legal-shell .notice { padding: 12px 14px; border-left: 3px solid var(--amber); background: #fff8ec; }
 
 @media (max-width: 1180px) {
-  .workspace { grid-template-columns: 275px minmax(470px,1fr) 330px; }
+  .workspace { grid-template-columns: 275px minmax(430px,1fr) 400px; }
   .topbar { grid-template-columns: 265px 1fr auto; }
   .product-promise span:last-child { display: none; }
   .graph-search { width: 170px; }
