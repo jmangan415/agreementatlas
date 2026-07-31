@@ -945,6 +945,20 @@ def restore_effective_graph(root: Path) -> bool:
     extracted = read_jsonl(legal / "lm_rules.jsonl")
     if not extracted:
         return False
+    # An extracted rule stores the section labels of the parse it was born in,
+    # and re-ingests re-label sections. The clause is the authority on where
+    # its rule lives, so refresh location from the current clause rather than
+    # serving a frozen snapshot ("29" for a heading the schedule never numbers).
+    clauses_now = {
+        str(item.get("id")): item for item in read_jsonl(legal / "clauses.jsonl")
+    }
+    for item in extracted:
+        clause = clauses_now.get(str(item.get("clause_id")))
+        if clause:
+            item["section_id"] = clause.get("section_id", item.get("section_id", ""))
+            item["section_path"] = clause.get(
+                "section_path", item.get("section_path", "")
+            )
     # Only the model's rules are carried. The rest of resolved_rules.jsonl is
     # deterministic fallback, frozen at the moment enrichment ran, and reusing
     # it made every later parser fix invisible on an enriched family: the graph

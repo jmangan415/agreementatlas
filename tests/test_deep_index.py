@@ -505,9 +505,7 @@ class DeepIndexTests(unittest.TestCase):
 
     def test_closure_does_not_spend_itself_on_a_pervasive_term(self) -> None:
         records = search_records(self.workspace)
-        haystack = [
-            str(item.get("_search_text", "")).casefold() for item in records
-        ]
+        haystack = [str(item.get("_search_text", "")).casefold() for item in records]
         for question in (
             "Can Customer share account credentials?",
             "Can Customer allocate StreamFlow access to an Affiliate?",
@@ -933,7 +931,9 @@ class FollowupExpansionTests(unittest.TestCase):
         self.assertEqual(expand_followup(client, "fake", "why?", []), "")
         self.assertEqual(client.calls, 0)
 
-    def test_conversation_vocabulary_recombines_into_a_standalone_question(self) -> None:
+    def test_conversation_vocabulary_recombines_into_a_standalone_question(
+        self,
+    ) -> None:
         client = RecordingExpanderClient(
             "Can Standard Named User licences be re-allocated when someone "
             "leaves the company?"
@@ -952,7 +952,9 @@ class FollowupExpansionTests(unittest.TestCase):
             "the company?"
         )
         result = expand_followup(
-            client, "fake", "what about reassigning standard named users?",
+            client,
+            "fake",
+            "what about reassigning standard named users?",
             REASSIGN_HISTORY,
         )
         self.assertEqual(result, "")
@@ -1034,3 +1036,59 @@ class FollowupExpansionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RestoredRuleLocationTests(unittest.TestCase):
+    """A carried rule's location comes from today's clause, not its birth parse."""
+
+    def test_restore_refreshes_stale_section_labels_from_the_clause(self) -> None:
+        from legal_graph_service import restore_effective_graph
+
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            sources = workspace / "sources"
+            sources.mkdir()
+            shutil.copy2(
+                SAMPLES / "acme-cloud-master-agreement.md",
+                sources / "acme-cloud-master-agreement.md",
+            )
+            rebuild_workspace(workspace)
+            clause = next(
+                item
+                for item in read_jsonl(workspace / "legal" / "clauses.jsonl")
+                if item["clause_kind"] == "CLAUSE" and item.get("section_id")
+            )
+            stale = {
+                "id": "rule:stale-location",
+                "family_id": clause["family_id"],
+                "document_id": clause["document_id"],
+                "clause_id": clause["id"],
+                "source": clause["source"],
+                # The labels of a parse that no longer exists.
+                "section_id": "29 (2)",
+                "section_path": "29 D. Something The Document Never Numbered",
+                "effect": "OBLIGATION",
+                "modality": "SHALL",
+                "polarity": "POSITIVE",
+                "actor": "Customer",
+                "action": "keep records",
+                "object": "records",
+                "scope": clause["scope"],
+                "conditions": [],
+                "carve_outs": [],
+                "cross_refs": [],
+                "summary": "Customer must keep records.",
+                "evidence": clause["text"],
+                "evidence_span_ids": clause["evidence_span_ids"],
+                "extraction_method": "lmstudio",
+            }
+            with (workspace / "legal" / "lm_rules.jsonl").open("w") as handle:
+                handle.write(json.dumps(stale) + "\n")
+            self.assertTrue(restore_effective_graph(workspace))
+            restored = next(
+                item
+                for item in read_jsonl(workspace / "legal" / "resolved_rules.jsonl")
+                if item["id"] == "rule:stale-location"
+            )
+            self.assertEqual(restored["section_id"], clause["section_id"])
+            self.assertEqual(restored["section_path"], clause["section_path"])
