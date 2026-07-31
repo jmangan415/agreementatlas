@@ -1199,7 +1199,7 @@ class Handler(BaseHTTPRequestHandler):
                 view = parse_qs(parsed.query).get("view", ["overview"])[0]
                 if view not in {"overview", "detail"}:
                     raise APIError(400, "graph_view", "Choose overview or detail.")
-                maximum = 60 if view == "overview" else 180
+                maximum = 150 if view == "overview" else 320
                 self.json_response(compact_graph(visitor.root, max_rules=maximum))
                 return
             if path == "/api/enrich/status":
