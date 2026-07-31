@@ -46,6 +46,7 @@ from legal_ingest import (
     vendor_names,
     version_chains,
 )
+from legal_graph_service import citation_label, mark_ambiguous_numbers
 from legal_schema import Instrument, PartyRole
 
 
@@ -1259,3 +1260,57 @@ class PrintedSectionNumber(unittest.TestCase):
 
     def test_a_leading_zero_is_a_page_footer_not_a_section(self) -> None:
         self.assertEqual(printed_section("04.25 | 271-000001-005 | Vendor"), "")
+
+
+class AmbiguousSectionNumber(unittest.TestCase):
+    """A number that names two sections is not a reference to either.
+
+    Agreements restate a provision for a territory or a variant and print the
+    original's number on the restatement. All fixtures are synthetic.
+    """
+
+    def records(self) -> list[dict]:
+        return [
+            {"id": "a", "document_id": "doc", "section_id": "9.1",
+             "section_path": "9 LIMITATION OF LIABILITY"},
+            {"id": "b", "document_id": "doc", "section_id": "9.1",
+             "section_path": "9 LIMITATION OF LIABILITY"},
+            {"id": "c", "document_id": "doc", "section_id": "9.1",
+             "heading": "LIMITATION OF LIABILITY FOR CUSTOMERS DOMICILED IN GERMANY"},
+            {"id": "d", "document_id": "doc", "section_id": "4.2", "heading": "Fees"},
+            {"id": "e", "document_id": "other", "section_id": "9.1",
+             "heading": "Something Else Entirely"},
+        ]
+
+    def test_a_restated_number_is_cited_with_its_heading(self) -> None:
+        records = self.records()
+        mark_ambiguous_numbers(records)
+        labels = {record["id"]: citation_label(record) for record in records}
+        self.assertEqual(labels["a"], "§9.1 LIMITATION OF LIABILITY")
+        self.assertEqual(
+            labels["c"],
+            "§9.1 LIMITATION OF LIABILITY FOR CUSTOMERS DOMICILED IN GERMANY",
+        )
+
+    def test_many_rules_under_one_section_are_not_a_collision(self) -> None:
+        # a and b share a number *and* a heading: one section, not two.
+        records = [item for item in self.records() if item["id"] in {"a", "b"}]
+        mark_ambiguous_numbers(records)
+        self.assertEqual({citation_label(item) for item in records}, {"§9.1"})
+
+    def test_an_unshared_number_keeps_the_bare_number(self) -> None:
+        records = self.records()
+        mark_ambiguous_numbers(records)
+        self.assertEqual(citation_label(records[3]), "§4.2")
+
+    def test_the_same_number_in_another_document_is_not_a_collision(self) -> None:
+        records = self.records()
+        mark_ambiguous_numbers(records)
+        self.assertEqual(citation_label(records[4]), "§9.1")
+
+    def test_a_definition_is_still_cited_by_its_term(self) -> None:
+        records = self.records() + [
+            {"id": "f", "document_id": "doc", "section_id": "9.1", "term": "Losses"}
+        ]
+        mark_ambiguous_numbers(records)
+        self.assertEqual(citation_label(records[-1]), "§9.1 “Losses”")

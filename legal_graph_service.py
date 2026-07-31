@@ -1732,7 +1732,61 @@ def search_records(root: Path) -> list[dict]:
             ]
         )
         output.append(item)
+    mark_ambiguous_numbers(output)
     return output
+
+
+LEADING_NUMBER = re.compile(r"^\d{1,2}(?:\.\d{1,2}){0,3}\s+")
+
+
+def record_heading(record: dict) -> str:
+    """The title of the section a record sits under, however the record spells it.
+
+    Clauses carry it as `heading`; rules carry only `section_path`, which is
+    the parent's number and title run together ("10 LIMITATION OF LIABILITY").
+    """
+
+    heading = str(record.get("heading") or "").strip()
+    if heading:
+        return heading
+    path = str(record.get("section_path") or "").strip()
+    return LEADING_NUMBER.sub("", path).strip()
+
+
+def mark_ambiguous_numbers(records: list[dict]) -> None:
+    """Flag section numbers that name more than one section of their document.
+
+    A number is a reference only while it points at one passage. Agreements
+    restate a provision for a territory, a variant or a party and print the
+    original's number on the restatement: this corpus has an MSA carrying both
+    "10.1 LIMITATION OF LIABILITY" and "10.1 LIMITATION OF LIABILITY FOR
+    CUSTOMERS DOMICILED IN GERMANY". Both rendered as "§10.1", so the answer
+    could not name which one it was quoting, the reader clicking the citation
+    could not tell them apart, and nothing downstream could either.
+
+    Deliberately per document and per distinct heading: many rules extracted
+    from one section share its number and title, and those are one section, not
+    a collision. Definitions are left alone -- they are already cited by term.
+    """
+
+    headings: defaultdict[tuple[str, str], set[str]] = defaultdict(set)
+    for record in records:
+        if record.get("term"):
+            continue
+        section = str(record.get("section_id", "")).strip()
+        if not NUMBERED_SECTION.match(section):
+            continue
+        heading = record_heading(record)
+        if heading:
+            document = str(record.get("document_id") or record.get("instrument_id") or "")
+            headings[(document, section)].add(heading.casefold())
+    for record in records:
+        if record.get("term"):
+            continue
+        section = str(record.get("section_id", "")).strip()
+        document = str(record.get("document_id") or record.get("instrument_id") or "")
+        if len(headings.get((document, section), ())) > 1:
+            record["_ambiguous_number"] = True
 
 
 # "what is a named user", "which licence models are there", "how many editions".
@@ -1826,6 +1880,38 @@ def offerings_matching(root: Path, question: str) -> list[dict]:
     # it; one naming a model exactly matches only that model, and needs no
     # disambiguation.
     return matched if len(matched) > 1 else []
+
+
+def offerings_named_in_question(records: Sequence[dict], question: str) -> list[dict]:
+    """The offerings the reader has already told us they hold.
+
+    The variants rules exist for one reason: to stop the engine silently
+    choosing a licence model the reader never chose. A question that names its
+    models -- "can we downgrade a Standard Named User to an Occasional Named
+    User" -- has made that choice, and there is nothing left to disambiguate;
+    opening such an answer with "the answer depends on which licence model
+    applies" refuses a question the reader already narrowed.
+
+    Matching is on the graph's own offering names, in order, not on prose: a
+    name is taken as named only when its words appear as a run in the question.
+    One-word names ("Client") are ignored, because a bare common noun in a
+    sentence is not evidence that the reader meant the licence model of that
+    name.
+    """
+
+    asked = " ".join(tokens(question))
+    named = []
+    for record in records:
+        if record.get("_kind") != "Offering":
+            continue
+        name = " ".join(tokens(str(record.get("name", ""))))
+        if len(name.split()) < 2:
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(name)}(?![a-z0-9])", asked):
+            named.append(record)
+    # The longest name wins where one contains another, so "Standard Named User
+    # Subscription" does not also report the "Standard Named User" it extends.
+    return sorted(named, key=lambda item: -len(str(item.get("name", ""))))
 
 
 def offerings_bearing_on_evidence(
@@ -1972,6 +2058,12 @@ def citation_label(record: dict) -> str:
     if term:
         return f"“{term}” (Definitions)" if not base else f"§{base} “{term}”"
     if NUMBERED_SECTION.match(section):
+        # Where the document prints this number on more than one section, the
+        # number alone is not a reference; the heading is what separates them.
+        if record.get("_ambiguous_number"):
+            heading = record_heading(record)
+            if heading:
+                return f"§{section} {heading}"
         return f"§{section}"
     label = str(record.get("list_label", "")).strip()
     if label and base:
@@ -2044,8 +2136,9 @@ def directional_expand(
     root: Path,
     ranked: list[dict],
     records_by_id: dict[str, dict],
+    edges: list[dict] | None = None,
 ) -> list[dict]:
-    edges = relationship_records(root)
+    edges = relationship_records(root) if edges is None else edges
     outgoing: defaultdict[str, list[dict]] = defaultdict(list)
     incoming: defaultdict[str, list[dict]] = defaultdict(list)
     for edge in edges:
@@ -2148,6 +2241,10 @@ DEONTIC_MATCH_BONUS = 0.001
 # than a discriminator, and promoting its definition buries the answer. Asked
 # outright what the term means, it is promoted regardless.
 PERVASIVE_TERM_SHARE = 0.25
+# How many definitions the chosen evidence relies on may accompany it. These
+# sit outside the evidence budget rather than inside it, so this is a bound on
+# how far the prompt may grow, not a share of it.
+DEFINITION_CLOSURE_LIMIT = 2
 
 
 def question_effects(question: str) -> set[str]:
@@ -2547,17 +2644,154 @@ def retrieve_evidence(
         )
         if record_id in records_by_id
     ]
-    ranked = directional_expand(root, ranked, records_by_id)
+    # Read once and shared: the expansion and the definition closure below both
+    # walk the same edges, and this file is thousands of rows per family.
+    edges = relationship_records(root)
+    ranked = directional_expand(root, ranked, records_by_id, edges)
+    # One clause may not hold the whole prompt while other clauses that scored
+    # wait outside it. A long provision extracts into many rules, and each rule
+    # ranks on the same words, so the top of the list fills with one section:
+    # asked whether the liability cap is the same for a customer in Germany,
+    # ten of fourteen slots were sentences of §10.1 and the region-specific
+    # section never reached the model. Passages over the cap are not dropped,
+    # only deferred -- where a family really does answer from one clause, they
+    # come back as soon as the distinct ones are exhausted, so this costs
+    # nothing on a corpus that does not have the problem.
+    per_clause_limit = max(2, limit // 4)
     selected: list[dict] = []
+    deferred: list[dict] = []
     seen_text: set[str] = set()
-    for item in ranked:
-        fingerprint = compact_text(item["text"]).casefold()
-        if not fingerprint or fingerprint in seen_text:
-            continue
-        seen_text.add(fingerprint)
-        selected.append(item)
+    per_clause: Counter = Counter()
+
+    def source_clause(item: dict) -> str:
+        """The unit a reader would call one passage, which is what may repeat.
+
+        A section of one instrument, not a clause record: a long section splits
+        into several clause records and dozens of rules, and capping the record
+        would not stop the section filling the prompt. Definitions are counted
+        by their term instead -- an alphabetical definitions article is one
+        section holding hundreds of unrelated passages, and capping it would
+        starve exactly the material most questions turn on.
+        """
+
+        record = records_by_id.get(str(item.get("id", "")), {})
+        term = str(record.get("term", "")).strip()
+        if term:
+            return f"term:{term.casefold()}"
+        section = str(record.get("section_id", "")).strip()
+        if not section:
+            return str(item.get("id", ""))
+        return f"{record.get('instrument_id', '')}#{section}"
+
+    position = 0
+
+    def take(target: int) -> None:
+        """Fill up to `target` slots from the ranked list, resuming where the
+        last call stopped, and deferring passages over their source's cap."""
+
+        nonlocal position
+        while position < len(ranked) and len(selected) < target:
+            item = ranked[position]
+            position += 1
+            fingerprint = compact_text(item["text"]).casefold()
+            if not fingerprint or fingerprint in seen_text:
+                continue
+            seen_text.add(fingerprint)
+            clause = source_clause(item)
+            if per_clause[clause] >= per_clause_limit:
+                deferred.append(item)
+                continue
+            per_clause[clause] += 1
+            selected.append(item)
+
+    def relied_on_definitions(budget: int) -> list[dict]:
+        """The definitions the chosen passages themselves turn on.
+
+        A clause that says Named Users may not be shared is half a rule until
+        the reader is told what a Named User is, and the reader who has to ask
+        is the one who does not know the vocabulary. Two routes to a definition
+        already exist and neither is a guarantee: the exact-term promotion
+        above needs the question to *name* the term, which the reader who
+        describes the situation in their own words never does, and
+        `directional_expand` only gives the USES_TERM neighbour a score, which
+        a flat fusion curve outvotes. So take the graph at its word -- if a
+        selected passage declares it uses a term, the term comes with it.
+        """
+
+        if budget <= 0:
+            return []
+        chosen = {item["id"] for item in selected}
+        support: Counter = Counter()
+        for edge in edges:
+            if str(edge.get("type", "")) != "USES_TERM":
+                continue
+            source = str(edge.get("source", ""))
+            target = str(edge.get("target", ""))
+            if source in chosen and target not in chosen:
+                support[target] += 1
+        candidates: list[tuple[int, float, str]] = []
+        for record_id, uses in support.items():
+            record = records_by_id.get(record_id)
+            if not record or record.get("_kind") != "Definition":
+                continue
+            term = str(record.get("term", "")).strip()
+            if not term:
+                continue
+            # A term that is everywhere explains nothing, by the same reasoning
+            # that keeps it out of the promotion above: "Software" is in 42% of
+            # one family's clauses, and spending a reserved slot on it would
+            # displace the term the question actually turns on.
+            folded = term.casefold()
+            share = sum(1 for text in haystack if folded in text) / max(1, len(haystack))
+            if share > PERVASIVE_TERM_SHARE:
+                continue
+            # How many of the chosen passages lean on the term comes first:
+            # that is the closure signal. Its own score against the question
+            # only breaks ties -- the main ranker already weighed that and is
+            # the reason the term is missing in the first place.
+            candidates.append((-uses, -fused.get(record_id, 0.0), record_id))
+        chosen_terms = {
+            str(records_by_id.get(item["id"], {}).get("term", "")).casefold()
+            for item in selected
+        }
+        closure: list[dict] = []
+        for _, _, record_id in sorted(candidates):
+            if len(closure) >= budget:
+                break
+            record = records_by_id[record_id]
+            term = str(record.get("term", "")).casefold()
+            if term in chosen_terms:
+                continue
+            chosen_terms.add(term)
+            item = evidence_item(
+                record,
+                fused.get(record_id, 0.0),
+                {"definition_closure": support[record_id]},
+            )
+            fingerprint = compact_text(item["text"]).casefold()
+            if fingerprint in seen_text:
+                continue
+            seen_text.add(fingerprint)
+            closure.append(item)
+        return closure
+
+    take(limit)
+    for item in deferred:
         if len(selected) >= limit:
             break
+        selected.append(item)
+    # The definitions the chosen passages rely on are added to the budget
+    # rather than taken out of it. Holding a slot back for them was measured
+    # first and it simply moved the failure: the reserved slot came off the
+    # bottom of the ranking, which is exactly where a decisive clause sits
+    # when it only just made the cut, so one question gained its definition
+    # and another lost its clause. A definition is not a rival passage
+    # competing to be the most relevant thing in the prompt -- it is the
+    # vocabulary the passages already chosen are written in, and a reader
+    # handed the rule wants the term too, not instead. Bounded at two so
+    # prompt growth stays predictable while a question that turns on two
+    # terms at once is still served.
+    selected.extend(relied_on_definitions(DEFINITION_CLOSURE_LIMIT if limit >= 7 else 0))
     trace = legal_resolution_trace(root, question, selected)
     rule_status = {
         item["candidate_rule_id"]: item["final_status"] for item in trace["steps"]
@@ -3253,6 +3487,11 @@ def answer_question(
         variants = offering_lines(matched)
     elif ASKS_WHICH.match(question.strip()):
         variants = competing_variants(question, evidence)
+    elif offerings_named_in_question(records, question):
+        # The reader named the models they hold. Evidence spanning other models
+        # is still evidence, but there is no choice left to put to them, and the
+        # rule below would put one anyway.
+        variants = []
     else:
         variants = offering_lines(offerings_bearing_on_evidence(records, evidence))
         evidence_variants = len(variants) > 1
@@ -3275,19 +3514,22 @@ def answer_question(
             "licence model, but the evidence cites terms belonging to "
             "several, listed under VARIANTS below. First check whether the "
             "evidence decides the question the same way under every one of "
-            "them; if it does, answer once, normally, and do not list them. "
-            "A question that turns on a defined term the family shares -- a "
-            "definition, not one model's terms -- is decided alike for every "
-            "model, and gets the one answer the definition gives. Only the "
-            "models' own differing terms make answers differ. Where they do, "
-            "never promote a condition that one model states "
-            "-- \"only with an MFP\", \"named users only\" -- into a general "
-            "condition of the answer. Open by saying the answer depends on "
-            "which licence model applies -- that opening satisfies every "
-            "rule about how answers open, including the Yes/No rule -- give "
-            "the one line per model the evidence supports, and end by asking "
-            "which one applies. The list is a starting point: drop any entry "
-            "the evidence does not support and add any it missed.\n\n"
+            "them. If it does -- and it usually does, because a question that "
+            "turns on a defined term the family shares is decided alike for "
+            "every model -- answer once, normally, opening with the answer "
+            "itself, and do not mention licence models at all. Only the "
+            "models' own differing terms make answers differ. Where they "
+            "genuinely do differ: never promote a condition that one model "
+            "states -- \"only with an MFP\", \"named users only\" -- into a "
+            "general condition of the answer; open by saying the answer "
+            "depends on which licence model applies -- that opening satisfies "
+            "every rule about how answers open, including the Yes/No rule -- "
+            "give the one line per model the evidence supports, and end by "
+            "asking which one applies. The list is a starting point: drop any "
+            "entry the evidence does not support and add any it missed. "
+            "Opening with the licence models when they all agree is the same "
+            "failure as answering for one model when they do not: both leave "
+            "the question the reader asked unanswered.\n\n"
         )
     elif len(variants) > 1:
         ambiguity_rule = (
@@ -3318,13 +3560,19 @@ def answer_question(
             + ("that word" if len(foreign) == 1 else "those words")
             + ". If such a word names the action or thing the question turns "
             "on, do not silently translate it into one mechanism and answer "
-            "as though the match were exact. Say plainly that the agreements "
-            "do not use the word, answer under each provision in the evidence "
-            "that could bear on it, calling each mechanism by the agreements' "
-            "own words, and close with one short line inviting the reader to "
-            "say which situation they mean -- that structure satisfies the "
-            "rules about how answers open. If the word is incidental to what "
-            "is asked, ignore this note and answer normally.\n\n"
+            "as though the match were exact. Answer in the first sentence "
+            "anyway -- where the provisions in evidence decide the question, "
+            "the first sentence is that decision, and where they do not "
+            "reach it at all, the first sentence says the agreements do not "
+            "address it. Only then note that the agreements do not use the "
+            "word, answer under each provision in the evidence that could "
+            "bear on it, calling each mechanism by the agreements' own words, "
+            "and close with one short line inviting the reader to say which "
+            "situation they mean. A note about which words the agreements use "
+            "is never the answer to the question and never opens one: the "
+            "reader asked about their situation, not about our vocabulary. "
+            "If the word is incidental to what is asked, ignore this note "
+            "and answer normally.\n\n"
         )
         if foreign
         else ""

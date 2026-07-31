@@ -10,6 +10,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from legal_graph_service import (
+    DEFINITION_CLOSURE_LIMIT,
+    PERVASIVE_TERM_SHARE,
     LMStudioError,
     answer_question,
     enrich_workspace,
@@ -18,8 +20,10 @@ from legal_graph_service import (
     leans_on_context,
     query_terms,
     read_jsonl,
+    relationship_records,
     resolve_returned_clause_id,
     retrieve_evidence,
+    search_records,
     stem,
     substantive_clauses,
     validate_extracted_rule,
@@ -430,6 +434,91 @@ class DeepIndexTests(unittest.TestCase):
                 "bm25_rank" in item.get("retrieval_components", {}) for item in evidence
             )
         )
+
+    def test_evidence_carries_the_definitions_its_passages_rely_on(self) -> None:
+        evidence = retrieve_evidence(
+            self.workspace, "Can Customer share account credentials?", 8
+        )
+        closure = [
+            item
+            for item in evidence
+            if item.get("retrieval_components", {}).get("definition_closure")
+        ]
+        self.assertTrue(closure, "no definition was closed over")
+        chosen = {item["id"] for item in evidence}
+        uses_term = {
+            (str(edge.get("source", "")), str(edge.get("target", "")))
+            for edge in relationship_records(self.workspace)
+            if str(edge.get("type", "")) == "USES_TERM"
+        }
+        for item in closure:
+            self.assertEqual(item["kind"], "Definition")
+            self.assertTrue(
+                any(
+                    (source, item["id"]) in uses_term
+                    for source in chosen
+                    if source != item["id"]
+                ),
+                f"{item['citation']} is not relied on by any chosen passage",
+            )
+
+    def test_closure_accompanies_the_budget_instead_of_spending_it(self) -> None:
+        """A definition must not cost the ranking a slot it earned.
+
+        Reserving a slot inside the budget was measured taking it off the
+        bottom of the ranking, which is where a clause that only just made the
+        cut sits -- one question gained a definition and another lost the
+        provision that decided it.
+        """
+
+        question = "Can Customer allocate StreamFlow access to an Affiliate?"
+        with patch("legal_graph_service.DEFINITION_CLOSURE_LIMIT", 0):
+            without = [
+                item["id"] for item in retrieve_evidence(self.workspace, question, 8)
+            ]
+        evidence = retrieve_evidence(self.workspace, question, 8)
+        ranked = [
+            item["id"]
+            for item in evidence
+            if not item.get("retrieval_components", {}).get("definition_closure")
+        ]
+        self.assertEqual(len(without), 8)
+        self.assertGreater(len(evidence), len(ranked))
+        self.assertEqual(sorted(ranked), sorted(without))
+
+    def test_closure_is_bounded_and_skipped_on_a_small_budget(self) -> None:
+        for question in (
+            "Can Customer share account credentials?",
+            "Can Customer allocate StreamFlow access to an Affiliate?",
+        ):
+            evidence = retrieve_evidence(self.workspace, question, 8)
+            self.assertLessEqual(len(evidence), 8 + DEFINITION_CLOSURE_LIMIT)
+            small = retrieve_evidence(self.workspace, question, 4)
+            self.assertEqual(len(small), 4)
+            self.assertFalse(
+                [
+                    item
+                    for item in small
+                    if item.get("retrieval_components", {}).get("definition_closure")
+                ]
+            )
+
+    def test_closure_does_not_spend_itself_on_a_pervasive_term(self) -> None:
+        records = search_records(self.workspace)
+        haystack = [
+            str(item.get("_search_text", "")).casefold() for item in records
+        ]
+        for question in (
+            "Can Customer share account credentials?",
+            "Can Customer allocate StreamFlow access to an Affiliate?",
+        ):
+            for item in retrieve_evidence(self.workspace, question, 8):
+                if not item.get("retrieval_components", {}).get("definition_closure"):
+                    continue
+                term = str(item.get("term", "")).casefold()
+                self.assertTrue(term)
+                share = sum(1 for text in haystack if term in text) / len(haystack)
+                self.assertLessEqual(share, PERVASIVE_TERM_SHARE)
 
     def test_answer_adds_a_source_marker_when_model_omits_citations(self) -> None:
         answer = answer_question(
