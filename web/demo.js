@@ -127,6 +127,27 @@ function setEnrichNote(text, error) {
   note.classList.toggle("error", Boolean(error));
 }
 
+/* Shown for a visitor's own un-enriched documents when no run is under way.
+   Enrichment used to start itself after every upload; adding a second file
+   then collided with the run the first had started, and the visitor was told
+   the model was busy by a job they never asked for. */
+function renderEnrichBar(status) {
+  const bar = $("#enrichBar");
+  if (!bar) return;
+  const job = status.enrichment || {};
+  const coverage = status.enrichment_coverage || {};
+  const own = !status.is_sample && (status.documents || []).length > 0;
+  bar.hidden = !(own && job.state !== "running" && coverage.state !== "complete");
+  const button = $("#enrichStart");
+  if (button) {
+    button.disabled = !state.model;
+    button.textContent =
+      coverage.state === "partial"
+        ? "Enrich the new clauses"
+        : "Enrich with the local model";
+  }
+}
+
 function startEnrichment() {
   if (!state.model) {
     setEnrichNote(
@@ -142,8 +163,15 @@ function startEnrichment() {
         `Enrichment could not start (${error.message}) — answers still work from the deterministic parse.`,
         true
       );
+      // The slot may free in a moment; leave the button on screen to try again.
+      if (state.status) renderEnrichBar(state.status);
     });
 }
+
+$("#enrichStart").addEventListener("click", () => {
+  $("#enrichBar").hidden = true;
+  startEnrichment();
+});
 
 function pollEnrichment() {
   window.clearTimeout(enrichTimer);
@@ -170,6 +198,7 @@ function pollEnrichment() {
           `Enrichment stopped: ${job.error || "the model call failed"}. Deterministic answers remain available.`,
           true
         );
+        if (state.status) renderEnrichBar(state.status);
         return;
       }
       setEnrichNote("");
@@ -179,10 +208,13 @@ function pollEnrichment() {
     });
 }
 
-/* Uploading replaces whatever the session holds: parsed deterministically in
-   seconds, then enrichment runs in the background. A fresh session first --
-   uploading into a workspace still holding a sample would merge two unrelated
-   families into one graph. */
+/* A workspace still holding a sample is cleared first -- uploading into it
+   would merge two unrelated families into one graph. A visitor's own documents
+   are kept: the server appends, rejects duplicates and enforces the session
+   allowance, so a second file joins the family rather than erasing the first.
+   Enrichment does not start on its own -- the button below the document list
+   does, so adding a file never collides with a run the previous upload
+   started. */
 function uploadFiles(files, note, pick) {
   if (state.busy) return;
   state.busy = true;
@@ -191,7 +223,8 @@ function uploadFiles(files, note, pick) {
   note.textContent = `Parsing ${files.length} file(s)…`;
   const body = new FormData();
   [...files].forEach((file) => body.append("files", file));
-  api("/api/session", { method: "DELETE" })
+  const holdsSample = Boolean((state.status || {}).is_sample);
+  (holdsSample ? api("/api/session", { method: "DELETE" }) : Promise.resolve())
     .then(() =>
       fetch("/api/upload", {
         method: "POST",
@@ -202,9 +235,9 @@ function uploadFiles(files, note, pick) {
     .then(async (response) => {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "The upload failed.");
-      note.textContent = "Parsed. Ask away.";
-      clearThread();
-      return refresh().then(() => startEnrichment());
+      note.textContent = "Parsed. Ask away — AI enrichment is optional, below.";
+      if (holdsSample) clearThread();
+      return refresh();
     })
     .catch((error) => {
       note.textContent = error.message;
@@ -275,6 +308,7 @@ function refresh() {
     renderSamples(status);
     renderDocuments(status);
     renderQuestions(status);
+    renderEnrichBar(status);
     // The graph belongs to whatever family the workspace now holds; reload it
     // when the workspace changed (or on the first status of the page).
     if (window.AtlasGraph && status.build?.built_at !== before) {
@@ -287,6 +321,18 @@ function loadSample(sample) {
   if (state.busy) return;
   const current = String((state.status || {}).sample_name || "");
   if (sample.name === current) return;
+  // `/api/demo` replaces the whole workspace. For a visitor who uploaded their
+  // own documents that is destruction, not navigation, so it needs their word.
+  const docs = ((state.status || {}).documents || []).length;
+  const own = !(state.status || {}).is_sample && docs > 0;
+  if (
+    own &&
+    !window.confirm(
+      `Loading ${sample.name} removes the ${docs} uploaded document${docs === 1 ? "" : "s"} in this session. Continue?`
+    )
+  ) {
+    return;
+  }
   api("/api/demo", { method: "POST", body: JSON.stringify({ bundle: sample.slug }) })
     .then(() => {
       clearThread();
