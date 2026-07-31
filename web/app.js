@@ -1216,15 +1216,35 @@ function createFilters() {
   const present = [...new Set(state.graph.nodes.map((node) => node.type))];
   if (!state.filters.size) present.forEach((type) => state.filters.add(type));
   container.replaceChildren();
+  const inputs = new Map();
+  const syncChecks = () => {
+    for (const [checkType, box] of inputs) {
+      box.checked = state.filters.has(checkType);
+    }
+  };
   for (const type of present) {
     const style = nodeStyle[type] || nodeStyle.rule;
     const label = element("label", "filter-chip");
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = state.filters.has(type);
+    inputs.set(type, input);
+    // The box is surgical: it adds or removes this one type.
     input.addEventListener("change", () => {
       if (input.checked) state.filters.add(type);
       else state.filters.delete(type);
+      drawGraph();
+    });
+    // The pill is a lens: click it and only this type remains -- click the
+    // same pill again and everything comes back. Without the guard, a label
+    // click would also flip its own checkbox and the two gestures fight.
+    label.addEventListener("click", (event) => {
+      if (event.target === input) return;
+      event.preventDefault();
+      const solo = state.filters.size === 1 && state.filters.has(type);
+      state.filters.clear();
+      (solo ? present : [type]).forEach((kept) => state.filters.add(kept));
+      syncChecks();
       drawGraph();
     });
     const dot = document.createElement("i");
