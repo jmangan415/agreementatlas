@@ -36,6 +36,7 @@ from legal_schema import (
     Relationship,
     empty_scope,
     normalise_text,
+    printed_section_id,
     record,
     scope_label,
     stable_id,
@@ -1840,13 +1841,15 @@ def offering_evidence(root: Path, offering: dict) -> dict:
         )
         if part
     )
+    printed = printed_section_id(str(clause.get("section_id", "")))
+    name = str(offering.get("name", ""))
     return {
         "kind": "Offering",
         "id": str(offering.get("id", "")),
         "document_id": str(offering.get("instrument_id", "")),
         "source": str(instrument.get("source", "")),
-        "section": str(clause.get("section_id", "")),
-        "citation": f"§{clause.get('section_id', '')} {offering.get('name', '')}".strip(),
+        "section": printed,
+        "citation": f"§{printed} {name}".strip() if printed else name,
         "scope": "Licence models",
         "score": 0.0,
         "text": f"{offering.get('name', '')} — {detail}\n{offering.get('summary', '')}",
@@ -2108,18 +2111,21 @@ def citation_label(record: dict) -> str:
     """
 
     section = str(record.get("section_id", "")).strip()
-    base = SYNTHETIC_SECTION.sub("", section)
+    # A counted section id is ours, not the document's: it must never appear
+    # in a citation, however number-shaped it looks.
+    printed = printed_section_id(section)
+    base = SYNTHETIC_SECTION.sub("", printed)
     term = str(record.get("term", "")).strip()
     if term:
         return f"“{term}” (Definitions)" if not base else f"§{base} “{term}”"
-    if NUMBERED_SECTION.match(section):
+    if printed and NUMBERED_SECTION.match(printed):
         # Where the document prints this number on more than one section, the
         # number alone is not a reference; the heading is what separates them.
         if record.get("_ambiguous_number"):
             heading = record_heading(record)
             if heading:
-                return f"§{section} {heading}"
-        return f"§{section}"
+                return f"§{printed} {heading}"
+        return f"§{printed}"
     label = str(record.get("list_label", "")).strip()
     if label and base:
         return f"§{base}({label})"
@@ -2134,7 +2140,7 @@ def citation_label(record: dict) -> str:
     usable = 0 < len(heading) <= 60 and (heading[:1].isupper() or heading[:1].isdigit())
     if usable and base:
         return f"§{base} {heading}"
-    return f"§{base}" if base else (heading if usable else section)
+    return f"§{base}" if base else (heading if usable else printed)
 
 
 def evidence_item(record: dict, score: float, components: dict | None = None) -> dict:
@@ -2146,7 +2152,7 @@ def evidence_item(record: dict, score: float, components: dict | None = None) ->
             record.get("document_id") or record.get("instrument_id", "")
         ),
         "source": str(record.get("source", "")),
-        "section": str(record.get("section_id", "")),
+        "section": printed_section_id(str(record.get("section_id", ""))),
         "citation": citation_label(record),
         "scope": scope_label(record.get("scope")),
         "score": round(score, 6),
@@ -3020,7 +3026,7 @@ def legal_resolution_trace(root: Path, question: str, evidence: list[dict]) -> d
             {
                 "candidate_rule_id": rule["id"],
                 "source": rule.get("source", ""),
-                "section": rule.get("section_id", ""),
+                "section": printed_section_id(str(rule.get("section_id", ""))),
                 "effect": rule.get("effect", ""),
                 "applicable_scope": rule.get("scope", {}),
                 "controlling_instrument_id": controlling_document,
@@ -3295,7 +3301,9 @@ def compact_graph(root: Path, max_rules: int = 180) -> dict:
                 "id": span_id,
                 "text": span_lookup[span_id].get("text", ""),
                 "purpose": span_lookup[span_id].get("purpose", ""),
-                "section": span_lookup[span_id].get("section_id", ""),
+                "section": printed_section_id(
+                    str(span_lookup[span_id].get("section_id", ""))
+                ),
             }
             for span_id in node.get("evidence_span_ids", [])
             if span_id in span_lookup

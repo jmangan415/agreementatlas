@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 import unittest
 
+from legal_graph_service import citation_label, mark_ambiguous_numbers
 from legal_ingest import (
     GENERIC_CLASSIFICATION,
     actor_from_text,
@@ -46,8 +47,7 @@ from legal_ingest import (
     vendor_names,
     version_chains,
 )
-from legal_graph_service import citation_label, mark_ambiguous_numbers
-from legal_schema import Instrument, PartyRole
+from legal_schema import Instrument, PartyRole, printed_section_id
 
 
 def instrument(**overrides) -> Instrument:
@@ -1271,15 +1271,31 @@ class AmbiguousSectionNumber(unittest.TestCase):
 
     def records(self) -> list[dict]:
         return [
-            {"id": "a", "document_id": "doc", "section_id": "9.1",
-             "section_path": "9 LIMITATION OF LIABILITY"},
-            {"id": "b", "document_id": "doc", "section_id": "9.1",
-             "section_path": "9 LIMITATION OF LIABILITY"},
-            {"id": "c", "document_id": "doc", "section_id": "9.1",
-             "heading": "LIMITATION OF LIABILITY FOR CUSTOMERS DOMICILED IN GERMANY"},
+            {
+                "id": "a",
+                "document_id": "doc",
+                "section_id": "9.1",
+                "section_path": "9 LIMITATION OF LIABILITY",
+            },
+            {
+                "id": "b",
+                "document_id": "doc",
+                "section_id": "9.1",
+                "section_path": "9 LIMITATION OF LIABILITY",
+            },
+            {
+                "id": "c",
+                "document_id": "doc",
+                "section_id": "9.1",
+                "heading": "LIMITATION OF LIABILITY FOR CUSTOMERS DOMICILED IN GERMANY",
+            },
             {"id": "d", "document_id": "doc", "section_id": "4.2", "heading": "Fees"},
-            {"id": "e", "document_id": "other", "section_id": "9.1",
-             "heading": "Something Else Entirely"},
+            {
+                "id": "e",
+                "document_id": "other",
+                "section_id": "9.1",
+                "heading": "Something Else Entirely",
+            },
         ]
 
     def test_a_restated_number_is_cited_with_its_heading(self) -> None:
@@ -1314,3 +1330,47 @@ class AmbiguousSectionNumber(unittest.TestCase):
         ]
         mark_ambiguous_numbers(records)
         self.assertEqual(citation_label(records[-1]), "§9.1 “Losses”")
+
+
+class SyntheticSectionTests(unittest.TestCase):
+    """Counted section ids are marked as ours and never surface as citations."""
+
+    def test_typographic_headings_get_marked_sections(self) -> None:
+        text = (
+            "Introductory paragraph before any heading.\n\n"
+            "Named User License Model\n\n"
+            "Licensee may install the Software for each Named User.\n\n"
+            "Concurrent User License Model\n\n"
+            "Licensee may install the Software for concurrent use.\n"
+        )
+        headings = {
+            "Named User License Model": 1,
+            "Concurrent User License Model": 1,
+        }
+        sections = [
+            section
+            for section, _, _ in paragraph_stream(clean_lines(text), headings)
+            if section != "Preamble"
+        ]
+        self.assertEqual(sections, ["~1", "~2"])
+
+    def test_a_counted_section_is_cited_by_its_heading_alone(self) -> None:
+        record = {
+            "section_id": "~29",
+            "heading": "D. Exceed TurboX License Model",
+            "section_path": "D. Exceed TurboX License Model",
+        }
+        self.assertEqual(citation_label(record), "D. Exceed TurboX License Model")
+        self.assertEqual(printed_section_id("~29"), "")
+        self.assertEqual(printed_section_id("4.2"), "4.2")
+        self.assertEqual(citation_label({"id": "r", "section_id": "4.2"}), "§4.2")
+
+    def test_clause_ids_do_not_change_when_the_marker_is_added(self) -> None:
+        # Identity keys on the unprefixed counter, so carried enrichment
+        # survives a re-ingest that only changed how sections are labelled.
+        text = "Heading One\n\nLicensee shall keep records of all use.\n"
+        marked, _ = parse_clauses(instrument(), text, headings={"Heading One": 1})
+        operative = [c for c in marked if c.heading == "Heading One"]
+        self.assertTrue(operative)
+        self.assertTrue(operative[0].section_id.startswith("~"))
+        self.assertEqual(operative[0].section_path, "Heading One")

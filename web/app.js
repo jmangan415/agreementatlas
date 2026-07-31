@@ -1901,7 +1901,9 @@ function renderInspector() {
   inspector.append(heading);
   const grid = element("div", "detail-grid");
   const details = [
-    ["Section", node.section],
+    // The document's own locator: printed number and heading where they
+    // exist, heading alone where the document never numbered the passage.
+    ["Where", node.section_path || node.section],
     ["Scope", node.scope],
     ["Effect", node.effect],
     ["Modality", node.modality],

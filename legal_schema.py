@@ -15,6 +15,25 @@ from typing import Any
 SCHEMA_VERSION = "3.0"
 SPACE = re.compile(r"\s+")
 
+# Section ids the parser invented rather than read. Documents whose headings
+# are typographic (bold letters, no numbers) still need distinct section keys,
+# so the parser counts headings -- but a counter is bookkeeping, not a citation,
+# and showing "Section 29" for a schedule that never prints a 29 claims
+# something the document does not say. Synthesised ids carry this prefix so
+# every consumer can tell them from numbers the document actually prints;
+# stable ids are always built from the unprefixed value, so clause identity
+# (and therefore carried enrichment) is unaffected.
+SYNTHETIC_SECTION_PREFIX = "~"
+
+
+def printed_section_id(value: str) -> str:
+    """The section id as the document prints it, or "" if the parser made it up."""
+
+    text = str(value or "").strip()
+    if text.startswith(SYNTHETIC_SECTION_PREFIX):
+        return ""
+    return text
+
 
 def normalise_text(value: str) -> str:
     return SPACE.sub(" ", value.replace("\u200b", "")).strip()

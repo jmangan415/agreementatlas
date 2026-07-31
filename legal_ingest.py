@@ -16,6 +16,7 @@ from markitdown import MarkItDown
 
 from legal_schema import (
     SCHEMA_VERSION,
+    SYNTHETIC_SECTION_PREFIX,
     AgreementFamily,
     Amendment,
     Clause,
@@ -30,6 +31,7 @@ from legal_schema import (
     Relationship,
     empty_scope,
     normalise_text,
+    printed_section_id,
     record,
     scope_label,
     stable_id,
@@ -846,7 +848,10 @@ def paragraph_stream(
             counters[level] += 1
             for deeper in [key for key in counters if key > level]:
                 counters.pop(deeper)
-            section = ".".join(
+            # This id is counted, not read: the document's heading carries no
+            # number, so the counter keeps sections distinct. The prefix marks
+            # it as ours -- displays must show the heading, never this number.
+            section = SYNTHETIC_SECTION_PREFIX + ".".join(
                 str(counters[key]) for key in sorted(counters) if key <= level
             )
             heading = line.rstrip(".")
@@ -1034,18 +1039,22 @@ def parse_clauses(
     ) -> Clause:
         nonlocal sequence
         sequence += 1
-        section_counts[section] += 1
+        # Ids and repeat counts key on the unprefixed section: synthetic ids
+        # existed before they were marked, and clause identity must not change
+        # underneath carried enrichment because a display marker was added.
+        key_section = section.removeprefix(SYNTHETIC_SECTION_PREFIX)
+        section_counts[key_section] += 1
         # A repeat suffix written as "1.2" is indistinguishable from the real
         # subsection 1.2 the document also has, so it both mislabels this clause
         # and shadows that one in cross-reference lookup. Parenthesise it: no
         # agreement numbers a section "1 (2)", so nothing can collide with it.
         display_section = printed_section(value) or (
             section
-            if section_counts[section] == 1
-            else f"{section} ({section_counts[section]})"
+            if section_counts[key_section] == 1
+            else f"{section} ({section_counts[key_section]})"
         )
         clause_id = stable_id(
-            "clause", instrument.id, section, kind, list_label, compact(value)
+            "clause", instrument.id, key_section, kind, list_label, compact(value)
         )
         if clause_id in issued_clause_ids:
             # Boilerplate repeats: the same sentence under the same section
@@ -1058,7 +1067,7 @@ def parse_clauses(
                 candidate = stable_id(
                     "clause",
                     instrument.id,
-                    section,
+                    key_section,
                     kind,
                     list_label,
                     compact(value),
@@ -1076,7 +1085,9 @@ def parse_clauses(
             family_id=instrument.family_id,
             source=instrument.source,
             section_id=display_section,
-            section_path=f"{section} {heading}".strip(),
+            # The path a reader would follow: the printed number when there is
+            # one, otherwise the heading alone -- never the counter.
+            section_path=f"{printed_section_id(section)} {heading}".strip(),
             heading=heading,
             sequence=sequence,
             text=compact(value),
@@ -1123,7 +1134,12 @@ def parse_clauses(
             continue
         chapeau_text, items = split_list_group(paragraph)
         if items:
-            group_id = stable_id("list", instrument.id, section, paragraph)
+            group_id = stable_id(
+                "list",
+                instrument.id,
+                section.removeprefix(SYNTHETIC_SECTION_PREFIX),
+                paragraph,
+            )
             chapeau = add_clause(
                 section,
                 heading,
@@ -3597,15 +3613,17 @@ def canonical_graph(
             }
         )
     for clause in clauses:
+        printed = printed_section_id(clause.section_id)
         nodes.append(
             {
                 "id": clause.id,
-                "label": f"{clause.section_id} — {clause.heading}",
+                "label": f"{printed} — {clause.heading}" if printed else clause.heading,
                 "type": "clause",
                 "description": clause.text,
                 "document_id": clause.document_id,
                 "source": clause.source,
-                "section": clause.section_id,
+                "section": printed,
+                "section_path": clause.section_path,
                 "scope": scope_label(clause.scope),
                 "clause_kind": clause.clause_kind,
                 "evidence_span_ids": clause.evidence_span_ids,
@@ -3633,7 +3651,7 @@ def canonical_graph(
                 "document_id": rule.document_id,
                 "clause_id": rule.clause_id,
                 "source": rule.source,
-                "section": rule.section_id,
+                "section": printed_section_id(rule.section_id),
                 "section_path": rule.section_path,
                 "scope": scope_label(rule.scope),
                 "structured_scope": rule.scope,

@@ -86,6 +86,8 @@ def snapshot_family(args) -> int:
         "enriched": (staging / "legal" / "lm_rules.jsonl").is_file(),
         "embedding_records": sum(1 for _ in index.open()) if index.is_file() else 0,
     }
+    if args.source_url:
+        manifest["source_url"] = args.source_url
     if args.questions_file:
         manifest["questions"] = json.loads(
             args.questions_file.read_text(encoding="utf-8")
@@ -113,6 +115,11 @@ def main() -> int:
     parser.add_argument("--name", default="", help="Manifest name for the bundle.")
     parser.add_argument(
         "--headline", default="", help="One-line description shown on the demo page."
+    )
+    parser.add_argument(
+        "--source-url",
+        default="",
+        help="Where the published agreements can be read; shown as the sample's source link.",
     )
     parser.add_argument(
         "--questions-file",
