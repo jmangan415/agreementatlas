@@ -57,7 +57,7 @@
             <span class="eyebrow">LIBRARY</span>
             <h1>Agreement families</h1>
           </div>
-          <button id="newFamilyButton" type="button" class="secondary-button">New family</button>
+          <button id="newFamilyButton" type="button" class="secondary-button">New agreement family</button>
         </div>
         <form id="newFamilyForm" class="inline-form" hidden>
           <label for="newFamilyName">Name this agreement family</label>
@@ -82,12 +82,18 @@
         <span id="fileCount" class="count">0 / 12</span>
       </div>
 
+      <div id="sampleLock" class="sample-lock" hidden>
+        <strong>This sample is read-only.</strong>
+        <span>Create your own agreement family to upload agreements.</span>
+        <button id="sampleLockNew" type="button" class="secondary-button">New agreement family</button>
+      </div>
       <label class="drop-zone" id="dropZone">
         <input id="fileInput" type="file" multiple accept=".pdf,.txt,.md,.csv,.xls,.xlsx,.docx,.pptx">
         <span class="upload-mark" aria-hidden="true">↑</span>
         <strong>Add agreements</strong>
         <span>Master terms, orders, addenda, DPAs and schedules</span>
         <small>Up to 12 files · 50 MB total</small>
+        <small id="uploadPrivacyNote" class="upload-privacy" hidden></small>
       </label>
       <label id="publicConfirm" class="confirm-row" hidden>
         <input id="uploadConsent" type="checkbox">
@@ -97,34 +103,32 @@
 
       <div id="documentList" class="document-list" aria-live="polite"></div>
       <div class="usage">
-        <div><span>Session storage</span><span id="usageText">0 MB / 50 MB</span></div>
+        <div><span>Family storage</span><span id="usageText">0 MB / 50 MB</span></div>
         <div class="meter"><span id="usageBar"></span></div>
       </div>
 
-      <section class="model-card">
+      <section id="enrichCard" class="model-card" hidden>
         <div class="card-title">
           <span>Local AI enrichment</span>
           <span id="enrichState" class="mini-pill">Not started</span>
         </div>
-        <label for="modelSelect">LM Studio model</label>
-        <select id="modelSelect" aria-label="LM Studio model">
+        <label for="modelSelect" class="model-choice">LM Studio model</label>
+        <select id="modelSelect" class="model-choice" aria-label="LM Studio model">
           <option value="">No local model available</option>
         </select>
-        <button id="enrichButton" class="primary-button" disabled>Enrich legal rules</button>
+        <button id="enrichButton" class="primary-button" disabled>AI-enrich this family</button>
         <div class="progress-track" aria-hidden="true"><span id="enrichProgress"></span></div>
         <p id="enrichMessage" class="inline-status">Deterministic rules appear immediately; AI enrichment is optional.</p>
       </section>
 
-      <section class="privacy-card">
-        <div><strong id="retentionTitle">Temporary by design</strong><span id="expiryText">Deleted within 6 hours</span></div>
-        <p id="retentionNote">AgreementAtlas uses a strictly necessary session cookie to isolate your files. Local mode does not send agreement text to a cloud model.</p>
+      <footer class="workspace-footer">
         <p id="buildProvenance" class="inline-status"></p>
         <div class="privacy-links">
           <a href="/privacy.html">Privacy</a>
           <a href="/terms.html">Terms</a>
           <button id="deleteButton" class="text-button danger">Delete my documents</button>
         </div>
-      </section>
+      </footer>
     </aside>
 
     <main class="graph-panel">
@@ -165,6 +169,8 @@
         </div>
       </div>
 
+      <div id="inspectorGrip" class="inspector-grip" role="separator" aria-orientation="horizontal"
+           aria-label="Resize the evidence panel" title="Drag to resize · double-click to reset"><span></span></div>
       <section id="nodeInspector" class="node-inspector" aria-live="polite">
         <div class="inspector-placeholder">
           <span class="eyebrow">EVIDENCE + CLAUSE ANATOMY</span>

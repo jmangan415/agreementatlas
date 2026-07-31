@@ -385,6 +385,24 @@ class AgreementAtlasAPITests(unittest.TestCase):
         status, _, payload = self.request("GET", "/api/status" + family)
         self.assertEqual(len(json.loads(payload)["documents"]), 2)
 
+    def test_public_upload_is_blocked_only_for_samples(self) -> None:
+        # Local mode may grow a sample copy; the read-only guard is public-only.
+        family = self.new_session()
+        root = app.library_store.get(family.split("=")[1]).root
+        (root / app.SAMPLE_MARKER).write_text("Sample", encoding="utf-8")
+        content_type, body = multipart([("extra.md", b"# Extra\n\n1. A\n\nB.")])
+        status, _, payload = self.request(
+            "POST",
+            "/api/upload" + family,
+            body=body,
+            headers={
+                "Content-Type": content_type,
+                "Content-Length": str(len(body)),
+                "X-AgreementAtlas-Request": "1",
+            },
+        )
+        self.assertEqual(status, 201, payload)
+
     def test_removing_a_document_removes_what_was_extracted_from_it(self) -> None:
         # The opposite guarantee: the graph must never cite a document that is
         # no longer in the family.
@@ -419,6 +437,231 @@ class AgreementAtlasAPITests(unittest.TestCase):
 
         prune_stale_enrichment(root)
         self.assertEqual(rules_path.read_text(encoding="utf-8").strip(), "")
+
+
+class PublicDemoFamilyTests(unittest.TestCase):
+    """The public demo's session-scoped family library.
+
+    Every visitor session holds its own library: the shipped samples arrive
+    pre-installed and read-only, the visitor's own families are theirs alone,
+    and deleting the session removes all of it.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.temporary = tempfile.TemporaryDirectory()
+        base = Path(cls.temporary.name)
+        for slug, name in (("alpha", "Alpha sample"), ("beta", "Beta sample")):
+            bundle = base / "bundles" / slug
+            (bundle / "legal").mkdir(parents=True)
+            (bundle / "sources").mkdir()
+            (bundle / "output").mkdir()
+            (bundle / "sources" / f"{slug}.md").write_text(
+                "# Sample\n\n1. Scope\n\nProvider may host data.", encoding="utf-8"
+            )
+            (bundle / "legal" / "documents.jsonl").write_text(
+                json.dumps({"id": f"doc:{slug}", "source": f"{slug}.md", "title": name})
+                + "\n",
+                encoding="utf-8",
+            )
+            (bundle / "legal" / "lm_rules.jsonl").write_text("", encoding="utf-8")
+            (bundle / "output" / "legal_relationship_graph.json").write_text(
+                '{"nodes": [], "relationships": []}', encoding="utf-8"
+            )
+            (bundle / "demo.json").write_text(
+                json.dumps(
+                    {
+                        "name": name,
+                        "enriched": True,
+                        "questions": ["What may Provider do?"],
+                        "source_url": "https://example.com/agreements",
+                    }
+                ),
+                encoding="utf-8",
+            )
+        cls.originals = {
+            "session_store": app.session_store,
+            "rate_limiter": app.rate_limiter,
+            "lm_client": app.lm_client,
+            "lm_slots": app.lm_slots,
+            "persistent": app.PERSISTENT,
+            "demo_root": app.DEMO_ROOT,
+            "demo_order": app.DEMO_ORDER,
+        }
+        app.session_store = SessionStore(base / "sessions", ttl_seconds=3600)
+        app.rate_limiter = RateLimiter()
+        app.lm_client = FakeLMStudioClient()
+        app.lm_slots = threading.BoundedSemaphore(1)
+        app.lm_status_cache = (0.0, {})
+        app.jobs.clear()
+        app.session_libraries.clear()
+        app.PERSISTENT = False
+        app.DEMO_ROOT = base / "bundles"
+        app.DEMO_ORDER = ("alpha", "beta")
+        cls.server = app.create_server("127.0.0.1", 0)
+        cls.port = cls.server.server_address[1]
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join(timeout=3)
+        app.session_store = cls.originals["session_store"]
+        app.rate_limiter = cls.originals["rate_limiter"]
+        app.lm_client = cls.originals["lm_client"]
+        app.lm_slots = cls.originals["lm_slots"]
+        app.PERSISTENT = cls.originals["persistent"]
+        app.DEMO_ROOT = cls.originals["demo_root"]
+        app.DEMO_ORDER = cls.originals["demo_order"]
+        app.jobs.clear()
+        app.session_libraries.clear()
+        cls.temporary.cleanup()
+
+    request = AgreementAtlasAPITests.request
+    cookie = staticmethod(AgreementAtlasAPITests.cookie)
+
+    def json_post(
+        self, path: str, payload: dict, cookie: str
+    ) -> tuple[int, dict[str, str], bytes]:
+        body = json.dumps(payload).encode()
+        return self.request(
+            "POST",
+            path,
+            body=body,
+            headers={
+                "Content-Type": "application/json",
+                "Content-Length": str(len(body)),
+                "X-AgreementAtlas-Request": "1",
+            },
+            cookie=cookie,
+        )
+
+    def open_session(self) -> tuple[str, dict]:
+        status, headers, payload = self.request("GET", "/api/status")
+        self.assertEqual(status, 200)
+        return self.cookie(headers), json.loads(payload)
+
+    def test_samples_arrive_preinstalled_and_read_only(self) -> None:
+        cookie, first = self.open_session()
+        self.assertFalse(first["persistent"])
+        self.assertIsNone(first["family"])
+        self.assertGreater(first["session"]["expires_at"], 0)
+        names = {item["name"] for item in first["families"]}
+        self.assertEqual(names, {"Alpha sample", "Beta sample"})
+        self.assertTrue(all(item["is_sample"] for item in first["families"]))
+        self.assertTrue(all(item["enriched"] for item in first["families"]))
+        self.assertEqual(first["sample_family"], "Alpha sample")
+
+        sample_id = first["families"][0]["id"]
+        status, _, payload = self.request(
+            "GET", f"/api/status?family={sample_id}", cookie=cookie
+        )
+        selected = json.loads(payload)
+        self.assertEqual(status, 200)
+        self.assertTrue(selected["family"]["is_sample"])
+        self.assertEqual(len(selected["documents"]), 1)
+
+        content_type, body = multipart([("own.md", b"# Own\n\n1. A\n\nB.")])
+        status, _, payload = self.request(
+            "POST",
+            f"/api/upload?family={sample_id}",
+            body=body,
+            headers={
+                "Content-Type": content_type,
+                "Content-Length": str(len(body)),
+                "X-AgreementAtlas-Request": "1",
+            },
+            cookie=cookie,
+        )
+        self.assertEqual(status, 409)
+        self.assertEqual(json.loads(payload)["code"], "sample_family")
+
+    def test_own_families_are_session_scoped_capped_and_enrichable(self) -> None:
+        cookie, _ = self.open_session()
+        status, _, payload = self.json_post(
+            "/api/families", {"name": "My uploads"}, cookie
+        )
+        self.assertEqual(status, 201, payload)
+        own = json.loads(payload)
+        self.assertFalse(own["is_sample"])
+
+        content_type, body = multipart(
+            [
+                (
+                    "own-agreement.md",
+                    b"# Own Agreement\n\n1. Security\n\n"
+                    b"Customer must protect credentials.",
+                )
+            ]
+        )
+        status, _, payload = self.request(
+            "POST",
+            f"/api/upload?family={own['id']}",
+            body=body,
+            headers={
+                "Content-Type": content_type,
+                "Content-Length": str(len(body)),
+                "X-AgreementAtlas-Request": "1",
+            },
+            cookie=cookie,
+        )
+        self.assertEqual(status, 201, payload)
+
+        status, _, payload = self.json_post(
+            f"/api/enrich?family={own['id']}", {"model": "local-test-model"}, cookie
+        )
+        self.assertEqual(status, 202, payload)
+        result = {}
+        for _ in range(30):
+            status, _, payload = self.request(
+                "GET", f"/api/enrich/status?family={own['id']}", cookie=cookie
+            )
+            result = json.loads(payload)
+            if result["state"] != "running":
+                break
+            time.sleep(0.05)
+        self.assertEqual(result["state"], "complete", result)
+        status, _, payload = self.request(
+            "GET", f"/api/status?family={own['id']}", cookie=cookie
+        )
+        self.assertTrue(json.loads(payload)["family"]["enriched"])
+
+        # The cap counts the visitor's own families, never the samples.
+        for index in range(2):
+            status, _, payload = self.json_post(
+                "/api/families", {"name": f"Extra {index}"}, cookie
+            )
+            self.assertEqual(status, 201, payload)
+        status, _, payload = self.json_post("/api/families", {"name": "Over"}, cookie)
+        self.assertEqual(status, 409)
+        self.assertEqual(json.loads(payload)["code"], "family_limit")
+
+        # A different visitor sees fresh samples and none of these families.
+        other_cookie, other = self.open_session()
+        self.assertNotEqual(other_cookie, cookie)
+        self.assertEqual(
+            {item["name"] for item in other["families"]},
+            {"Alpha sample", "Beta sample"},
+        )
+
+    def test_deleting_the_session_removes_every_family(self) -> None:
+        cookie, first = self.open_session()
+        status, _, payload = self.json_post(
+            "/api/families", {"name": "Short lived"}, cookie
+        )
+        self.assertEqual(status, 201)
+        status, headers, payload = self.request(
+            "DELETE",
+            "/api/session",
+            headers={"X-AgreementAtlas-Request": "1"},
+            cookie=cookie,
+        )
+        self.assertEqual(status, 200, payload)
+        self.assertIn("Max-Age=0", headers["set-cookie"])
+        session_id = cookie.split("=", 1)[1]
+        self.assertFalse((Path(app.session_store.root) / session_id).exists())
 
 
 if __name__ == "__main__":

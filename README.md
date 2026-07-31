@@ -139,8 +139,11 @@ already extracted by the model**: clause identity is derived from the document,
 not from family membership, so only the new document's clauses are enriched.
 Removing a document removes what was extracted from it.
 
-`APP_MODE=public-demo` is unchanged -- ephemeral, cookie-isolated workspaces that
-expire after `SESSION_TTL_HOURS`. `data/` is gitignored; never commit it.
+`APP_MODE=public-demo` gives each visitor an ephemeral, cookie-isolated family
+library of their own: the shipped sample bundles arrive pre-enriched and
+read-only, the visitor can create a few families beside them, and everything
+expires together after `SESSION_TTL_HOURS`. `data/` is gitignored; never
+commit it.
 
 ## Configuration
 
@@ -182,12 +185,17 @@ exposing any upload route.
 The browser uses these session-scoped endpoints:
 
 - `GET /api/status`
+- `GET`/`POST`/`PATCH`/`DELETE /api/families`
 - `POST /api/upload`
 - `GET /api/graph?view=overview|detail`
 - `POST /api/enrich`
 - `GET /api/enrich/status`
 - `POST /api/query`
 - `DELETE /api/session`
+
+Workspace-scoped calls name their agreement family with a `?family=` query
+parameter in both modes; in the public demo the family list is scoped to the
+visitor's session.
 
 No response contains the absolute server workspace path. Mutation requests
 require the same-origin `X-AgreementAtlas-Request` header. See [API reference](docs/api.md).

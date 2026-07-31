@@ -143,7 +143,6 @@ function renderRuntime() {
   $("#modePill").textContent = state.status.privacy.mode === "public-demo"
     ? "Temporary public demo"
     : "Local processing";
-  $("#publicConfirm").hidden = state.status.privacy.mode !== "public-demo";
 
   const select = $("#modelSelect");
   const selected = select.value || localModel.selected_model;
@@ -171,6 +170,19 @@ function renderRuntime() {
 function renderEnrichment() {
   const job = state.status.enrichment;
   const running = job.state === "running";
+  const coverageState = (state.status.enrichment_coverage || {}).state || "none";
+  // The card is an invitation, not a dashboard: it appears while there is
+  // AI enrichment left to run (or running), and leaves once the family is
+  // fully enriched -- the family list and provenance line carry the status.
+  const card = $("#enrichCard");
+  if (card) {
+    card.hidden =
+      !state.status.documents.length || (coverageState === "complete" && !running);
+    card.classList.toggle(
+      "single-model",
+      (state.status.lmstudio.models || []).length <= 1
+    );
+  }
   const canEnrich = Boolean(
     state.status.documents.length &&
     state.status.lmstudio.available &&
@@ -178,9 +190,9 @@ function renderEnrichment() {
     !running
   );
   $("#enrichButton").disabled = !canEnrich;
-  $("#enrichButton").textContent = state.status.enriched
-    ? "Re-run AI enrichment"
-    : "Enrich legal rules";
+  $("#enrichButton").textContent = coverageState === "partial"
+    ? "Continue AI enrichment"
+    : "AI-enrich this family";
   const labels = {
     idle: "Not started",
     running: "Running",
@@ -236,20 +248,36 @@ function stamp(seconds) {
     : value.toLocaleDateString([], { day: "numeric", month: "short" });
 }
 
-function renderExpiry() {
-  if (state.status.persistent) {
-    const family = state.status.family;
-    $("#retentionTitle").textContent = "Stored on this machine";
-    $("#expiryText").textContent = family ? `Updated ${stamp(family.updated_at)}` : "";
-    $("#retentionNote").textContent =
-      "Your agreements and AI enrichment are kept until you delete them. Nothing is sent to a cloud model.";
-    $("#deleteButton").textContent = "Delete this family";
-    return;
+function renderFooter() {
+  $("#deleteButton").textContent = state.status.persistent
+    ? "Delete this family"
+    : "Delete my documents";
+}
+
+// The retention story is told where it matters: at the moment of upload.
+// A visitor reading the drop zone learns their files are session-private and
+// when they will be deleted; a sample family swaps the drop zone for a plain
+// statement that samples are read-only and their own family is one click away.
+function renderUploadArea() {
+  const isPublic = !state.status.persistent;
+  const family = state.status.family;
+  const sampleSelected = Boolean(family && family.is_sample);
+  const lock = $("#sampleLock");
+  if (lock) lock.hidden = !(isPublic && sampleSelected);
+  $("#dropZone").hidden = isPublic && sampleSelected;
+  $("#publicConfirm").hidden = !isPublic || sampleSelected;
+  const note = $("#uploadPrivacyNote");
+  if (note) {
+    const expires = state.status.session.expires_at;
+    note.hidden = !(isPublic && expires);
+    if (isPublic && expires) {
+      const time = new Date(expires * 1000).toLocaleTimeString([], {
+        hour: "2-digit", minute: "2-digit",
+      });
+      note.textContent =
+        `Private to this browser session · deleted automatically by ${time}`;
+    }
   }
-  const expires = new Date(state.status.session.expires_at * 1000);
-  $("#expiryText").textContent = `Auto-delete ${expires.toLocaleTimeString([], {
-    hour: "2-digit", minute: "2-digit"
-  })}`;
 }
 
 function renderProvenance() {
@@ -267,12 +295,11 @@ function renderProvenance() {
 
 function renderLibrary() {
   const card = $("#libraryCard");
-  if (!state.status.persistent) {
-    card.hidden = true;
-    return;
-  }
-  card.hidden = false;
   const families = state.status.families || [];
+  // Public sessions carry families too now -- the two shipped samples plus
+  // whatever the visitor creates -- so the card earns its place in both modes.
+  card.hidden = !state.status.persistent && !families.length;
+  if (card.hidden) return;
   const list = $("#familyList");
   list.replaceChildren();
   if (!families.length) {
@@ -288,11 +315,11 @@ function renderLibrary() {
   const alphabetical = (a, b) =>
     a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   const groups = [
-    ["Samples", families.filter(isSample).sort(alphabetical)],
+    ["Pre-enriched samples", families.filter(isSample).sort(alphabetical)],
     ["Your agreement families", families.filter((f) => !isSample(f)).sort(alphabetical)],
   ];
   for (const [label, members] of groups) {
-    if (!members.length && label === "Samples") continue;
+    if (!members.length && label !== "Your agreement families") continue;
     list.appendChild(element("p", "family-group-label", label));
     if (!members.length) {
       // A new visitor owns nothing yet, and the empty state should say so
@@ -302,19 +329,35 @@ function renderLibrary() {
         element(
           "p",
           "inline-status",
-          "None yet — create a family and add your own agreements."
+          "None yet — create an agreement family and upload your own agreements."
         )
       );
       continue;
     }
     for (const family of members) {
-      const row = element("button", "family-row");
+      const row = element("div", "family-row");
       if (family.id === state.familyId) row.classList.add("is-active");
-      row.type = "button";
-      row.appendChild(element("span", "family-name", family.name));
+      const main = element("button", "family-main");
+      main.type = "button";
+      main.appendChild(element("span", "family-name", family.name));
       const count = `${family.document_count} document${family.document_count === 1 ? "" : "s"}`;
-      row.appendChild(element("span", "family-meta", family.enriched ? `${count} · enriched` : count));
-      row.addEventListener("click", () => selectFamily(family.id));
+      const enrichment = family.enriched ? "AI-enriched" : "not AI-enriched";
+      const meta = family.document_count ? `${count} · ${enrichment}` : "empty";
+      main.appendChild(element("span", "family-meta", meta));
+      main.addEventListener("click", () => selectFamily(family.id));
+      row.appendChild(main);
+      // The published agreements each sample was built from, one small link.
+      const catalogued = isSample(family)
+        ? (state.status.samples || []).find((item) => item.name === family.name)
+        : null;
+      if (catalogued && catalogued.source_url) {
+        const source = element("a", "family-source", "source ↗");
+        source.href = catalogued.source_url;
+        source.target = "_blank";
+        source.rel = "noopener noreferrer";
+        source.title = `Published source: ${catalogued.source_url}`;
+        row.appendChild(source);
+      }
       list.appendChild(row);
     }
   }
@@ -381,17 +424,23 @@ async function createFamily(name) {
 async function refreshStatus({ reloadGraph = false } = {}) {
   state.status = await api(withFamily("/api/status"));
   // The stored family may be gone, or this may be a browser that has never
-  // chosen one. Fall back to the most recently updated family rather than
-  // showing an empty workspace beside a library that clearly has contents.
+  // chosen one. Prefer the default sample the server names -- creation
+  // timestamps carry one-second resolution, so recency alone cannot promise
+  // the catalogue's default lands first -- then the most recent family.
   if (!state.status.family && (state.status.families || []).length) {
-    setFamilyId(state.status.families[0].id);
+    const families = state.status.families;
+    const preferred =
+      families.find((item) => item.name === state.status.sample_family) ||
+      families[0];
+    setFamilyId(preferred.id);
     state.status = await api(withFamily("/api/status"));
     reloadGraph = true;
   }
   renderLibrary();
   renderDocuments();
   renderRuntime();
-  renderExpiry();
+  renderFooter();
+  renderUploadArea();
   renderProvenance();
   renderSampleOffer();
   renderSuggestions();
@@ -466,6 +515,14 @@ function renderSuggestions() {
 function renderSampleOffer() {
   const offer = $("#sampleOffer");
   if (!offer) return;
+  if (!state.status.persistent && (state.status.families || []).length) {
+    // The public demo now keeps both samples as standing families in the
+    // library card; a second door to the same place would only confuse.
+    offer.hidden = true;
+    const shortcut = $("#loadSampleLibrary");
+    if (shortcut) shortcut.hidden = true;
+    return;
+  }
   const name = state.status.sample_family;
   const available = Boolean(name);
   // The sample now gets its own family rather than filling whichever one is
@@ -637,9 +694,9 @@ function createChatEmpty() {
   container.append(element("strong", "", "Try a focused question"));
   const host = element("div", "suggestions");
   host.id = "suggestions";
-  const sample = state.status && state.status.is_sample;
-  host.dataset.mode = sample ? "sample" : "generic";
-  host.append(...(sample ? SAMPLE_QUESTIONS : GENERIC_QUESTIONS).map(suggestionButton));
+  // Left unfilled on purpose: renderSuggestions owns which questions belong to
+  // the family on screen and runs on the refresh that always follows.
+  host.dataset.mode = "";
   container.append(host);
   return container;
 }
@@ -1610,6 +1667,10 @@ $("#resetView").addEventListener("click", () => {
   fitGraph();
 });
 $("#newFamilyButton").addEventListener("click", () => toggleFamilyForm(true));
+$("#sampleLockNew")?.addEventListener("click", () => {
+  toggleFamilyForm(true);
+  $("#libraryCard")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+});
 $("#newFamilyCancel").addEventListener("click", () => toggleFamilyForm(false));
 $("#newFamilyForm").addEventListener("submit", (event) => {
   event.preventDefault();
@@ -1620,6 +1681,52 @@ $("#newFamilyName").addEventListener("keydown", (event) => {
 });
 $("#graphSearch").addEventListener("input", drawGraph);
 new ResizeObserver(drawGraph).observe($("#graphStage"));
+
+// The boundary between the canvas and the evidence panel is the reader's to
+// place: sometimes the graph deserves the height, sometimes the clause being
+// read does. The grip drags the grid row, remembers the choice, and a
+// double-click hands the layout back to the stylesheet.
+(function inspectorSplitter() {
+  const grip = $("#inspectorGrip");
+  if (!grip) return;
+  const panel = document.querySelector(".graph-panel");
+  const KEY = "agreementatlas.inspectorHeight";
+  const clamp = (value) =>
+    Math.min(
+      Math.round(window.innerHeight * 0.65),
+      Math.max(90, Math.round(value))
+    );
+  const apply = (height) =>
+    panel.style.setProperty("--inspector-h", `${clamp(height)}px`);
+  const stored = Number(window.localStorage.getItem(KEY));
+  if (stored) apply(stored);
+  let drag = null;
+  grip.addEventListener("pointerdown", (event) => {
+    drag = {
+      y: event.clientY,
+      height: $("#nodeInspector").getBoundingClientRect().height,
+    };
+    grip.classList.add("dragging");
+    grip.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+  grip.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    const height = clamp(drag.height + (drag.y - event.clientY));
+    apply(height);
+    window.localStorage.setItem(KEY, String(height));
+  });
+  const release = () => {
+    drag = null;
+    grip.classList.remove("dragging");
+  };
+  grip.addEventListener("pointerup", release);
+  grip.addEventListener("pointercancel", release);
+  grip.addEventListener("dblclick", () => {
+    panel.style.removeProperty("--inspector-h");
+    window.localStorage.removeItem(KEY);
+  });
+})();
 
 // The canvas is the largest thing on screen and, until an evidence card was
 // clicked, it showed the same picture whatever was asked. An answer already

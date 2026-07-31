@@ -86,6 +86,32 @@ rate_limiter = RateLimiter()
 lm_client = LMStudioClient()
 lm_slots = threading.BoundedSemaphore(env_int("LMSTUDIO_MAX_CONCURRENT_JOBS", 1))
 
+# The public demo nests a family library inside every visitor session, so the
+# pre-built samples and the visitor's own uploads are separate workspaces that
+# share one six-hour lifetime. One store per session id, so concurrent requests
+# from the same visitor share one per-family lock table.
+MAX_PUBLIC_FAMILIES = env_int("MAX_PUBLIC_FAMILIES", 3)
+session_library_guard = threading.Lock()
+session_libraries: dict[str, LibraryStore] = {}
+
+
+def visitor_library(visitor: VisitorSession) -> LibraryStore:
+    with session_library_guard:
+        store = session_libraries.get(visitor.id)
+        if store is None:
+            store = LibraryStore(visitor.root / "families")
+            session_libraries[visitor.id] = store
+        return store
+
+
+def drop_visitor_libraries(session_ids: list[str]) -> None:
+    if not session_ids:
+        return
+    with session_library_guard:
+        for session_id in session_ids:
+            session_libraries.pop(session_id, None)
+
+
 # name -> (mtime_ns, digest). Recomputed only when the file changes.
 ASSET_VERSIONS: dict[str, tuple[int, str]] = {}
 
@@ -264,12 +290,6 @@ def replace_workspace(root: Path, staging: Path) -> None:
     restore_effective_graph(root)
 
 
-def workspace_store():
-    """Whichever store owns workspaces in this mode."""
-
-    return library_store if PERSISTENT else session_store
-
-
 DEMO_ROOT = Path(
     os.environ.get("DEMO_BUNDLES", "") or (ROOT / "samples" / "demo_bundles")
 )
@@ -313,9 +333,7 @@ def demo_manifests() -> dict[str, dict]:
         if isinstance(value, dict):
             found[directory.name] = value
     return {
-        slug: found[slug]
-        for slug in (*DEMO_ORDER, *sorted(found))
-        if slug in found
+        slug: found[slug] for slug in (*DEMO_ORDER, *sorted(found)) if slug in found
     }
 
 
@@ -325,7 +343,6 @@ def demo_manifest() -> dict:
     for manifest in demo_manifests().values():
         return manifest
     return {}
-
 
 
 def sample_catalogue() -> list[dict]:
@@ -342,28 +359,24 @@ def sample_catalogue() -> list[dict]:
             "clauses": manifest.get("clauses", 0),
             "definitions": manifest.get("definitions", 0),
             "enriched": bool(manifest.get("enriched")),
-            "questions": [
-                str(item) for item in manifest.get("questions", [])[:8]
-            ],
+            "questions": [str(item) for item in manifest.get("questions", [])[:8]],
         }
         for slug, manifest in demo_manifests().items()
     ]
 
 
 def autoload_sample(visitor) -> None:
-    """Put the current sample in front of a visitor who has nothing else.
+    """Give a first-time visitor both sample families, ready to explore.
 
-    Two problems, one cause. A first-time visitor landed on an empty workspace
-    and had to find a button before the product did anything. And when the
-    bundle was replaced, every session already holding the old one was stranded:
-    the offer to load a sample is hidden as soon as any document exists, so
-    there was no route from the previous sample to the current one short of
-    deleting your own session.
+    A public visitor lands on a session whose library is empty, and the terms
+    correctly tell them not to upload a real agreement -- so without this,
+    everything the product does is invisible to anyone unwilling to hand over
+    a contract. Each installed bundle becomes its own pre-enriched family; the
+    visitor's own uploads go into families they create beside these.
 
-    Loading it here removes both. It runs on the status call, which is the first
-    thing the interface asks for, and it is skipped the moment the workspace
-    holds anything that is not a stale sample -- an uploaded document is never
-    replaced.
+    It runs on the status call, which is the first thing the interface asks
+    for, and only while the session's library is completely empty: a visitor
+    who deletes a sample family has said they do not want it back.
     """
 
     if PERSISTENT:
@@ -371,42 +384,33 @@ def autoload_sample(visitor) -> None:
     manifests = demo_manifests()
     if not manifests:
         return
-    marker = visitor.root / SAMPLE_MARKER
-    sources = visitor.root / "sources"
-    has_files = sources.is_dir() and any(item.is_file() for item in sources.iterdir())
-    if has_files:
-        if not marker.exists():
-            return
-        try:
-            current = marker.read_text(encoding="utf-8").strip()
-        except OSError:
-            return
-        # Any currently-installed sample is fine where it is: a visitor who
-        # chose the second bundle must not be flipped back to the first on
-        # their next status call.
-        if current in {
-            str(item.get("name", "")).strip() for item in manifests.values()
-        }:
-            return
-    try:
-        load_demo_family(visitor)
-    except APIError:
-        # A missing or half-installed bundle must not stop the page loading;
-        # the interface already copes with an empty workspace.
+    library = visitor_library(visitor)
+    if library.list():
         return
+    # Install in reverse catalogue order: the list the interface shows is
+    # most-recently-touched first, so the catalogue's default bundle must be
+    # the last one created here.
+    for slug in reversed(list(manifests)):
+        try:
+            family = library.create(str(manifests[slug].get("name", slug)))
+            with library.lock_for(family.id):
+                install_bundle(family.root, slug)
+        except (APIError, OSError):
+            # A missing or half-installed bundle must not stop the page
+            # loading; the interface copes with whatever families exist.
+            continue
 
 
-def load_demo_family(visitor, slug: str = "") -> dict:
-    """Copy a prebuilt sample family into this visitor's workspace.
-
-    The public demo has no shared library by design, so without this a visitor
-    arrives at an empty workspace inviting them to upload an agreement -- which
-    the terms tell them not to do. Everything the product does was therefore
-    invisible to anyone unwilling to hand over a contract.
+def install_bundle(root: Path, slug: str = "") -> dict:
+    """Copy a prebuilt sample bundle into a workspace, replacing its contents.
 
     The bundle is already parsed, enriched and embedded, so this is a file copy
     rather than minutes of model work, and it cannot be used to skip the
     enrichment rate limit: nothing here calls the model.
+
+    Replace rather than merge. Merging a prebuilt graph into whatever the
+    workspace already held would produce a family whose precedence rules span
+    two unrelated agreements and answer questions about neither.
     """
 
     manifests = demo_manifests()
@@ -425,31 +429,34 @@ def load_demo_family(visitor, slug: str = "") -> dict:
     if not source.is_dir():
         raise APIError(503, "no_demo", "The sample family is incomplete.")
 
-    # Replace rather than merge. Merging a prebuilt graph into whatever the
-    # visitor already uploaded would produce a family whose precedence rules
-    # span two unrelated agreements and answer questions about neither.
     for name in ("legal", "sources", "input", "output"):
-        target = visitor.root / name
+        target = root / name
         if target.exists():
             shutil.rmtree(target, ignore_errors=True)
     for name in ("legal", "sources", "input", "output"):
         origin = bundle / name
         if origin.is_dir():
-            shutil.copytree(origin, visitor.root / name)
+            shutil.copytree(origin, root / name)
 
     # Mark the workspace so the interface can say so. The client used to infer
     # it by testing whether a document name began with "01-BASE_EULA_UK-Ireland",
     # which broke silently the moment the bundle was renamed and could never
     # distinguish the sample from a visitor's own upload of a similarly named
     # file. A marker written where the copy happens cannot drift from it.
-    (visitor.root / SAMPLE_MARKER).write_text(
+    (root / SAMPLE_MARKER).write_text(
         manifest.get("name", "Sample family"), encoding="utf-8"
     )
+    return manifest
 
+
+def load_demo_family(visitor, slug: str = "") -> dict:
+    """Install a sample bundle into this workspace and describe the result."""
+
+    manifest = install_bundle(visitor.root, slug)
     status = schema_status(visitor.root)
     return {
         "loaded": True,
-        "slug": chosen,
+        "slug": slug or next(iter(demo_manifests())),
         "name": manifest.get("name", "Sample family"),
         "documents": workspace_documents(visitor.root),
         "clauses": manifest.get("clauses", 0),
@@ -460,7 +467,14 @@ def load_demo_family(visitor, slug: str = "") -> dict:
     }
 
 
-def ingest_uploads(visitor, uploaded: list[tuple[str, bytes]]) -> dict:
+def ingest_uploads(visitor, uploaded: list[tuple[str, bytes]], store) -> dict:
+    if not PERSISTENT and (visitor.root / SAMPLE_MARKER).exists():
+        raise APIError(
+            409,
+            "sample_family",
+            "Samples are read-only here. Create your own agreement family to "
+            "upload agreements.",
+        )
     if len(uploaded) > MAX_FILES:
         raise APIError(
             413, "file_count", f"A session can contain at most {MAX_FILES} files."
@@ -484,7 +498,6 @@ def ingest_uploads(visitor, uploaded: list[tuple[str, bytes]]) -> dict:
         prepared.append((name, content))
         names.add(name)
 
-    store = workspace_store()
     with store.lock_for(visitor.id):
         active = store.get(visitor.id)
         if not active:
@@ -546,16 +559,16 @@ def ingest_uploads(visitor, uploaded: list[tuple[str, bytes]]) -> dict:
                 "conversion_failed",
                 "One or more files could not be safely converted. The existing session was unchanged.",
             ) from None
-    if PERSISTENT:
-        current = library_store.get(visitor.id)
+    if isinstance(store, LibraryStore):
+        current = store.get(visitor.id)
         if current and current.name in {"", "Untitled family"}:
             # An unnamed family takes the name the ingest derived for it, so the
             # sidebar reads as documents rather than as "Untitled family (3)".
             families = read_jsonl(active.root / "legal" / "agreement_families.jsonl")
             derived = str(families[0].get("title", "")) if families else ""
-            library_store.update(visitor.id, name=derived or "Untitled family")
+            store.update(visitor.id, name=derived or "Untitled family")
         else:
-            library_store.touch(visitor.id)
+            store.touch(visitor.id)
     return {
         "saved": [{"name": name, "size": len(content)} for name, content in prepared],
         "legal_index": summary,
@@ -676,7 +689,7 @@ def cancel_jobs(session_ids: list[str]) -> None:
                 jobs[session_id]["cancel_requested"] = True
 
 
-def start_enrichment(visitor, model: str) -> dict:
+def start_enrichment(visitor, model: str, store) -> dict:
     with job_guard:
         current = jobs.get(visitor.id)
         if current and current.get("state") == "running":
@@ -705,9 +718,10 @@ def start_enrichment(visitor, model: str) -> dict:
         }
 
     def is_cancelled() -> bool:
-        # A family that has been deleted mid-run must stop the job, but the
-        # session store knows nothing about families -- ask the right one.
-        if not workspace_store().is_active(visitor.id):
+        # A family that has been deleted mid-run must stop the job -- and in
+        # public mode a family vanishes with its session, so asking the store
+        # that owns this workspace covers expiry too.
+        if not store.is_active(visitor.id):
             return True
         with job_guard:
             value = jobs.get(visitor.id, {})
@@ -732,8 +746,8 @@ def start_enrichment(visitor, model: str) -> dict:
                 progress=progress,
                 cancelled=is_cancelled,
             )
-            if PERSISTENT and library_store.get(visitor.id):
-                library_store.update(visitor.id, enriched=True, enrichment_model=model)
+            if isinstance(store, LibraryStore) and store.get(visitor.id):
+                store.update(visitor.id, enriched=True, enrichment_model=model)
             with job_guard:
                 value = jobs.get(visitor.id)
                 if value and value.get("id") == job_id:
@@ -804,11 +818,15 @@ class Handler(BaseHTTPRequestHandler):
     def ensure_session(self) -> VisitorSession:
         expired = session_store.cleanup_expired()
         cancel_jobs(expired)
+        drop_visitor_libraries(expired)
         visitor, created = session_store.get_or_create(self._cookie_value())
         self.visitor = visitor
         self.set_session_cookie = created
         self.clear_session_cookie = False
         return visitor
+
+    def family_param(self) -> str:
+        return parse_qs(urlparse(self.path).query).get("family", [""])[0]
 
     def selected_family(self):
         """The agreement family this request addresses, or None.
@@ -819,11 +837,23 @@ class Handler(BaseHTTPRequestHandler):
         """
 
         assert library_store is not None
-        value = parse_qs(urlparse(self.path).query).get("family", [""])[0]
-        return library_store.get(value)
+        return library_store.get(self.family_param())
 
     def require_family(self):
         family = self.selected_family()
+        if family is None:
+            raise APIError(
+                404, "no_family", "Select or create an agreement family first."
+            )
+        return family
+
+    def session_family(self, session):
+        """The family this request addresses inside the visitor's own library."""
+
+        return visitor_library(session).get(self.family_param())
+
+    def require_session_family(self, session):
+        family = self.session_family(session)
         if family is None:
             raise APIError(
                 404, "no_family", "Select or create an agreement family first."
@@ -835,7 +865,16 @@ class Handler(BaseHTTPRequestHandler):
 
         if PERSISTENT:
             return self.require_family()
-        return self.ensure_session()
+        session = self.ensure_session()
+        self.visitor_session = session
+        return self.require_session_family(session)
+
+    def owning_store(self):
+        """The store that holds this request's workspace."""
+
+        if PERSISTENT:
+            return library_store
+        return visitor_library(self.visitor_session)
 
     def client_key(self) -> str:
         value = self.client_address[0]
@@ -985,20 +1024,22 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get("X-AgreementAtlas-Request") != "1":
             raise APIError(403, "request_origin", "The request could not be verified.")
 
-    def empty_status_payload(self) -> dict:
+    def empty_status_payload(self, session=None) -> dict:
         """What the interface shows before any family is selected."""
 
+        library = library_store if PERSISTENT else visitor_library(session)
         return {
-            "persistent": True,
-            "families": [sample_flagged(item) for item in library_store.list()],
+            "persistent": PERSISTENT,
+            "families": [sample_flagged(item) for item in library.list()],
             "family": None,
             "session": {
-                "expires_at": 0,
-                "retention_hours": 0,
+                "expires_at": getattr(session, "expires_at", 0),
+                "retention_hours": 0 if PERSISTENT else SESSION_TTL_HOURS,
                 "file_count": 0,
                 "file_limit": MAX_FILES,
                 "total_bytes": 0,
                 "byte_limit": MAX_TOTAL_BYTES,
+                "own_family_limit": 0 if PERSISTENT else MAX_PUBLIC_FAMILIES,
             },
             "documents": [],
             "graph_ready": False,
@@ -1026,33 +1067,31 @@ class Handler(BaseHTTPRequestHandler):
             "privacy": {
                 "mode": APP_MODE,
                 "operator": OPERATOR_NAME,
-                "retention_hours": 0,
+                "retention_hours": 0 if PERSISTENT else SESSION_TTL_HOURS,
                 "cloud_inference": False,
             },
         }
 
-    def status_payload(self, visitor) -> dict:
+    def status_payload(self, visitor, session=None) -> dict:
         file_count, total_bytes = workspace_usage(visitor.root)
         build = schema_status(visitor.root)
         enrichment = enrichment_status(visitor.id)
         graph_path = visitor.root / "output" / "legal_relationship_graph.json"
+        library = library_store if PERSISTENT else visitor_library(session)
         return {
             "persistent": PERSISTENT,
-            "families": (
-                [sample_flagged(item) for item in library_store.list()]
-                if PERSISTENT
-                else []
-            ),
+            "families": [sample_flagged(item) for item in library.list()],
             "family": (
-                visitor.public_record() if hasattr(visitor, "public_record") else None
+                sample_flagged(visitor) if hasattr(visitor, "public_record") else None
             ),
             "session": {
-                "expires_at": getattr(visitor, "expires_at", 0),
+                "expires_at": getattr(session or visitor, "expires_at", 0),
                 "retention_hours": 0 if PERSISTENT else SESSION_TTL_HOURS,
                 "file_count": file_count,
                 "file_limit": MAX_FILES,
                 "total_bytes": total_bytes,
                 "byte_limit": MAX_TOTAL_BYTES,
+                "own_family_limit": 0 if PERSISTENT else MAX_PUBLIC_FAMILIES,
             },
             "documents": workspace_documents(visitor.root),
             "graph_ready": (
@@ -1106,14 +1145,24 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"status": "ok"})
                 return
             if path == "/api/families":
-                if not PERSISTENT:
-                    raise APIError(
-                        404, "not_available", "The library is disabled in demo mode."
+                if PERSISTENT:
+                    self.json_response(
+                        {
+                            "families": [
+                                sample_flagged(item) for item in library_store.list()
+                            ]
+                        }
                     )
+                    return
+                # Session-scoped: a visitor sees the shipped samples plus the
+                # families they created, never anyone else's.
+                visitor = self.ensure_session()
+                autoload_sample(visitor)
                 self.json_response(
                     {
                         "families": [
-                            sample_flagged(item) for item in library_store.list()
+                            sample_flagged(item)
+                            for item in visitor_library(visitor).list()
                         ]
                     }
                 )
@@ -1130,7 +1179,11 @@ class Handler(BaseHTTPRequestHandler):
                 visitor = self.ensure_session()
                 autoload_sample(visitor)
                 self.check_rate("status", visitor, limit=120, window=60)
-                self.json_response(self.status_payload(visitor))
+                family = self.session_family(visitor)
+                if family is None:
+                    self.json_response(self.empty_status_payload(session=visitor))
+                    return
+                self.json_response(self.status_payload(family, session=visitor))
                 return
             if path == "/api/graph":
                 visitor = self.ensure_workspace()
@@ -1164,13 +1217,28 @@ class Handler(BaseHTTPRequestHandler):
             self.require_same_origin_request()
             path = urlparse(self.path).path
             if path == "/api/families":
-                if not PERSISTENT:
-                    raise APIError(
-                        404, "not_available", "The library is disabled in demo mode."
-                    )
                 data = self.read_json()
-                family = library_store.create(clean_name(data.get("name", "")))
-                self.json_response(family.public_record(), 201)
+                if PERSISTENT:
+                    family = library_store.create(clean_name(data.get("name", "")))
+                    self.json_response(sample_flagged(family), 201)
+                    return
+                visitor = self.ensure_session()
+                self.check_rate("family", visitor, limit=10, window=60 * 60)
+                library = visitor_library(visitor)
+                own = [
+                    item
+                    for item in library.list()
+                    if not (item.root / SAMPLE_MARKER).exists()
+                ]
+                if len(own) >= MAX_PUBLIC_FAMILIES:
+                    raise APIError(
+                        409,
+                        "family_limit",
+                        "A session can hold at most "
+                        f"{MAX_PUBLIC_FAMILIES} of your own agreement families.",
+                    )
+                family = library.create(clean_name(data.get("name", "")))
+                self.json_response(sample_flagged(family), 201)
                 return
             visitor = self.ensure_workspace()
             if path == "/api/upload":
@@ -1179,15 +1247,19 @@ class Handler(BaseHTTPRequestHandler):
                 uploaded = parse_multipart_files(
                     self.headers.get("Content-Type", ""), body
                 )
-                self.json_response(ingest_uploads(visitor, uploaded), 201)
+                self.json_response(
+                    ingest_uploads(visitor, uploaded, self.owning_store()), 201
+                )
                 return
             if path == "/api/demo":
                 self.check_rate("demo", visitor, limit=6, window=10 * 60)
                 # The body is optional: the original client posts none, the
                 # sample picker names a bundle.
                 slug = ""
-                if self.headers.get("Content-Type", "").lower().startswith(
-                    "application/json"
+                if (
+                    self.headers.get("Content-Type", "")
+                    .lower()
+                    .startswith("application/json")
                 ):
                     slug = str(self.read_json().get("bundle", "")).strip()
                 self.json_response(load_demo_family(visitor, slug), 201)
@@ -1200,7 +1272,9 @@ class Handler(BaseHTTPRequestHandler):
                     )
                 data = self.read_json()
                 model = select_model(str(data.get("model", "")).strip())
-                self.json_response(start_enrichment(visitor, model), 202)
+                self.json_response(
+                    start_enrichment(visitor, model, self.owning_store()), 202
+                )
                 return
             if path == "/api/query":
                 self.check_rate("query", visitor, limit=20, window=10 * 60)
@@ -1312,12 +1386,18 @@ class Handler(BaseHTTPRequestHandler):
     def do_PATCH(self) -> None:
         try:
             self.require_same_origin_request()
-            if not PERSISTENT or urlparse(self.path).path != "/api/families":
+            if urlparse(self.path).path != "/api/families":
                 raise APIError(404, "not_found", "The API endpoint was not found.")
-            family = self.require_family()
+            if PERSISTENT:
+                family = self.require_family()
+                store = library_store
+            else:
+                session = self.ensure_session()
+                family = self.require_session_family(session)
+                store = visitor_library(session)
             self.check_rate("rename", family, limit=30, window=60 * 60)
             data = self.read_json()
-            renamed = library_store.rename(family.id, str(data.get("name", "")))
+            renamed = store.rename(family.id, str(data.get("name", "")))
             if renamed is None:
                 raise APIError(404, "no_family", "That agreement family is gone.")
             self.json_response(renamed.public_record())
@@ -1347,11 +1427,22 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"deleted": True})
                 return
             visitor = self.ensure_session()
+            if path == "/api/families":
+                family = self.require_session_family(visitor)
+                self.check_rate("delete", family, limit=12, window=60 * 60)
+                cancel_jobs([family.id])
+                visitor_library(visitor).delete(family.id)
+                self.json_response({"deleted": True})
+                return
             if path != "/api/session":
                 raise APIError(404, "not_found", "The API endpoint was not found.")
             self.check_rate("delete", visitor, limit=6, window=60 * 60)
-            cancel_jobs([visitor.id])
+            # "Delete my documents" is the whole session: every family the
+            # visitor holds, sample copies included, and any running job.
+            family_ids = [item.id for item in visitor_library(visitor).list()]
+            cancel_jobs([visitor.id, *family_ids])
             session_store.delete(visitor.id)
+            drop_visitor_libraries([visitor.id])
             self.clear_session_cookie = True
             self.set_session_cookie = False
             self.json_response({"deleted": True})
@@ -1417,7 +1508,13 @@ class Handler(BaseHTTPRequestHandler):
                 "{{RETENTION_HOURS}}": str(SESSION_TTL_HOURS),
                 "{{APP_MODE}}": html.escape(APP_MODE),
             }
-            for asset in ("app.js", "styles.css", "demo.js", "demo.css", "demo-graph.js"):
+            for asset in (
+                "app.js",
+                "styles.css",
+                "demo.js",
+                "demo.css",
+                "demo-graph.js",
+            ):
                 digest = self.asset_version(asset)
                 if digest:
                     replacements[f'"/{asset}"'] = f'"/{asset}?v={digest}"'

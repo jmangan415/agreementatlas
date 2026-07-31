@@ -10,12 +10,13 @@ port is forwarded.
 | port | mode | `/api/families` | what it is |
 |---|---|---|---|
 | **8000** | local | 200, lists all 16 | your development server, with `data/library` |
-| **8001** | public-demo | **404** | what the world sees |
+| **8001** | public-demo | **only sample families**, every entry `"is_sample": true` | what the world sees |
 
 `data/library/` holds licensed third-party agreements including the OpenText
-PDFs. **The tunnel points at 8001, never 8000.** In public-demo mode the library
-does not exist: every visitor gets a private workspace that expires after 6
-hours, and `/api/families` returns 404.
+PDFs. **The tunnel points at 8001, never 8000.** In public-demo mode there is
+no shared library: each visitor session carries its own family list — the two
+published sample bundles, pre-enriched and read-only, plus up to three families
+the visitor creates — and all of it expires together after 6 hours.
 
 ---
 
@@ -99,9 +100,13 @@ to anyone:
 
 ## Safety checks — run these after any change
 
-    # MUST be 404. If this ever returns 200, the tunnel is pointed at the
-    # wrong port and licensed agreements are public. Stop the tunnel at once.
-    curl -s -o /dev/null -w "%{http_code}\n" https://agreementatlas.com/api/families
+    # MUST print "OK: samples only". A fresh visitor may see only the shipped
+    # sample families. If this fails — any '"is_sample": false' entry, or the
+    # 16-family local library — the tunnel is pointed at the wrong port and
+    # licensed agreements are public. Stop the tunnel at once.
+    curl -s https://agreementatlas.com/api/families | python3 -c \
+      'import json,sys; f=json.load(sys.stdin)["families"]; \
+       assert f and all(x["is_sample"] for x in f) and len(f) <= 4, f; print("OK: samples only")'
 
     # MUST be 200
     curl -s -o /dev/null -w "%{http_code}\n" https://agreementatlas.com/
