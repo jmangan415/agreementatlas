@@ -2240,6 +2240,10 @@ DEONTIC_MATCH_BONUS = 0.001
 # than a discriminator, and promoting its definition buries the answer. Asked
 # outright what the term means, it is promoted regardless.
 PERVASIVE_TERM_SHARE = 0.25
+# How many definitions the chosen evidence relies on may accompany it. These
+# sit outside the evidence budget rather than inside it, so this is a bound on
+# how far the prompt may grow, not a share of it.
+DEFINITION_CLOSURE_LIMIT = 2
 
 
 def question_effects(question: str) -> set[str]:
@@ -2675,23 +2679,115 @@ def retrieve_evidence(
             return str(item.get("id", ""))
         return f"{record.get('instrument_id', '')}#{section}"
 
-    for item in ranked:
-        fingerprint = compact_text(item["text"]).casefold()
-        if not fingerprint or fingerprint in seen_text:
-            continue
-        seen_text.add(fingerprint)
-        clause = source_clause(item)
-        if per_clause[clause] >= per_clause_limit:
-            deferred.append(item)
-            continue
-        per_clause[clause] += 1
-        selected.append(item)
-        if len(selected) >= limit:
-            break
+    position = 0
+
+    def take(target: int) -> None:
+        """Fill up to `target` slots from the ranked list, resuming where the
+        last call stopped, and deferring passages over their source's cap."""
+
+        nonlocal position
+        while position < len(ranked) and len(selected) < target:
+            item = ranked[position]
+            position += 1
+            fingerprint = compact_text(item["text"]).casefold()
+            if not fingerprint or fingerprint in seen_text:
+                continue
+            seen_text.add(fingerprint)
+            clause = source_clause(item)
+            if per_clause[clause] >= per_clause_limit:
+                deferred.append(item)
+                continue
+            per_clause[clause] += 1
+            selected.append(item)
+
+    def relied_on_definitions(budget: int) -> list[dict]:
+        """The definitions the chosen passages themselves turn on.
+
+        A clause that says Named Users may not be shared is half a rule until
+        the reader is told what a Named User is, and the reader who has to ask
+        is the one who does not know the vocabulary. Two routes to a definition
+        already exist and neither is a guarantee: the exact-term promotion
+        above needs the question to *name* the term, which the reader who
+        describes the situation in their own words never does, and
+        `directional_expand` only gives the USES_TERM neighbour a score, which
+        a flat fusion curve outvotes. So take the graph at its word -- if a
+        selected passage declares it uses a term, the term comes with it.
+        """
+
+        if budget <= 0:
+            return []
+        chosen = {item["id"] for item in selected}
+        support: Counter = Counter()
+        for edge in relationship_records(root):
+            if str(edge.get("type", "")) != "USES_TERM":
+                continue
+            source = str(edge.get("source", ""))
+            target = str(edge.get("target", ""))
+            if source in chosen and target not in chosen:
+                support[target] += 1
+        candidates: list[tuple[int, float, str]] = []
+        for record_id, uses in support.items():
+            record = records_by_id.get(record_id)
+            if not record or record.get("_kind") != "Definition":
+                continue
+            term = str(record.get("term", "")).strip()
+            if not term:
+                continue
+            # A term that is everywhere explains nothing, by the same reasoning
+            # that keeps it out of the promotion above: "Software" is in 42% of
+            # one family's clauses, and spending a reserved slot on it would
+            # displace the term the question actually turns on.
+            folded = term.casefold()
+            share = sum(1 for text in haystack if folded in text) / max(1, len(haystack))
+            if share > PERVASIVE_TERM_SHARE:
+                continue
+            # How many of the chosen passages lean on the term comes first:
+            # that is the closure signal. Its own score against the question
+            # only breaks ties -- the main ranker already weighed that and is
+            # the reason the term is missing in the first place.
+            candidates.append((-uses, -fused.get(record_id, 0.0), record_id))
+        chosen_terms = {
+            str(records_by_id.get(item["id"], {}).get("term", "")).casefold()
+            for item in selected
+        }
+        closure: list[dict] = []
+        for _, _, record_id in sorted(candidates):
+            if len(closure) >= budget:
+                break
+            record = records_by_id[record_id]
+            term = str(record.get("term", "")).casefold()
+            if term in chosen_terms:
+                continue
+            chosen_terms.add(term)
+            item = evidence_item(
+                record,
+                fused.get(record_id, 0.0),
+                {"definition_closure": support[record_id]},
+            )
+            fingerprint = compact_text(item["text"]).casefold()
+            if fingerprint in seen_text:
+                continue
+            seen_text.add(fingerprint)
+            closure.append(item)
+        return closure
+
+    take(limit)
     for item in deferred:
         if len(selected) >= limit:
             break
         selected.append(item)
+    # The definitions the chosen passages rely on are added to the budget
+    # rather than taken out of it. Holding a slot back for them was measured
+    # first and it simply moved the failure: the reserved slot came off the
+    # bottom of the ranking, which is exactly where a decisive clause sits
+    # when it only just made the cut, so one question gained its definition
+    # and another lost its clause. A definition is not a rival passage
+    # competing to be the most relevant thing in the prompt -- it is the
+    # vocabulary the passages already chosen are written in, and a reader
+    # handed the rule wants the term too, not instead. Bounded at two so
+    # prompt growth stays predictable while a question that turns on two
+    # terms at once is still served.
+    selected.extend(relied_on_definitions(DEFINITION_CLOSURE_LIMIT if limit >= 7 else 0))
     trace = legal_resolution_trace(root, question, selected)
     rule_status = {
         item["candidate_rule_id"]: item["final_status"] for item in trace["steps"]
