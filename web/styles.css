@@ -206,13 +206,6 @@ select {
    provenance and the exits. */
 .workspace-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #e4e8ea; }
 .workspace-footer .inline-status { margin: 0 0 6px; font-size: 9px; }
-.sample-lock {
-  margin-top: 18px; padding: 14px; display: grid; gap: 6px; justify-items: start;
-  border: 1px solid var(--line); border-radius: 12px; background: #f5f7f6;
-  font-size: 11px; color: var(--muted);
-}
-.sample-lock strong { color: var(--ink-2); font-size: 12px; }
-.sample-lock .secondary-button { margin-top: 4px; }
 .upload-privacy { max-width: 240px; color: #88949f; }
 .privacy-links { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .privacy-links a, .text-button { padding: 0; border: 0; color: var(--cyan); background: none; cursor: pointer; text-decoration: none; font-size: 9px; font-weight: 700; }

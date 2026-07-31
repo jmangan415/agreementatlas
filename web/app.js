@@ -256,14 +256,13 @@ function renderFooter() {
 
 // The retention story is told where it matters: at the moment of upload.
 // A visitor reading the drop zone learns their files are session-private and
-// when they will be deleted; a sample family swaps the drop zone for a plain
-// statement that samples are read-only and their own family is one click away.
+// when they will be deleted; a sample family simply has no upload area -- the
+// library card's "New agreement family" button is the one way to a workspace
+// of their own, and the server rejects sample uploads regardless.
 function renderUploadArea() {
   const isPublic = !state.status.persistent;
   const family = state.status.family;
   const sampleSelected = Boolean(family && family.is_sample);
-  const lock = $("#sampleLock");
-  if (lock) lock.hidden = !(isPublic && sampleSelected);
   $("#dropZone").hidden = isPublic && sampleSelected;
   $("#publicConfirm").hidden = !isPublic || sampleSelected;
   const note = $("#uploadPrivacyNote");
@@ -1667,10 +1666,6 @@ $("#resetView").addEventListener("click", () => {
   fitGraph();
 });
 $("#newFamilyButton").addEventListener("click", () => toggleFamilyForm(true));
-$("#sampleLockNew")?.addEventListener("click", () => {
-  toggleFamilyForm(true);
-  $("#libraryCard")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-});
 $("#newFamilyCancel").addEventListener("click", () => toggleFamilyForm(false));
 $("#newFamilyForm").addEventListener("submit", (event) => {
   event.preventDefault();
