@@ -409,7 +409,9 @@ class WorkspaceSchemaError(LMStudioError):
 class EvidenceRetriever(Protocol):
     name: str
 
-    def retrieve(self, root: Path, question: str, limit: int = EVIDENCE_LIMIT) -> list[dict]: ...
+    def retrieve(
+        self, root: Path, question: str, limit: int = EVIDENCE_LIMIT
+    ) -> list[dict]: ...
 
 
 class AgreementAtlasGraphRetriever:
@@ -418,7 +420,9 @@ class AgreementAtlasGraphRetriever:
     def __init__(self, client: LMStudioClient | None = None) -> None:
         self.client = client
 
-    def retrieve(self, root: Path, question: str, limit: int = EVIDENCE_LIMIT) -> list[dict]:
+    def retrieve(
+        self, root: Path, question: str, limit: int = EVIDENCE_LIMIT
+    ) -> list[dict]:
         return retrieve_evidence(root, question, limit, embedding_client=self.client)
 
 
@@ -1785,23 +1789,23 @@ def mark_ambiguous_numbers(records: list[dict]) -> None:
     """
 
     headings: defaultdict[tuple[str, str], set[str]] = defaultdict(set)
-    for record in records:
-        if record.get("term"):
+    for row in records:
+        if row.get("term"):
             continue
-        section = str(record.get("section_id", "")).strip()
+        section = str(row.get("section_id", "")).strip()
         if not NUMBERED_SECTION.match(section):
             continue
-        heading = record_heading(record)
+        heading = record_heading(row)
         if heading:
-            document = str(record.get("document_id") or record.get("instrument_id") or "")
+            document = str(row.get("document_id") or row.get("instrument_id") or "")
             headings[(document, section)].add(heading.casefold())
-    for record in records:
-        if record.get("term"):
+    for row in records:
+        if row.get("term"):
             continue
-        section = str(record.get("section_id", "")).strip()
-        document = str(record.get("document_id") or record.get("instrument_id") or "")
+        section = str(row.get("section_id", "")).strip()
+        document = str(row.get("document_id") or row.get("instrument_id") or "")
         if len(headings.get((document, section), ())) > 1:
-            record["_ambiguous_number"] = True
+            row["_ambiguous_number"] = True
 
 
 # "what is a named user", "which licence models are there", "how many editions".
@@ -1925,14 +1929,14 @@ def offerings_named_in_question(records: Sequence[dict], question: str) -> list[
 
     asked = " ".join(tokens(question))
     named = []
-    for record in records:
-        if record.get("_kind") != "Offering":
+    for row in records:
+        if row.get("_kind") != "Offering":
             continue
-        name = " ".join(tokens(str(record.get("name", ""))))
+        name = " ".join(tokens(str(row.get("name", ""))))
         if len(name.split()) < 2:
             continue
         if re.search(rf"(?<![a-z0-9]){re.escape(name)}(?![a-z0-9])", asked):
-            named.append(record)
+            named.append(row)
     # The longest name wins where one contains another, so "Standard Named User
     # Subscription" does not also report the "Standard Named User" it extends.
     return sorted(named, key=lambda item: -len(str(item.get("name", ""))))
@@ -2338,7 +2342,6 @@ def question_effects(question: str) -> set[str]:
     return wanted
 
 
-
 def respell_question(records: list[dict], question: str) -> str:
     """Mend a typo in a term the family itself defines.
 
@@ -2400,36 +2403,230 @@ def respell_question(records: list[dict], question: str) -> str:
 # entirely, so over-inclusion is cheap: wrongly listing a word here just means
 # no commentary, which is what happened before the list existed.
 COMMON_QUESTION_WORDS = {
-    "able", "anybody", "anyone", "anything", "back", "became", "become",
-    "becomes", "began", "begin", "best", "better", "bought", "buying", "buys",
-    "called", "calls", "came", "cases", "come", "comes", "coming", "company",
-    "days", "deadline", "deadlines", "doing", "done", "down", "each",
-    "early", "easy", "else", "ends",
-    "enough", "even", "ever", "every", "everybody", "everyone", "everything",
-    "feel", "felt", "find", "fine", "first", "found", "gave", "gets",
-    "getting", "give", "given", "gives", "goes", "going", "gone", "good",
-    "great", "half", "happen", "happened", "happens", "hard", "having",
-    "held", "help", "here", "high", "hold", "holding", "holds", "home",
-    "hope", "idea", "just", "keep", "keeping", "keeps", "kept", "kind",
-    "knew", "know", "known", "knows", "large", "last", "late", "later",
-    "least", "leave", "leaves", "leaving", "left", "less", "lets", "like",
-    "likely", "little", "long", "look", "looking", "looks", "lost", "lots",
-    "made", "make", "makes", "making", "many", "might", "mine", "miss",
-    "missed", "misses", "morning", "most", "move", "moved", "much", "near",
-    "nearly", "need", "needed", "needs", "never", "newer", "newest", "next",
-    "nice", "night", "none", "nothing", "okay", "older", "oldest", "once",
-    "ones", "only", "others", "over", "part", "people", "place", "please",
-    "puts", "quite", "rather", "real", "really", "running", "runs", "said",
-    "same", "says", "seen", "sees", "sell", "selling", "sells", "several",
-    "shows", "since", "small", "sold", "some", "somebody", "someone",
-    "something", "sometimes", "soon", "sort", "start", "started", "starts",
-    "still", "stop", "stopped", "stops", "stuff", "sure", "take", "taken",
-    "takes", "taking", "talk", "tell", "tells", "than", "then", "thing",
-    "things", "think", "thinks", "though", "although", "thought", "times",
-    "told", "tomorrow", "took", "tried", "tries", "turn", "turned", "turns",
-    "twice", "very", "family", "families",
-    "want", "wanted", "wants", "ways", "week", "weeks", "well", "went",
-    "whole", "wondering", "words", "wrote", "yeah", "year", "years",
+    "able",
+    "anybody",
+    "anyone",
+    "anything",
+    "back",
+    "became",
+    "become",
+    "becomes",
+    "began",
+    "begin",
+    "best",
+    "better",
+    "bought",
+    "buying",
+    "buys",
+    "called",
+    "calls",
+    "came",
+    "cases",
+    "come",
+    "comes",
+    "coming",
+    "company",
+    "days",
+    "deadline",
+    "deadlines",
+    "doing",
+    "done",
+    "down",
+    "each",
+    "early",
+    "easy",
+    "else",
+    "ends",
+    "enough",
+    "even",
+    "ever",
+    "every",
+    "everybody",
+    "everyone",
+    "everything",
+    "feel",
+    "felt",
+    "find",
+    "fine",
+    "first",
+    "found",
+    "gave",
+    "gets",
+    "getting",
+    "give",
+    "given",
+    "gives",
+    "goes",
+    "going",
+    "gone",
+    "good",
+    "great",
+    "half",
+    "happen",
+    "happened",
+    "happens",
+    "hard",
+    "having",
+    "held",
+    "help",
+    "here",
+    "high",
+    "hold",
+    "holding",
+    "holds",
+    "home",
+    "hope",
+    "idea",
+    "just",
+    "keep",
+    "keeping",
+    "keeps",
+    "kept",
+    "kind",
+    "knew",
+    "know",
+    "known",
+    "knows",
+    "large",
+    "last",
+    "late",
+    "later",
+    "least",
+    "leave",
+    "leaves",
+    "leaving",
+    "left",
+    "less",
+    "lets",
+    "like",
+    "likely",
+    "little",
+    "long",
+    "look",
+    "looking",
+    "looks",
+    "lost",
+    "lots",
+    "made",
+    "make",
+    "makes",
+    "making",
+    "many",
+    "might",
+    "mine",
+    "miss",
+    "missed",
+    "misses",
+    "morning",
+    "most",
+    "move",
+    "moved",
+    "much",
+    "near",
+    "nearly",
+    "need",
+    "needed",
+    "needs",
+    "never",
+    "newer",
+    "newest",
+    "next",
+    "nice",
+    "night",
+    "none",
+    "nothing",
+    "okay",
+    "older",
+    "oldest",
+    "once",
+    "ones",
+    "only",
+    "others",
+    "over",
+    "part",
+    "people",
+    "place",
+    "please",
+    "puts",
+    "quite",
+    "rather",
+    "real",
+    "really",
+    "running",
+    "runs",
+    "said",
+    "same",
+    "says",
+    "seen",
+    "sees",
+    "sell",
+    "selling",
+    "sells",
+    "several",
+    "shows",
+    "since",
+    "small",
+    "sold",
+    "some",
+    "somebody",
+    "someone",
+    "something",
+    "sometimes",
+    "soon",
+    "sort",
+    "start",
+    "started",
+    "starts",
+    "still",
+    "stop",
+    "stopped",
+    "stops",
+    "stuff",
+    "sure",
+    "take",
+    "taken",
+    "takes",
+    "taking",
+    "talk",
+    "tell",
+    "tells",
+    "than",
+    "then",
+    "thing",
+    "things",
+    "think",
+    "thinks",
+    "though",
+    "although",
+    "thought",
+    "times",
+    "told",
+    "tomorrow",
+    "took",
+    "tried",
+    "tries",
+    "turn",
+    "turned",
+    "turns",
+    "twice",
+    "very",
+    "family",
+    "families",
+    "want",
+    "wanted",
+    "wants",
+    "ways",
+    "week",
+    "weeks",
+    "well",
+    "went",
+    "whole",
+    "wondering",
+    "words",
+    "wrote",
+    "yeah",
+    "year",
+    "years",
     "yesterday",
 }
 
@@ -2448,9 +2645,7 @@ def foreign_question_terms(records: list[dict], question: str) -> list[str]:
     """
 
     corpus = {
-        token
-        for item in records
-        for token in tokens(str(item.get("_search_text", "")))
+        token for item in records for token in tokens(str(item.get("_search_text", "")))
     }
     if not corpus:
         return []
@@ -2460,11 +2655,7 @@ def foreign_question_terms(records: list[dict], question: str) -> list[str]:
         # not a word of its own.
         word = re.sub(r"['’]s?$", "", word)
         lowered = word.lower()
-        if (
-            len(lowered) < 4
-            or lowered in STOP
-            or lowered in COMMON_QUESTION_WORDS
-        ):
+        if len(lowered) < 4 or lowered in STOP or lowered in COMMON_QUESTION_WORDS:
             continue
         # A token carrying a digit is data -- "120-day", "FY21", "10,001" --
         # and data the corpus lacks is not a vocabulary mismatch.
@@ -2474,9 +2665,7 @@ def foreign_question_terms(records: list[dict], question: str) -> list[str]:
         if not stems or any(item in corpus for item in stems):
             continue
         if any(
-            synonym in corpus
-            for item in stems
-            for synonym in SYNONYMS.get(item, ())
+            synonym in corpus for item in stems for synonym in SYNONYMS.get(item, ())
         ):
             continue
         # A hyphenated coinage whose meaningful parts are corpus words is not
@@ -2574,6 +2763,7 @@ def expand_followup(client, model: str, question: str, history: list[dict]) -> s
         return ""
     if rewrite.rstrip("?. ").lower() == question.rstrip("?. ").lower():
         return ""
+
     def with_synonyms(words: set[str]) -> set[str]:
         grown = set(words)
         for word in words:
@@ -2831,7 +3021,9 @@ def retrieve_evidence(
             # one family's clauses, and spending a reserved slot on it would
             # displace the term the question actually turns on.
             folded = term.casefold()
-            share = sum(1 for text in haystack if folded in text) / max(1, len(haystack))
+            share = sum(1 for text in haystack if folded in text) / max(
+                1, len(haystack)
+            )
             if share > PERVASIVE_TERM_SHARE:
                 continue
             # How many of the chosen passages lean on the term comes first:
@@ -2880,7 +3072,9 @@ def retrieve_evidence(
     # handed the rule wants the term too, not instead. Bounded at two so
     # prompt growth stays predictable while a question that turns on two
     # terms at once is still served.
-    selected.extend(relied_on_definitions(DEFINITION_CLOSURE_LIMIT if limit >= 7 else 0))
+    selected.extend(
+        relied_on_definitions(DEFINITION_CLOSURE_LIMIT if limit >= 7 else 0)
+    )
     trace = legal_resolution_trace(root, question, selected)
     rule_status = {
         item["candidate_rule_id"]: item["final_status"] for item in trace["steps"]
@@ -3133,11 +3327,11 @@ def legal_resolution_trace(root: Path, question: str, evidence: list[dict]) -> d
     # the wrong answer to the question.
     document_precedence = []
     seen_pairs: set[tuple[str, str]] = set()
-    for record in read_jsonl(legal / "precedence_rules.jsonl"):
-        if str(record.get("status", "RESOLVED")) != "RESOLVED":
+    for row in read_jsonl(legal / "precedence_rules.jsonl"):
+        if str(row.get("status", "RESOLVED")) != "RESOLVED":
             continue
-        higher = instruments.get(str(record.get("higher_instrument_id", "")), {})
-        lower = instruments.get(str(record.get("lower_instrument_id", "")), {})
+        higher = instruments.get(str(row.get("higher_instrument_id", "")), {})
+        lower = instruments.get(str(row.get("lower_instrument_id", "")), {})
         if not (higher and lower):
             continue
         pair = (str(higher.get("id")), str(lower.get("id")))
@@ -3148,8 +3342,8 @@ def legal_resolution_trace(root: Path, question: str, evidence: list[dict]) -> d
             {
                 "higher": higher.get("title") or higher.get("source", ""),
                 "lower": lower.get("title") or lower.get("source", ""),
-                "subject_scope": scope_label(record.get("subject_scope")),
-                "basis": record.get("rationale", ""),
+                "subject_scope": scope_label(row.get("subject_scope")),
+                "basis": row.get("rationale", ""),
             }
         )
     return {
@@ -3539,6 +3733,7 @@ def answer_question(
         evidence_block(index, item) for index, item in enumerate(evidence, start=1)
     )
     trace_context = json.dumps(resolution_trace, ensure_ascii=False)
+
     # The previous instruction was "State scope, conditions, exceptions,
     # amendments and unresolved issues", which demanded five sections whatever
     # was asked. A yes/no question came back as a memo, and standing orders to
@@ -3619,14 +3814,14 @@ def answer_question(
             "itself, and do not mention licence models at all. Only the "
             "models' own differing terms make answers differ. Where they "
             "genuinely do differ: never promote a condition that one model "
-            "states -- \"only with an MFP\", \"named users only\" -- into a "
+            'states -- "only with an MFP", "named users only" -- into a '
             "general condition of the answer; open by saying the answer "
             "depends on which licence model applies -- that opening satisfies "
             "every rule about how answers open, including the Yes/No rule -- "
             "give the one line per model the evidence supports, and end by "
             "asking which one applies. A per-model line must state that "
             "model's DIFFERING term; a line that would only restate the "
-            "model's name -- \"if the X model applies, the model is X\" -- "
+            'model\'s name -- "if the X model applies, the model is X" -- '
             "says the models do not differ for this question, so drop the "
             "listing and answer once. The list is a starting point: drop any "
             "entry the evidence does not support and add any it missed. "
@@ -3673,14 +3868,14 @@ def answer_question(
             "on, do not silently translate it into one mechanism and answer "
             "as though the match were exact -- but a defined term whose "
             "definition DESCRIBES the questioned thing IS the agreements' "
-            "word for it: a definition covering \"software or hardware that "
+            'word for it: a definition covering "software or hardware that '
             "reduces the Software's ability to distinguish users\" is the "
             "agreements addressing a pooling proxy, whatever the question "
             "called it. Answer under that term, saying what the agreements "
             "call it. Answer in the first sentence always -- where any "
             "provision or definition in evidence decides or describes the "
             "questioned thing, the first sentence is that decision. Reserve "
-            "\"the agreements do not address it\" for when nothing in "
+            '"the agreements do not address it" for when nothing in '
             "evidence describes the thing at all. Only after answering, note "
             "the vocabulary difference in one line. Invite the reader to "
             "clarify only when two different mechanisms could each genuinely "
@@ -3753,8 +3948,8 @@ def answer_question(
         # quantity the question states. Gemma reasoning aloud in LM Studio
         # reached 10,001 in a minute; the rule below reaches it in seconds,
         # because the missing step was arithmetic made explicit, not thought.
-        "When the question supplies a quantity, count. A term defined as \"a "
-        "single instance of\" something applies to each item separately, so N "
+        'When the question supplies a quantity, count. A term defined as "a '
+        'single instance of" something applies to each item separately, so N '
         "items are N, not one. Read the definition's limbs distributively: "
         "where it reaches data input to, output from, or created by the "
         "software, what goes in and what comes out are each counted. Name the "

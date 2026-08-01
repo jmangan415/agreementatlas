@@ -34,9 +34,7 @@ def main() -> int:
     for vendor_dir in sorted(item for item in incoming.iterdir() if item.is_dir()):
         name = vendor_dir.name.capitalize()
         documents = sorted(
-            item
-            for item in vendor_dir.iterdir()
-            if item.suffix.lower() in SUPPORTED
+            item for item in vendor_dir.iterdir() if item.suffix.lower() in SUPPORTED
         )
         if not documents:
             continue

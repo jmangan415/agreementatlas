@@ -400,9 +400,7 @@ class LMStudioClient:
         headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
-        request = urllib.request.Request(
-            url, data=body, headers=headers, method="POST"
-        )
+        request = urllib.request.Request(url, data=body, headers=headers, method="POST")
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 for raw in response:

@@ -376,7 +376,7 @@ class DefinitionBoundaryTests(unittest.TestCase):
     def test_drops_a_following_label_and_alias(self):
         self.assertEqual(
             trim_next_definition_label(
-                'user guides and release notes made generally available by '
+                "user guides and release notes made generally available by "
                 'OT; F) "EULA" or'
             ),
             "user guides and release notes made generally available by OT",
@@ -387,7 +387,5 @@ class DefinitionBoundaryTests(unittest.TestCase):
         self.assertEqual(trim_next_definition_label(body), body)
 
     def test_keeps_an_inline_enumeration(self):
-        body = (
-            "any entity controlled by a party (a) directly or (b) indirectly"
-        )
+        body = "any entity controlled by a party (a) directly or (b) indirectly"
         self.assertEqual(trim_next_definition_label(body), body)

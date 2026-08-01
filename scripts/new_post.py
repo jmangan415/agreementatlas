@@ -78,11 +78,11 @@ def main() -> None:
     print(f"created web/blog/{name}\n")
     print("paste into the list in web/blog/index.html:\n")
     print(
-        f'      <li>\n'
+        f"      <li>\n"
         f'        <span class="blog-date">{pretty.replace(" ", "&nbsp;")}</span>\n'
         f'        <a href="/blog/{name}">{html.escape(title)}</a>\n'
-        f'        <p>One-line summary.</p>\n'
-        f'      </li>'
+        f"        <p>One-line summary.</p>\n"
+        f"      </li>"
     )
 
 
