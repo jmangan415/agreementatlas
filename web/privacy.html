@@ -11,7 +11,7 @@
     <a href="/">← Back to AgreementAtlas</a>
     <article>
       <span class="eyebrow">DEPLOYMENT PRIVACY NOTICE</span>
-      <h1>How this copy handles information</h1>
+      <h1>How this site handles information</h1>
       <p><strong>Last updated:</strong> 26 July 2026 · <strong>Mode:</strong> {{APP_MODE}}</p>
       <p class="notice">This notice describes the safeguards built into this deployment template. A public operator must review it against their actual hosting, subprocessors and legal obligations before inviting uploads. It is not a certification of GDPR compliance.</p>
 
@@ -31,7 +31,7 @@
       <p>The information is used only to provide the requested document conversion, graph extraction, retrieval, local model enrichment and question-answering service; protect the service from abuse; and delete the session. This release sends model prompts only to the operator-controlled LM Studio endpoint. It does not send agreement content to Kimi, OpenAI or another cloud model.</p>
 
       <h2>Retention and deletion</h2>
-      <p>The application assigns an absolute {{RETENTION_HOURS}}-hour expiry when a session is created. It automatically removes the uploaded originals and all generated session data after expiry. “Delete my documents” requests immediate removal. The application does not create backups of session workspaces; an operator must disclose separately if their infrastructure does.</p>
+      <p>Your temporary session receives an absolute {{RETENTION_HOURS}}-hour expiry when you first visit the site. Uploaded originals and all generated data—including extracted text, graphs, model output and chat history—are stored together in that isolated session and automatically deleted when it expires. The upload area shows the exact deletion time. “Delete my documents” requests immediate removal. The application does not create backups of session workspaces; an operator must disclose separately if their infrastructure does.</p>
 
       <h2>Recipients and transfers</h2>
       <p>In local mode, processing remains on the machine running AgreementAtlas and LM Studio. A public deployment may also involve its hosting or network-security provider, which the operator must identify here. Cloud inference must remain disabled until the operator has documented a suitable processor agreement, retention position and any required international-transfer safeguard.</p>

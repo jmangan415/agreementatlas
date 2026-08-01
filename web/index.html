@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="AgreementAtlas maps software and cloud agreements into an evidence-backed knowledge graph, answering licensing questions with citations to exact clauses. Runs on a local language model.">
   <title>AgreementAtlas — License Intelligence</title>
-  <link rel="canonical" href="https://agreementatlas.com/">
+  <link rel="canonical" href="https://agreementatlas.com/workbench/">
 
   <link rel="icon" type="image/svg+xml" href="/assets/agreementatlas-favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
@@ -15,7 +15,7 @@
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="AgreementAtlas">
-  <meta property="og:url" content="https://agreementatlas.com/">
+  <meta property="og:url" content="https://agreementatlas.com/workbench/">
   <meta property="og:title" content="AgreementAtlas — License Intelligence">
   <meta property="og:description" content="Maps software agreements into an evidence-backed knowledge graph — every answer cited to an exact clause. Local-first, no cloud inference.">
   <meta property="og:image" content="https://agreementatlas.com/assets/og-card.png">
@@ -30,18 +30,14 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="AgreementAtlas home">
-      <img class="brand-mark" src="/assets/agreementatlas-mark-dark.svg" width="34" height="34" alt="" aria-hidden="true">
+  <header class="topbar workbench-topbar">
+    <a class="brand" href="/" aria-label="AgreementAtlas introduction">
+      <img class="brand-mark" src="/assets/agreementatlas-mark-dark.svg" width="44" height="44" alt="" aria-hidden="true">
       <span class="wordmark">
         <span class="wordmark-name"><span class="wm-a">Agreement</span><span class="wm-b">Atlas</span></span>
         <small>License Intelligence</small>
       </span>
     </a>
-    <div class="product-promise">
-      <span class="eyebrow">LOCAL-FIRST LEGAL RAG</span>
-      <span>Map obligations, permissions, scope and precedence to exact clauses.</span>
-    </div>
     <div class="runtime">
       <span id="modePill" class="pill">Local processing</span>
       <span id="lmDot" class="status-dot"></span>
@@ -54,7 +50,7 @@
       <section id="libraryCard" class="library-card" hidden>
         <div class="panel-heading">
           <div>
-            <span class="eyebrow">LIBRARY</span>
+            <span class="eyebrow">STEP 1 · LIBRARY</span>
             <h1>Agreement families</h1>
           </div>
           <button id="newFamilyButton" type="button" class="secondary-button">New agreement family</button>
@@ -68,60 +64,63 @@
             <button id="newFamilyCancel" type="button" class="text-button">Cancel</button>
           </div>
         </form>
+        <p id="familyStatus" class="inline-status" role="status"></p>
         <div id="familyList" class="family-list" aria-live="polite"></div>
         <button id="loadSampleLibrary" type="button" class="secondary-button wide" hidden>
           Load the sample family
         </button>
       </section>
 
-      <div class="panel-heading">
-        <div>
-          <span class="eyebrow">AGREEMENT FAMILY</span>
-          <h1 id="familyHeading">Source documents</h1>
-        </div>
-        <span id="fileCount" class="count">0 / 12</span>
-      </div>
-
-      <label class="drop-zone" id="dropZone">
-        <input id="fileInput" type="file" multiple accept=".pdf,.txt,.md,.csv,.xls,.xlsx,.docx,.pptx">
-        <span class="upload-mark" aria-hidden="true">↑</span>
-        <strong>Add agreements</strong>
-        <span>Master terms, orders, addenda, DPAs and schedules</span>
-        <small>Up to 12 files · 50 MB total</small>
-        <small id="uploadPrivacyNote" class="upload-privacy" hidden></small>
-      </label>
-      <label id="publicConfirm" class="confirm-row" hidden>
-        <input id="uploadConsent" type="checkbox">
-        <span>I am authorised to upload these files and understand this is a temporary public demonstration.</span>
-      </label>
-      <p id="uploadStatus" class="inline-status" role="status"></p>
-
-      <div id="documentList" class="document-list" aria-live="polite"></div>
-      <div class="usage">
-        <div><span>Family storage</span><span id="usageText">0 MB / 50 MB</span></div>
-        <div class="meter"><span id="usageBar"></span></div>
-      </div>
-
-      <section id="enrichCard" class="model-card" hidden>
-        <div class="card-title">
-          <span>Local AI enrichment</span>
-          <span id="enrichState" class="mini-pill">Not started</span>
-        </div>
-        <label for="modelSelect" class="model-choice">LM Studio model</label>
-        <select id="modelSelect" class="model-choice" aria-label="LM Studio model">
-          <option value="">No local model available</option>
-        </select>
-        <button id="enrichButton" class="primary-button" disabled>AI-enrich this family</button>
-        <div id="enrichConfirm" class="enrich-confirm" hidden>
-          <strong>Runs on this machine, not a cloud.</strong>
-          <p id="enrichEstimate"></p>
-          <div class="inline-form-actions">
-            <button id="enrichStart" type="button" class="primary-button">Start enrichment</button>
-            <button id="enrichCancelArm" type="button" class="text-button">Cancel</button>
+      <section id="familyWorkspace" class="family-workspace" hidden>
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">AGREEMENT FAMILY</span>
+            <h1 id="familyHeading">Source documents</h1>
           </div>
+          <span id="fileCount" class="count">0 / 12</span>
         </div>
-        <div class="progress-track" aria-hidden="true"><span id="enrichProgress"></span></div>
-        <p id="enrichMessage" class="inline-status">Deterministic rules appear immediately; AI enrichment is optional.</p>
+
+        <label class="drop-zone" id="dropZone">
+          <input id="fileInput" type="file" multiple accept=".pdf,.txt,.md,.csv,.xls,.xlsx,.docx,.pptx">
+          <span class="upload-mark" aria-hidden="true">↑</span>
+          <strong>Add agreements</strong>
+          <span>Master terms, orders, addenda, DPAs and schedules</span>
+          <small>Up to 12 files · 50 MB total</small>
+          <small id="uploadPrivacyNote" class="upload-privacy" hidden></small>
+        </label>
+        <label id="publicConfirm" class="confirm-row" hidden>
+          <input id="uploadConsent" type="checkbox">
+          <span>I am authorised to upload these files and understand the uploads and generated data will be deleted when this temporary session expires (within {{RETENTION_HOURS}} hours).</span>
+        </label>
+        <p id="uploadStatus" class="inline-status" role="status"></p>
+
+        <div id="documentList" class="document-list" aria-live="polite"></div>
+        <div class="usage">
+          <div><span>Family storage</span><span id="usageText">0 MB / 50 MB</span></div>
+          <div class="meter"><span id="usageBar"></span></div>
+        </div>
+
+        <section id="enrichCard" class="model-card" hidden>
+          <div class="card-title">
+            <span>Local AI enrichment</span>
+            <span id="enrichState" class="mini-pill">Not started</span>
+          </div>
+          <label for="modelSelect" class="model-choice">LM Studio model</label>
+          <select id="modelSelect" class="model-choice" aria-label="LM Studio model">
+            <option value="">No local model available</option>
+          </select>
+          <button id="enrichButton" class="primary-button" disabled>AI-enrich this family</button>
+          <div id="enrichConfirm" class="enrich-confirm" hidden>
+            <strong>Runs on this machine, not a cloud.</strong>
+            <p id="enrichEstimate"></p>
+            <div class="inline-form-actions">
+              <button id="enrichStart" type="button" class="primary-button">Start enrichment</button>
+              <button id="enrichCancelArm" type="button" class="text-button">Cancel</button>
+            </div>
+          </div>
+          <div class="progress-track" aria-hidden="true"><span id="enrichProgress"></span></div>
+          <p id="enrichMessage" class="inline-status">Deterministic rules appear immediately; AI enrichment is optional.</p>
+        </section>
       </section>
 
       <footer class="workspace-footer">
@@ -134,13 +133,19 @@
       </footer>
     </aside>
 
-    <main class="graph-panel">
+    <main class="graph-panel is-gated">
+      <section id="graphGate" class="workspace-gate graph-gate" aria-live="polite">
+        <span class="workspace-step" aria-hidden="true">2</span>
+        <span class="eyebrow">STEP 2 · KNOWLEDGE GRAPH</span>
+        <h2 id="graphGateTitle">Choose an agreement family</h2>
+        <p id="graphGateCopy">Select a published sample, or create your own family in Step 1. Its legal map will open here.</p>
+      </section>
       <div class="graph-toolbar">
         <div>
-          <span class="eyebrow">LEGAL RELATIONSHIP MAP</span>
+          <span class="eyebrow">STEP 2 · LEGAL RELATIONSHIP MAP</span>
           <h2>Knowledge graph</h2>
         </div>
-        <label class="graph-search">
+        <label class="graph-search" hidden>
           <span aria-hidden="true">⌕</span>
           <input id="graphSearch" type="search" placeholder="Find a clause, party or rule" aria-label="Search graph">
         </label>
@@ -158,6 +163,16 @@
             <span class="sample-note">SAP’s published cloud agreement set — eight documents, already parsed and enriched. Nothing to upload.</span>
           </div>
         </div>
+        <section id="enrichmentChoice" class="enrichment-choice" aria-labelledby="enrichmentChoiceTitle" hidden>
+          <span class="eyebrow">DETERMINISTIC GRAPH READY</span>
+          <h3 id="enrichmentChoiceTitle">Would you like to enrich it with local AI?</h3>
+          <p>The first-pass graph is ready to explore now. Optional enrichment uses an open-weight model running locally on this laptop to sharpen individual clause readings.</p>
+          <p id="enrichmentChoiceTiming" class="enrichment-choice-timing"></p>
+          <div class="enrichment-choice-actions">
+            <button id="enrichmentChoiceStart" class="enrichment-choice-primary" type="button">Start local AI enrichment</button>
+            <button id="enrichmentChoiceLater" class="enrichment-choice-later" type="button">Later — explore the graph</button>
+          </div>
+        </section>
         <div class="canvas-controls" aria-label="Graph controls">
           <button id="zoomIn" aria-label="Zoom in">+</button>
           <button id="zoomOut" aria-label="Zoom out">−</button>
@@ -182,10 +197,16 @@
       </section>
     </main>
 
-    <aside class="answer-panel" aria-label="Agreement questions">
+    <aside class="answer-panel is-gated" aria-label="Agreement questions">
+      <section id="chatGate" class="workspace-gate chat-gate" aria-live="polite">
+        <span class="workspace-step" aria-hidden="true">3</span>
+        <span class="eyebrow">STEP 3 · EVIDENCE-GROUNDED CHAT</span>
+        <h2 id="chatGateTitle">Choose what you want to question</h2>
+        <p id="chatGateCopy">Chat opens after you select an agreement family that contains documents.</p>
+      </section>
       <div class="answer-heading">
         <div>
-          <span class="eyebrow">EVIDENCE-GROUNDED CHAT</span>
+          <span class="eyebrow">STEP 3 · EVIDENCE-GROUNDED CHAT</span>
           <h2>Ask these agreements</h2>
         </div>
         <div class="answer-tools">

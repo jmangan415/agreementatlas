@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AgreementAtlas maps software and cloud agreement families into an evidence-backed legal knowledge graph, using an open-weight model running locally on a MacBook Pro.">
+  <title>AgreementAtlas — local-first licence intelligence</title>
+  <link rel="canonical" href="https://agreementatlas.com/">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/agreementatlas-favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+  <meta name="theme-color" content="#0D1D33">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AgreementAtlas">
+  <meta property="og:url" content="https://agreementatlas.com/">
+  <meta property="og:title" content="AgreementAtlas — local-first licence intelligence">
+  <meta property="og:description" content="Explore how related agreements, legal rules and exact clauses fit together—using an open-weight model running locally.">
+  <meta property="og:image" content="https://agreementatlas.com/assets/og-card.png">
+  <meta property="og:image:alt" content="AgreementAtlas — License Intelligence">
+
+  <link rel="stylesheet" href="/welcome.css">
+</head>
+<body>
+  <header class="welcome-header">
+    <a class="welcome-brand" href="/" aria-label="AgreementAtlas welcome page">
+      <img src="/assets/agreementatlas-mark-dark.svg" width="50" height="50" alt="" aria-hidden="true">
+      <span>
+        <strong><span>Agreement</span>Atlas</strong>
+        <small>License Intelligence</small>
+      </span>
+    </a>
+    <nav aria-label="Welcome page">
+      <a href="#why-local">Why local</a>
+      <a href="#workbench">The workbench</a>
+      <a class="nav-cta" href="/workbench/">Try it out <span aria-hidden="true">→</span></a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="welcome-hero">
+      <div class="hero-copy">
+        <p class="welcome-eyebrow">Local-first licence intelligence</p>
+        <h1>A software licence is rarely one document.</h1>
+        <p class="hero-lede">
+          AgreementAtlas connects master terms, orders, schedules, DPAs and
+          amendments into one evidence-backed legal map—then answers questions
+          from the exact clauses that control.
+        </p>
+        <div class="hero-actions">
+          <a class="primary-cta" href="/workbench/">Try it out <span aria-hidden="true">→</span></a>
+          <span>Start with a published sample. No upload required.</span>
+        </div>
+      </div>
+
+      <div class="agreement-stack" aria-label="Related agreement documents combine into one legal map">
+        <div class="stack-doc stack-master"><small>01</small><strong>Master terms</strong><span>General rights and duties</span></div>
+        <div class="stack-doc stack-order"><small>02</small><strong>Order</strong><span>Product, term and quantity</span></div>
+        <div class="stack-doc stack-schedule"><small>03</small><strong>Schedule</strong><span>Licence model and scope</span></div>
+        <div class="stack-doc stack-dpa"><small>04</small><strong>DPA</strong><span>Data-specific obligations</span></div>
+        <div class="stack-result"><span>Evidence-backed answer</span><strong>Read the family together.</strong></div>
+      </div>
+    </section>
+
+    <section class="local-section" id="why-local">
+      <div class="section-heading dark-heading">
+        <p class="welcome-eyebrow">Why local?</p>
+        <h2>Frontier cloud models can do this kind of work today.</h2>
+      </div>
+      <div class="local-copy">
+        <p>
+          But repeated analysis is expensive, and it can mean moving confidential
+          agreement text beyond an organisation’s firewall.
+        </p>
+        <p>
+          I built AgreementAtlas to learn how far the same work could be taken
+          with an <strong>open-weight model running locally on a MacBook Pro M5 Pro</strong>—without
+          sending the agreement text to a cloud model API, and while keeping every
+          conclusion tied to the exact source clause.
+        </p>
+      </div>
+    </section>
+
+    <section class="workbench-section" id="workbench">
+      <div class="section-heading">
+        <p class="welcome-eyebrow">Inside AgreementAtlas</p>
+        <h2>From agreement family to focused answer in three steps.</h2>
+        <p>
+          The workbench keeps the source documents, the evolving legal map and
+          the evidence behind each answer visible together.
+        </p>
+      </div>
+
+      <figure class="workbench-tour">
+        <div class="tour-image">
+          <img src="/assets/workbench-tour.png" width="1264" height="710"
+               alt="The AgreementAtlas workbench showing the agreement-family library, legal knowledge graph and evidence-grounded chat">
+          <span class="tour-marker marker-library" aria-hidden="true">1</span>
+          <span class="tour-marker marker-graph" aria-hidden="true">2</span>
+          <span class="tour-marker marker-chat" aria-hidden="true">3</span>
+        </div>
+        <figcaption class="tour-cards">
+          <article>
+            <span>01</span>
+            <h3>Choose an agreement family</h3>
+            <p>Open a ready-to-explore published sample, or create a temporary family from your own related documents.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Build, then enrich the graph</h3>
+            <p>See the deterministic first pass immediately. Then choose whether to run the local model for richer clause readings.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Ask a focused question</h3>
+            <p>Get an evidence-grounded answer with the controlling clauses and the resolution path kept beside the conclusion.</p>
+          </article>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="principles-section" aria-labelledby="principles-title">
+      <div class="section-heading compact-heading">
+        <p class="welcome-eyebrow">How the experiment is shaped</p>
+        <h2 id="principles-title">Structure first. Model second. Evidence always.</h2>
+      </div>
+      <div class="principle-grid">
+        <article>
+          <span class="principle-number">01</span>
+          <h3>Deterministic legal structure</h3>
+          <p>Clauses, definitions, cross-references and precedence are mapped before a language model is asked to read them.</p>
+        </article>
+        <article>
+          <span class="principle-number">02</span>
+          <h3>Local AI enrichment</h3>
+          <p>An open-weight model sharpens individual clause readings on the machine running AgreementAtlas.</p>
+        </article>
+        <article>
+          <span class="principle-number">03</span>
+          <h3>Exact-clause validation</h3>
+          <p>A model reading is retained only when its evidence can be validated against the original clause text.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="final-cta">
+      <div>
+        <p class="welcome-eyebrow">See it work</p>
+        <h2>Start with a real, published agreement family.</h2>
+        <p>
+          The samples are already parsed and enriched. If you upload your own
+          documents, they remain isolated to your temporary session. Uploads and
+          generated data are deleted automatically by the time shown in the workbench
+          (a maximum of {{RETENTION_HOURS}} hours after your session begins).
+        </p>
+      </div>
+      <a class="primary-cta light-cta" href="/workbench/">Try AgreementAtlas <span aria-hidden="true">→</span></a>
+    </section>
+  </main>
+
+  <footer class="welcome-footer">
+    <span>AgreementAtlas is an experimental interpretation aid, not legal advice.</span>
+    <nav aria-label="Project information">
+      <a href="/story.html">Why this exists</a>
+      <a href="/blog/">Engineering log</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </nav>
+  </footer>
+</body>
+</html>

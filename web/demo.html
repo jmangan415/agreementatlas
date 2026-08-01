@@ -32,7 +32,7 @@
     <a href="#why">Why this exists</a>
     <a href="#console">Ask the system</a>
     <a href="#measurement">Measured</a>
-    <a class="workbench-link" href="/app.html">Full workbench →</a>
+    <a class="workbench-link" href="/workbench/">Full workbench →</a>
   </nav>
   <span class="lm-state" id="lmState"><i class="dot" id="lmDot"></i><span id="lmLabel">Checking the local model…</span></span>
 </header>
@@ -183,7 +183,7 @@
     <div id="uploadStrip" class="upload-strip" hidden>
       <label class="consent-row">
         <input id="uploadConsent" type="checkbox">
-        <span>I am authorised to upload these files and understand this is a temporary public demonstration.</span>
+        <span>I am authorised to upload these files and understand the uploads and generated data will be deleted when this temporary session expires (within {{RETENTION_HOURS}} hours).</span>
       </label>
       <button id="uploadPick" class="button quiet" type="button">Choose files</button>
       <input id="uploadInput" type="file" multiple accept=".pdf,.txt,.md,.csv,.xls,.xlsx,.docx,.pptx" hidden>
@@ -293,7 +293,6 @@
   <div class="colophon-meta">
     <span>Operator: {{OPERATOR_NAME}}</span>
     <a href="/story.html">Why this exists</a>
-    <a href="/blog/">Engineering log</a>
     <a href="/privacy.html">Privacy</a>
     <a href="/terms.html">Terms</a>
     <button id="deleteSession" class="text-button" type="button">Delete my session</button>

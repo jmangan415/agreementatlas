@@ -108,8 +108,10 @@ to anyone:
       'import json,sys; f=json.load(sys.stdin)["families"]; \
        assert f and all(x["is_sample"] for x in f) and len(f) <= 4, f; print("OK: samples only")'
 
-    # MUST be 200
+    # MUST both be 200: "/" is the welcome landing page, "/workbench/" is the
+    # tool — a 200 on "/" alone no longer proves the workbench serves.
     curl -s -o /dev/null -w "%{http_code}\n" https://agreementatlas.com/
+    curl -s -o /dev/null -w "%{http_code}\n" https://agreementatlas.com/workbench/
 
 ---
 

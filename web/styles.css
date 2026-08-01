@@ -63,10 +63,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     var(--navy);
   border-bottom: 1px solid rgba(255,255,255,.1);
 }
+.topbar.workbench-topbar { grid-template-columns: 1fr auto; }
 .brand { display: flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; }
 .brand-mark {
   width: 34px; height: 34px; display: block; flex: none;
 }
+.workbench-topbar .brand { gap: 14px; }
+.workbench-topbar .brand-mark { width: 44px; height: 44px; }
+.workbench-topbar .wordmark-name { font-size: 24px; }
+.workbench-topbar .brand small { margin-top: 6px; font-size: 10px; }
 /* Wordmark per the identity handoff: "Agreement" 500 in slate, "Atlas" 800 in
    ink, no space between, tightened tracking. On the dark topbar the ink half
    lifts to paper and the jade lifts with it. */
@@ -93,7 +98,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .source-panel, .answer-panel { overflow: auto; background: var(--white); }
 .source-panel { padding: 22px 18px; border-right: 1px solid var(--line); }
-.answer-panel { border-left: 1px solid var(--line); display: flex; flex-direction: column; padding: 24px 21px 16px; }
+.answer-panel { position: relative; border-left: 1px solid var(--line); display: flex; flex-direction: column; padding: 24px 21px 16px; }
 .panel-heading, .answer-heading, .graph-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .answer-tools { display: flex; align-items: center; gap: 12px; }
 .answer-tools .text-button { font-size: 10px; }
@@ -130,7 +135,18 @@ h3 { font-size: 21px; }
 .inline-status.error { color: var(--red); }
 
 .library-card { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #e4e8ea; }
-.family-list { max-height: 236px; overflow: auto; margin-top: 8px; display: grid; gap: 4px; }
+.family-workspace { display: block; }
+.family-list { max-height: 310px; overflow: auto; margin-top: 10px; display: grid; gap: 10px; }
+.family-group {
+  padding: 10px; border: 1px solid #d9e0e4; border-radius: 11px; background: #fafbfb;
+}
+.family-group-samples { border-color: #bdd9de; background: #f6fafb; }
+.family-group-owned { background: white; }
+.family-group-label {
+  margin: 0 2px 7px; color: #697991; font-size: 10px; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase;
+}
+.family-group-empty { margin: 4px 2px 2px; line-height: 1.45; }
 .family-row {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 2px 8px;
   border: 1px solid transparent; border-radius: 7px;
@@ -222,7 +238,22 @@ select {
 .privacy-links a, .text-button { padding: 0; border: 0; color: var(--cyan); background: none; cursor: pointer; text-decoration: none; font-size: 9px; font-weight: 700; }
 .danger { color: var(--red); }
 
-.graph-panel { min-width: 0; display: grid; grid-template-rows: auto auto minmax(240px,1fr) auto var(--inspector-h, 180px); overflow: hidden; background: var(--panel); }
+.graph-panel { position: relative; min-width: 0; display: grid; grid-template-rows: auto auto minmax(240px,1fr) auto var(--inspector-h, 180px); overflow: hidden; background: var(--panel); }
+.workspace-gate {
+  position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 36px; text-align: center;
+}
+.graph-gate { background: linear-gradient(145deg, #eef1f1, #f6f7f6); }
+.chat-gate { background: linear-gradient(145deg, #ffffff, #f7f9f8); }
+.workspace-gate .workspace-step {
+  width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 15px;
+  border: 1px solid #b9d2d7; border-radius: 50%; color: var(--cyan);
+  background: rgba(255,255,255,.82); font: 700 20px/1 Georgia, serif;
+}
+.workspace-gate h2 { max-width: 340px; margin-top: 9px; font-size: 27px; line-height: 1.2; }
+.workspace-gate p { max-width: 390px; margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.graph-panel.is-gated > :not(.workspace-gate),
+.answer-panel.is-gated > :not(.workspace-gate) { visibility: hidden; pointer-events: none; }
 /* The reader decides how the canvas and the evidence share the column: the
    grip drags the boundary, double-click puts it back. */
 .inspector-grip {
@@ -251,6 +282,26 @@ select {
 .graph-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
 .graph-empty.hidden { display: none; }
 .graph-empty p { max-width: 390px; margin: 8px 0; color: var(--muted); font-size: 12px; }
+.enrichment-choice {
+  position: absolute; z-index: 12; top: 18px; left: 50%; width: min(540px, calc(100% - 36px));
+  padding: 19px 21px; transform: translateX(-50%); border: 1px solid #a9ccc5;
+  border-radius: 13px; background: rgba(255,255,255,.97);
+  box-shadow: 0 18px 45px rgba(13,29,51,.2);
+}
+.enrichment-choice h3 { margin-top: 6px; font-size: 22px; }
+.enrichment-choice p { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.enrichment-choice .enrichment-choice-timing {
+  padding: 8px 10px; border-left: 3px solid var(--amber); background: #fff8ec;
+  color: #5d5140; font-size: 10px;
+}
+.enrichment-choice-actions { display: flex; align-items: center; gap: 12px; margin-top: 13px; }
+.enrichment-choice-actions button {
+  padding: 9px 13px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 800;
+}
+.enrichment-choice-primary { border: 1px solid var(--cyan); color: white; background: var(--cyan); }
+.enrichment-choice-primary:disabled { opacity: .45; cursor: not-allowed; }
+.enrichment-choice-later { border: 1px solid var(--line); color: var(--ink-2); background: white; }
+.enrichment-choice-actions button:hover:not(:disabled) { filter: brightness(.96); }
 /* The empty state ignores pointer events so drags reach the canvas beneath it;
    the one control inside it has to opt back in or it cannot be clicked. */
 .sample-offer { display: flex; flex-direction: column; align-items: center; gap: 7px; margin-top: 6px; pointer-events: auto; }
@@ -348,6 +399,10 @@ i.family { background: #0d1d33; } i.document { background: #18385d; } i.rule { b
 }
 @media (max-width: 680px) {
   .topbar { height: auto; min-height: 72px; padding: 13px 15px; }
+  .workbench-topbar .brand { gap: 11px; }
+  .workbench-topbar .brand-mark { width: 38px; height: 38px; }
+  .workbench-topbar .wordmark-name { font-size: 21px; }
+  .workbench-topbar .brand small { margin-top: 5px; font-size: 9px; }
   .runtime .pill, #lmSummary { display: none; }
   .workspace { display: block; }
   .source-panel { min-height: 0; border: 0; border-bottom: 1px solid var(--line); }
@@ -357,6 +412,8 @@ i.family { background: #0d1d33; } i.document { background: #18385d; } i.rule { b
   .graph-legend { display: none; }
   .detail-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .legal-shell article { padding: 25px 20px; }
+  .enrichment-choice-actions { align-items: stretch; flex-direction: column; }
+  .enrichment-choice-actions button { width: 100%; }
 }
 
 /* An answer's evidence, collapsed. Fourteen expanded cards buried the answer

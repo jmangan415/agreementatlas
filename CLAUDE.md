@@ -52,15 +52,17 @@ Two servers run side by side **on purpose** (see `DEPLOY.md`):
 - launchd services: `com.agreementatlas.app` (runs `scripts/serve_public.sh`) and `com.agreementatlas.tunnel`.
 - Static/UI edits under `web/` are live immediately: HTML is served `no-store`, and JS/CSS links are rewritten at serve time with a content-hash `?v=` (see `asset_version` in `app.py`), so no restart and no CDN cache worry.
 - Python changes need: `launchctl kickstart -k gui/$(id -u)/com.agreementatlas.app`
-- After any deploy-affecting change run the safety check in `DEPLOY.md`: a cookieless `GET https://agreementatlas.com/api/families` must return **only sample families** (every entry `"is_sample": true`, at most a handful — never the 16-family local library), and `/` must return 200.
+- After any deploy-affecting change run the safety check in `DEPLOY.md`: a cookieless `GET https://agreementatlas.com/api/families` must return **only sample families** (every entry `"is_sample": true`, at most a handful — never the 16-family local library), and `/` **and** `/workbench/` must return 200.
 - Public sessions each hold a nested family library (`data/sessions/<id>/families/`, a per-session `LibraryStore`): the two sample bundles are auto-installed pre-enriched and read-only, visitors create up to `MAX_PUBLIC_FAMILIES` (3) of their own, and `?family=` selects the workspace in both modes. Sample bundles live uncommitted under `samples/demo_bundles/<slug>/` with a `demo.json` manifest (name, questions, `source_url`); the OpenText bundle's canonical question list is `samples/demo_questions_opentext.json`.
 
 ### UI file map (which files a page actually uses)
 
-- `/` serves `web/index.html` → loads `/app.js` + `/styles.css`. **This is the live landing/tool page in both modes.**
-- `web/app.html` → same `app.js` + `styles.css` pair.
+- `/` serves `web/welcome/index.html` → loads `/welcome.css` (no `app.js`). **This is the marketing landing page in both modes.**
+- `/workbench/` serves `web/index.html` → loads `/app.js` + `/styles.css`. **This is the live tool page.** The workbench gates its graph and chat panels behind overlays until a family with documents is selected (`renderProgressiveWorkspace` in `app.js`).
+- `web/app.html` → same `app.js` + `styles.css` pair; reachable at `/app.html` for old bookmarks only. Keep its element ids in lockstep with `web/index.html` — both pages load the same `app.js`, and an id missing from either page throws.
 - `/demo.html` (`web/demo.html`) → `demo.js` + `demo-graph.js` + `demo.css`; kept reachable by name while the interface convergence settles.
 - `web/story.html`, `web/blog/`, `web/privacy.html`, `web/terms.html` → `styles.css`.
+- `web/assets/workbench-tour.png` is the annotated workbench screenshot on the landing page.
 - `app.py` resolves static paths strictly inside `web/`; files elsewhere (e.g. stray `demo.*` copies at repo root) are never served.
 - HTML placeholders `{{OPERATOR_NAME}}`, `{{PRIVACY_EMAIL}}`, `{{RETENTION_HOURS}}`, `{{APP_MODE}}` are substituted server-side at serve time.
 

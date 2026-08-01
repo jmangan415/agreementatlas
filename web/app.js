@@ -1,6 +1,12 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
+// A family choice belongs to this workbench visit, not to every future visit
+// from the browser. Session storage survives a refresh but lets a new visit
+// begin with the left-to-right introduction; remove the old durable choice so
+// existing visitors see the new flow once too.
+window.localStorage.removeItem("agreementatlas.family");
+
 const state = {
   status: null,
   graph: { nodes: [], relationships: [] },
@@ -20,7 +26,11 @@ const state = {
   drag: null,
   poll: null,
   answerIds: new Set(),
-  familyId: window.localStorage.getItem("agreementatlas.family") || "",
+  // A camera flight in progress, and the sonar pulse marking an arrival.
+  flight: null,
+  pulse: null,
+  enrichmentChoice: false,
+  familyId: window.sessionStorage.getItem("agreementatlas.family") || "",
 };
 
 // One palette across the product: the page's ink and slate for structure, the
@@ -53,9 +63,9 @@ function withFamily(path) {
 function setFamilyId(value) {
   state.familyId = value || "";
   if (state.familyId) {
-    window.localStorage.setItem("agreementatlas.family", state.familyId);
+    window.sessionStorage.setItem("agreementatlas.family", state.familyId);
   } else {
-    window.localStorage.removeItem("agreementatlas.family");
+    window.sessionStorage.removeItem("agreementatlas.family");
   }
 }
 
@@ -174,32 +184,20 @@ function renderRuntime() {
   renderEnrichment();
 }
 
-// Measured on this hardware: the live acceptance ran 31 clause batches in
-// 92 seconds (~3 s each); say 4 to stay honest when clauses run long.
-const ENRICH_SECONDS_PER_CLAUSE = 4;
-
 function enrichEstimate() {
   const coverage = state.status.enrichment_coverage || {};
   const remaining = Math.max(
     0,
     (coverage.total_clauses || 0) - (coverage.completed_clauses || 0)
   );
-  if (!remaining) {
-    return (
-      "Structured extraction reads every substantive clause with the local " +
-      "model, a few seconds each — a typical agreement takes a few minutes. " +
-      "Progress is saved as it goes."
-    );
-  }
-  const minutes = Math.max(
-    1,
-    Math.round((remaining * ENRICH_SECONDS_PER_CLAUSE) / 60)
-  );
+  const scope = remaining
+    ? `The local model will examine ${remaining} remaining substantive clause${remaining === 1 ? "" : "s"}. `
+    : "The local model examines each substantive clause in the agreement family. ";
   return (
-    `Structured extraction reads ~${remaining} clause${remaining === 1 ? "" : "s"} ` +
-    `with the local model, about ${ENRICH_SECONDS_PER_CLAUSE} seconds each — ` +
-    `roughly ${minutes} minute${minutes === 1 ? "" : "s"} in total. Progress is ` +
-    "saved as it goes; you can keep exploring meanwhile."
+    scope +
+    "Processing time depends on the size and complexity of the agreements. " +
+    "It typically takes multiple minutes and can take longer for larger or more complex families. " +
+    "Progress is saved as it goes, and you can keep exploring the deterministic graph meanwhile."
   );
 }
 
@@ -277,7 +275,7 @@ function renderEnrichment() {
   if (running) {
     message = job.total_batches
       ? `Extracting structured rules: batch ${job.completed_batches} of ${job.total_batches}.`
-      : "Preparing material clauses for local extraction…";
+      : "Preparing material clauses for local enrichment…";
   } else if (job.state === "complete") {
     message = `${job.summary.rules} validated AI rules · ${job.summary.fallback_rules || 0} deterministic fallbacks · ${job.summary.clauses_considered} clauses checked.`;
   } else if (coverage.state !== "none") {
@@ -303,9 +301,76 @@ function stamp(seconds) {
 }
 
 function renderFooter() {
-  $("#deleteButton").textContent = state.status.persistent
+  const button = $("#deleteButton");
+  button.textContent = state.status.persistent
     ? "Delete this family"
     : "Delete my documents";
+  button.hidden = state.status.persistent && !state.status.family;
+}
+
+function renderProgressiveWorkspace() {
+  const familySelected = Boolean(state.status.family);
+  const hasDocuments = familySelected && state.status.documents.length > 0;
+  $("#familyWorkspace").hidden = !familySelected;
+
+  const graphPanel = $(".graph-panel");
+  const answerPanel = $(".answer-panel");
+  graphPanel.classList.toggle("is-gated", !hasDocuments);
+  answerPanel.classList.toggle("is-gated", !hasDocuments);
+  // The gates are real overlay elements, not merely styling on the panels.
+  // Remove them from layout and the accessibility tree once the family has
+  // documents; otherwise they continue to sit above a successfully loaded
+  // graph and make the selection look as though it did nothing.
+  $("#graphGate").hidden = hasDocuments;
+  $("#chatGate").hidden = hasDocuments;
+
+  if (!hasDocuments) {
+    $("#graphGateTitle").textContent = familySelected
+      ? "Add the first agreements"
+      : "Choose an agreement family";
+    $("#graphGateCopy").textContent = familySelected
+      ? "Upload related documents in Step 1. AgreementAtlas will build their deterministic graph before any AI enrichment."
+      : "Select a published sample, or create your own family in Step 1. Its legal map will open here.";
+    $("#chatGateTitle").textContent = familySelected
+      ? "Build the graph before asking"
+      : "Choose what you want to question";
+    $("#chatGateCopy").textContent = familySelected
+      ? "Once the deterministic graph is ready, focused questions and exact-clause answers will open here."
+      : "Chat opens after you select an agreement family that contains documents.";
+  }
+}
+
+function renderEnrichmentChoice() {
+  const choice = $("#enrichmentChoice");
+  if (!choice) return;
+  const family = state.status.family;
+  const coverage = state.status.enrichment_coverage || {};
+  const running = state.status.enrichment.state === "running";
+  const readOnlySample = Boolean(
+    !state.status.persistent && family && family.is_sample
+  );
+  const eligible = Boolean(
+    state.enrichmentChoice &&
+    family &&
+    state.status.documents.length &&
+    !readOnlySample &&
+    coverage.state !== "complete" &&
+    !running
+  );
+  const opening = eligible && choice.hidden;
+  choice.hidden = !eligible;
+  if (!eligible) return;
+
+  const localModel = state.status.lmstudio;
+  const start = $("#enrichmentChoiceStart");
+  const available = Boolean(
+    localModel.available && $("#modelSelect").value
+  );
+  start.disabled = !available;
+  $("#enrichmentChoiceTiming").textContent = available
+    ? `${enrichEstimate()} The deterministic graph stays available while it processes.`
+    : "No local model is available right now. Explore the deterministic graph and enrich it later when the model is ready.";
+  if (opening) window.requestAnimationFrame(() => start.focus());
 }
 
 // The retention story is told where it matters: at the moment of upload.
@@ -327,8 +392,10 @@ function renderUploadArea() {
       const time = new Date(expires * 1000).toLocaleTimeString([], {
         hour: "2-digit", minute: "2-digit",
       });
+      const hours = state.status.session.retention_hours;
       note.textContent =
-        `Private to this browser session · deleted automatically by ${time}`;
+        `Temporary private session · uploads and generated data deleted by ${time}` +
+        (hours ? ` (${hours}-hour maximum)` : "");
     }
   }
 }
@@ -373,18 +440,24 @@ function renderLibrary() {
   ];
   for (const [label, members] of groups) {
     if (!members.length && label !== "Your agreement families") continue;
-    list.appendChild(element("p", "family-group-label", label));
+    const groupClass = label === "Pre-enriched samples"
+      ? "family-group family-group-samples"
+      : "family-group family-group-owned";
+    const group = element("section", groupClass);
+    group.setAttribute("aria-label", label);
+    group.appendChild(element("p", "family-group-label", label));
     if (!members.length) {
       // A new visitor owns nothing yet, and the empty state should say so
       // rather than leaving a bare heading -- or worse, claiming someone
       // else's corpora as theirs.
-      list.appendChild(
+      group.appendChild(
         element(
           "p",
-          "inline-status",
+          "inline-status family-group-empty",
           "None yet — create an agreement family and upload your own agreements."
         )
       );
+      list.appendChild(group);
       continue;
     }
     for (const family of members) {
@@ -411,8 +484,9 @@ function renderLibrary() {
         source.title = `Published source: ${catalogued.source_url}`;
         row.appendChild(source);
       }
-      list.appendChild(row);
+      group.appendChild(row);
     }
+    list.appendChild(group);
   }
   const heading = state.status.family ? state.status.family.name : "Source documents";
   $("#familyHeading").textContent = heading;
@@ -427,6 +501,7 @@ function resetWorkspaceView() {
   state.positions.clear();
   state.selectedId = null;
   state.enrichArmed = false;
+  state.enrichmentChoice = false;
   renderGraphState();
   renderInspector();
   clearChatView();
@@ -460,6 +535,7 @@ function toggleFamilyForm(open) {
   if (!form) return;
   form.hidden = !open;
   $("#newFamilyButton").hidden = open;
+  setStatus($("#familyStatus"), "");
   if (open) {
     $("#newFamilyName").value = "";
     $("#newFamilyName").focus();
@@ -469,7 +545,7 @@ function toggleFamilyForm(open) {
 async function createFamily(name) {
   const trimmed = String(name || "").trim();
   if (!trimmed) {
-    setStatus($("#uploadStatus"), "Give the agreement family a name.", true);
+    setStatus($("#familyStatus"), "Give the agreement family a name.", true);
     return;
   }
   try {
@@ -479,33 +555,30 @@ async function createFamily(name) {
       body: JSON.stringify({ name: trimmed }),
     });
     toggleFamilyForm(false);
+    setStatus($("#familyStatus"), "");
     setFamilyId(family.id);
     resetWorkspaceView();
     await refreshStatus({ reloadGraph: true });
     setStatus($("#uploadStatus"), `${family.name} created. Add its agreements to build the graph.`);
   } catch (error) {
-    setStatus($("#uploadStatus"), error.message, true);
+    setStatus($("#familyStatus"), error.message, true);
   }
 }
 
 async function refreshStatus({ reloadGraph = false } = {}) {
   state.status = await api(withFamily("/api/status"));
-  // The stored family may be gone, or this may be a browser that has never
-  // chosen one. Prefer the default sample the server names -- creation
-  // timestamps carry one-second resolution, so recency alone cannot promise
-  // the catalogue's default lands first -- then the most recent family.
-  if (!state.status.family && (state.status.families || []).length) {
-    const families = state.status.families;
-    const preferred =
-      families.find((item) => item.name === state.status.sample_family) ||
-      families[0];
-    setFamilyId(preferred.id);
-    state.status = await api(withFamily("/api/status"));
-    reloadGraph = true;
+  // A choice saved for this tab can outlive a deleted family or an expired
+  // public session. Clear it rather than silently choosing a different family:
+  // Step 1 should always be an intentional choice.
+  if (state.familyId && !state.status.family) {
+    setFamilyId("");
+    state.status = await api("/api/status");
   }
   renderLibrary();
+  renderProgressiveWorkspace();
   renderDocuments();
   renderRuntime();
+  renderEnrichmentChoice();
   renderFooter();
   renderUploadArea();
   renderProvenance();
@@ -672,15 +745,18 @@ async function pollEnrichment() {
   }
 }
 
+const CONSENT_MESSAGE =
+  "Confirm that you are authorised to use the temporary public demo before uploading.";
+
+function consentMissing() {
+  return !$("#publicConfirm").hidden && !$("#uploadConsent").checked;
+}
+
 async function upload(files) {
   const chosen = [...files];
   if (!chosen.length) return;
-  if (!$("#publicConfirm").hidden && !$("#uploadConsent").checked) {
-    setStatus(
-      $("#uploadStatus"),
-      "Confirm that you are authorised to use the temporary public demo before uploading.",
-      true
-    );
+  if (consentMissing()) {
+    setStatus($("#uploadStatus"), CONSENT_MESSAGE, true);
     $("#fileInput").value = "";
     return;
   }
@@ -691,6 +767,7 @@ async function upload(files) {
     await api(withFamily("/api/upload"), { method: "POST", body: form });
     setStatus($("#uploadStatus"), "Agreement family updated. Deterministic graph ready.");
     state.selectedId = null;
+    state.enrichmentChoice = true;
     await refreshStatus({ reloadGraph: true });
   } catch (error) {
     setStatus($("#uploadStatus"), error.message, true);
@@ -699,6 +776,18 @@ async function upload(files) {
   }
 }
 
+$("#fileInput").addEventListener("click", (event) => {
+  if (consentMissing()) {
+    event.preventDefault();
+    setStatus($("#uploadStatus"), CONSENT_MESSAGE, true);
+  }
+});
+$("#uploadConsent").addEventListener("change", () => {
+  const status = $("#uploadStatus");
+  if ($("#uploadConsent").checked && status.textContent === CONSENT_MESSAGE) {
+    setStatus(status, "");
+  }
+});
 $("#fileInput").addEventListener("change", (event) => upload(event.target.files));
 for (const name of ["dragenter", "dragover"]) {
   $("#dropZone").addEventListener(name, (event) => {
@@ -726,9 +815,12 @@ $("#enrichCancelArm")?.addEventListener("click", () => {
   state.enrichArmed = false;
   renderEnrichment();
 });
-$("#enrichStart")?.addEventListener("click", async () => {
+async function startEnrichment() {
+  state.enrichmentChoice = false;
+  renderEnrichmentChoice();
   state.enrichArmed = false;
-  $("#enrichStart").disabled = true;
+  const controls = [$("#enrichStart"), $("#enrichmentChoiceStart")].filter(Boolean);
+  controls.forEach((control) => { control.disabled = true; });
   try {
     await api(withFamily("/api/enrich"), {
       method: "POST",
@@ -740,8 +832,15 @@ $("#enrichStart")?.addEventListener("click", async () => {
     setStatus($("#enrichMessage"), error.message, true);
     renderEnrichment();
   } finally {
-    $("#enrichStart").disabled = false;
+    controls.forEach((control) => { control.disabled = false; });
   }
+}
+
+$("#enrichStart")?.addEventListener("click", startEnrichment);
+$("#enrichmentChoiceStart")?.addEventListener("click", startEnrichment);
+$("#enrichmentChoiceLater")?.addEventListener("click", () => {
+  state.enrichmentChoice = false;
+  renderEnrichmentChoice();
 });
 
 $("#deleteButton").addEventListener("click", async () => {
@@ -760,9 +859,11 @@ $("#deleteButton").addEventListener("click", async () => {
     renderInspector();
     $("#chat").replaceChildren(createChatEmpty());
     await refreshStatus();
-    setStatus($("#uploadStatus"), "Your documents and generated session data were deleted.");
+    // After a delete the family is gone and #familyWorkspace (which holds
+    // #uploadStatus) is hidden with it; confirm in the card that stays.
+    setStatus($("#familyStatus"), "Your documents and generated session data were deleted.");
   } catch (error) {
-    setStatus($("#uploadStatus"), error.message, true);
+    setStatus($("#familyStatus"), error.message, true);
   }
 });
 
@@ -977,7 +1078,7 @@ function evidenceCard(item, index, turnId) {
   // Opening the card shows the annotated quote; the click also locates the
   // record on the workbench canvas and inspector -- the integration the demo
   // never had.
-  summary.addEventListener("click", () => selectGraphNode(item.id, item));
+  summary.addEventListener("click", () => selectGraphNode(item.id, item, { fly: true }));
   details.append(summary);
   const reading = presentableRule(item.rule);
   details.append(annotatedQuote(item.text, reading));
@@ -1061,7 +1162,7 @@ function renderResultTurn(result, block) {
   if (result.resolution_trace) {
     const trace = element("div", `resolution-trace ${result.resolution_trace.status.toLowerCase()}`);
     trace.append(
-      element("b", "", `Legal resolution: ${result.resolution_trace.status}`),
+      element("b", "", `Determination: ${result.resolution_trace.status}`),
       element("span", "", `${result.resolution_trace.steps.length} candidate rule${result.resolution_trace.steps.length === 1 ? "" : "s"} · ${result.graph_build_mode} graph`)
     );
     if (result.resolution_trace.unresolved_warnings?.length) {
@@ -1083,9 +1184,6 @@ function renderResultTurn(result, block) {
     turn.append(drill);
   }
   appendTurn(turn, block);
-  // Show the top of the answer, not the bottom of everything after it.
-  const chat = $("#chat");
-  chat.scrollTop = Math.max(0, turn.offsetTop - chat.offsetTop - 8);
 }
 
 $("#chat").addEventListener("click", (event) => {
@@ -1239,7 +1337,7 @@ $("#chat").addEventListener("click", (event) => {
   // Selection lights the node and every edge it touches, and the inspector
   // shows the record -- the same journey the evidence card offers.
   const item = evidenceByCardId.get(target.id);
-  if (item) selectGraphNode(item.id, item);
+  if (item) selectGraphNode(item.id, item, { fly: true });
 });
 
 $("#askForm").addEventListener("submit", (event) => {
@@ -1486,6 +1584,7 @@ function drawGraph() {
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.clearRect(0, 0, rect.width, rect.height);
   if (!state.graph.nodes.length) return;
+  const now = performance.now();
 
   const nodes = visibleNodes();
   const visible = new Set(nodes.map((node) => node.id));
@@ -1498,6 +1597,7 @@ function drawGraph() {
   // Depth fades with distance so the far side of the cloud reads as far.
   const fade = (persp) => Math.min(1, Math.max(0.3, (persp - 0.62) * 1.6 + 0.45));
 
+  let pulseEdgeIndex = 0;
   for (const edge of state.graph.relationships) {
     if (!visible.has(edge.source) || !visible.has(edge.target)) continue;
     const source = state.projected.get(edge.source);
@@ -1508,7 +1608,20 @@ function drawGraph() {
       edge.source === state.selectedId || edge.target === state.selectedId
     );
     const depthAlpha = fade((source.persp + target.persp) / 2);
-    context.globalAlpha = depthAlpha;
+    // While the pulse runs, the arrival node's own edges light up one after
+    // another -- the clause visibly wiring itself to its neighbourhood.
+    let reveal = 1;
+    if (
+      state.pulse &&
+      (edge.source === state.pulse.id || edge.target === state.pulse.id)
+    ) {
+      reveal = Math.min(
+        1,
+        Math.max(0, (now - state.pulse.t0 - pulseEdgeIndex * 45) / 260)
+      );
+      pulseEdgeIndex += 1;
+    }
+    context.globalAlpha = depthAlpha * reveal;
     context.strokeStyle = inAnswer
       ? "rgba(47,125,110,.75)"
       : highlighted ? "rgba(63,165,143,.7)" : "rgba(92,112,130,.16)";
@@ -1548,6 +1661,35 @@ function drawGraph() {
       context.strokeStyle = node.id === state.selectedId ? "#0F1720" : "#3FA58F";
       context.lineWidth = 2;
       context.stroke();
+    }
+  }
+
+  // The sonar pulse: two rings expanding from the arrival node, in the jade
+  // the answer highlighting already taught the reader to follow.
+  if (state.pulse) {
+    const point = state.projected.get(state.pulse.id);
+    const pulsed = state.graph.nodes.find((node) => node.id === state.pulse.id);
+    if (point && pulsed) {
+      const style = nodeStyle[pulsed.type] || nodeStyle.rule;
+      const base = style.radius * Math.sqrt(state.transform.k) * point.persp;
+      const elapsed = (now - state.pulse.t0) / state.pulse.duration;
+      for (const phase of [0, .3]) {
+        const p = (elapsed - phase) / .7;
+        if (p <= 0 || p >= 1) continue;
+        context.globalAlpha = (1 - p) * .55 * fade(point.persp);
+        context.strokeStyle = "#2F7D6E";
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(
+          point.x,
+          point.y,
+          base + p * 30 * Math.sqrt(state.transform.k),
+          0,
+          Math.PI * 2
+        );
+        context.stroke();
+      }
+      context.globalAlpha = 1;
     }
   }
 
@@ -1600,6 +1742,7 @@ function truncate(value, maximum) {
 }
 
 function fitGraph() {
+  state.flight = null;
   const nodes = visibleNodes();
   const rect = $("#graphCanvas").getBoundingClientRect();
   if (!nodes.length || !rect.width || !rect.height) return;
@@ -1629,15 +1772,19 @@ function fitGraph() {
   drawGraph();
 }
 
-// The idle spin: a slow turn that shows the cloud is a cloud, running only
-// until the reader takes the controls, and never for readers who asked the
-// OS for reduced motion.
-(function idleSpin() {
-  if (state.spin && !document.hidden && state.graph.nodes.length && !state.drag) {
+// One frame loop drives everything time-based: camera flights and pulses
+// first, then the idle spin -- a slow turn that shows the cloud is a cloud,
+// running only until the reader takes the controls, and never for readers
+// who asked the OS for reduced motion. The spin pauses while a flight or
+// pulse runs so the destination holds still.
+(function tick(now) {
+  if (stepAnimations(now ?? performance.now())) {
+    drawGraph();
+  } else if (state.spin && !document.hidden && state.graph.nodes.length && !state.drag) {
     state.rot.yaw += 0.0022;
     drawGraph();
   }
-  window.requestAnimationFrame(idleSpin);
+  window.requestAnimationFrame(tick);
 })();
 
 // Picking reads the projection the last draw cached: whatever the reader can
@@ -1665,6 +1812,8 @@ function nodeAt(event) {
 
 $("#graphCanvas").addEventListener("pointerdown", (event) => {
   state.spin = false;
+  // Taking the controls lands the camera wherever it is.
+  state.flight = null;
   const node = nodeAt(event);
   state.drag = {
     nodeId: node?.id || null,
@@ -1740,6 +1889,7 @@ $("#graphCanvas").addEventListener("pointercancel", endPointer);
 
 $("#graphCanvas").addEventListener("wheel", (event) => {
   event.preventDefault();
+  state.flight = null;
   const rect = $("#graphCanvas").getBoundingClientRect();
   const mouseX = event.clientX - rect.left - rect.width / 2;
   const mouseY = event.clientY - rect.top - rect.height / 2;
@@ -1752,6 +1902,7 @@ $("#graphCanvas").addEventListener("wheel", (event) => {
 }, { passive: false });
 
 function zoom(factor) {
+  state.flight = null;
   state.transform.k = Math.min(3.5, Math.max(.18, state.transform.k * factor));
   drawGraph();
 }
@@ -1832,7 +1983,8 @@ function highlightAnswerEvidence(evidence) {
     if (viaClause) wanted.add(viaClause.id);
   }
   state.answerIds = wanted;
-  if (wanted.size) fitToNodes(wanted);
+  // The finished answer's evidence frames itself with a glide, not a cut.
+  if (wanted.size) flyTo(frameForNodes(wanted), 600);
   drawGraph();
 }
 
@@ -1843,20 +1995,91 @@ function clearAnswerHighlight() {
 }
 
 // Frame the cited records rather than the whole family, so a two-clause answer
-// is not shown as two dots in an otherwise empty field. Positions are in the
-// same pixel space `fitGraph` works in -- treating them as normalised put the
-// origin hundreds of pixels off-canvas and drew an empty graph.
-function fitToNodes(ids) {
-  const points = [...ids].map((id) => state.positions.get(id)).filter(Boolean);
+// is not shown as two dots in an otherwise empty field. Projection matches the
+// draw pipeline (rotation and perspective included) -- fitting raw positions
+// misframed whenever the cloud had turned since load. Returns the transform
+// rather than applying it, so arrival can be a flight instead of a cut.
+function frameForNodes(ids) {
   const rect = $("#graphCanvas").getBoundingClientRect();
-  if (points.length < 2 || !rect.width || !rect.height) return;
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  const width = Math.max(180, Math.max(...xs) - Math.min(...xs) + 160);
-  const height = Math.max(180, Math.max(...ys) - Math.min(...ys) + 160);
-  state.transform.k = Math.min(1.6, Math.max(.03, Math.min(rect.width / width, rect.height / height)));
-  state.transform.x = -(Math.max(...xs) + Math.min(...xs)) / 2 * state.transform.k;
-  state.transform.y = -(Math.max(...ys) + Math.min(...ys)) / 2 * state.transform.k;
+  if (!rect.width || !rect.height) return null;
+  const cy = Math.cos(state.rot.yaw);
+  const sy = Math.sin(state.rot.yaw);
+  const cp = Math.cos(state.rot.pitch);
+  const sp = Math.sin(state.rot.pitch);
+  const xs = [];
+  const ys = [];
+  for (const id of ids) {
+    const point = state.positions.get(id);
+    if (!point) continue;
+    const x1 = point.x * cy + point.z * sy;
+    const z1 = -point.x * sy + point.z * cy;
+    const y1 = point.y * cp - z1 * sp;
+    const depth = point.y * sp + z1 * cp;
+    const persp = FOCAL / Math.max(220, FOCAL - depth);
+    xs.push(x1 * persp);
+    ys.push(y1 * persp);
+  }
+  if (!xs.length) return null;
+  // One node has no footprint to fit; land close enough to read it but far
+  // enough that its neighbourhood stays in the frame.
+  const k = xs.length === 1
+    ? Math.min(1.1, Math.max(.4, Math.min(rect.width, rect.height) / 560))
+    : Math.min(1.6, Math.max(.03, Math.min(
+        rect.width / Math.max(180, Math.max(...xs) - Math.min(...xs) + 160),
+        rect.height / Math.max(180, Math.max(...ys) - Math.min(...ys) + 160)
+      )));
+  return {
+    k,
+    x: -(Math.max(...xs) + Math.min(...xs)) / 2 * k,
+    y: -(Math.max(...ys) + Math.min(...ys)) / 2 * k,
+  };
+}
+
+const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+// A citation names a place in the graph; the camera travelling there is what
+// makes the claim legible. Readers who asked the OS for reduced motion get
+// the destination without the journey.
+function flyTo(target, duration = 450) {
+  if (!target) return;
+  if (REDUCED_MOTION.matches) {
+    state.transform.x = target.x;
+    state.transform.y = target.y;
+    state.transform.k = target.k;
+    state.flight = null;
+    drawGraph();
+    return;
+  }
+  state.flight = {
+    t0: performance.now(),
+    duration,
+    from: { x: state.transform.x, y: state.transform.y, k: state.transform.k },
+    to: target,
+  };
+}
+
+function pulseNode(id) {
+  if (REDUCED_MOTION.matches) return;
+  state.pulse = { id, t0: performance.now(), duration: 1100 };
+}
+
+function stepAnimations(now) {
+  let busy = false;
+  if (state.flight) {
+    const t = Math.min(1, (now - state.flight.t0) / state.flight.duration);
+    const eased = t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+    const { from, to } = state.flight;
+    state.transform.x = from.x + (to.x - from.x) * eased;
+    state.transform.y = from.y + (to.y - from.y) * eased;
+    state.transform.k = from.k + (to.k - from.k) * eased;
+    if (t >= 1) state.flight = null;
+    busy = true;
+  }
+  if (state.pulse) {
+    if (now - state.pulse.t0 > state.pulse.duration) state.pulse = null;
+    busy = true;
+  }
+  return busy;
 }
 
 // An evidence record and a graph node are not the same population. The graph
@@ -1881,10 +2104,18 @@ function resolveGraphNode(id) {
   return null;
 }
 
-function selectGraphNode(id, item) {
+function selectGraphNode(id, item, options = {}) {
   const node = resolveGraphNode(id);
   if (node) {
     state.selectedId = node.id;
+    // A click in the chat is a request to be shown: the camera travels to the
+    // node and it announces itself. A click on the canvas already is there,
+    // so it gets the announcement without the travel.
+    if (options.fly) {
+      state.spin = false;
+      flyTo(frameForNodes([node.id]));
+    }
+    pulseNode(node.id);
     renderInspector();
     drawGraph();
     return;
@@ -1996,8 +2227,11 @@ function renderInspector() {
 }
 
 refreshStatus({ reloadGraph: true }).catch((error) => {
+  // #familyStatus lives in the always-visible library card; #uploadStatus sits
+  // inside #familyWorkspace, which is hidden exactly when startup fails with
+  // no family selected -- the error was written somewhere nobody could see.
   setStatus(
-    $("#uploadStatus"),
+    $("#familyStatus"),
     `AgreementAtlas could not start: ${error.message}`,
     true,
   );
