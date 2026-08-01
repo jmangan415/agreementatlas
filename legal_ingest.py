@@ -715,7 +715,6 @@ def printed_section(text: str) -> str:
     return printed
 
 
-
 # A run-in section heading printed inside a paragraph: "...will apply. 3.3
 # Allocation of Licenses to Affiliates. Unless prohibited under..." The
 # heading detector reads font size, and a document that prints its hierarchy
@@ -973,7 +972,6 @@ DEFINITION_START = re.compile(
 )
 
 
-
 # The label and aliases that introduce the *next* definition in a lettered
 # run: '...made generally available by OT; F) "EULA" or "End User License
 # Agreement" means...'. The splitter cuts at the next 'means', so everything
@@ -981,7 +979,7 @@ DEFINITION_START = re.compile(
 # was glued onto the end of the previous definition, which then read as
 # though OT's Documentation definition mentioned the EULA.
 TRAILING_DEFINITION_LABEL = re.compile(
-    r'[;.,]?\s*\(?[A-Za-z]{1,2}\)\s*'
+    r"[;.,]?\s*\(?[A-Za-z]{1,2}\)\s*"
     r'(?:[\u201c"][^\u201d"]{1,100}[\u201d"]\s*(?:or|and)?\s*)*$'
 )
 
@@ -1660,24 +1658,50 @@ MODAL_VERB = (
     r"|is\s+required\s+to|is\s+entitled\s+to)"
 )
 
+# A word that can open a new operative statement's subject. The capital
+# branch is case-sensitive inside an otherwise case-insensitive pattern:
+# "Customer" opens a statement, the "support" of "maintenance and support"
+# does not.
+SUBJECT_START = (
+    r"(?:(?-i:[A-Z0-9])"
+    r"|(?:a|an|the|each|any|all|no|nothing|such|every|either|neither|both"
+    r"|its|their|your|his|her|it|you|they|we|he|she|one)\b)"
+)
+
+# "(i) ", "(a) ", "(2) " -- a list marker may sit between the conjunction and
+# the new statement's subject: "and (ii) Okta will have the right".
+ENUMERATOR = r"(?:\((?:[ivx]{1,4}|[a-z]|\d{1,2})\)\s+)?"
+
+# A new statement's opening: optionally a list marker and a subject (up to
+# eight words -- "and a user allocated any other type of license may not"
+# puts seven between conjunction and modal), then the modal itself.
+SUBJECT_THEN_MODAL = (
+    rf"(?:{ENUMERATOR}{SUBJECT_START}[\w'-]*[,\s]+(?:[\w'-]+[,\s]+){{0,7}}?)?"
+    rf"{MODAL_VERB}\b"
+)
+
 # Where one operative statement ends and the next begins. Either a sentence or
-# semicolon boundary, or a conjunction that introduces a fresh modal verb --
-# "and shall not", "but must not". A conjunction without a following modal joins
-# one statement rather than starting another, so it must not split.
+# semicolon boundary, or a conjunction that introduces a fresh statement. A
+# nearby modal alone is not enough to make the conjunction a boundary:
+# "maintenance and support must be submitted" put "must" within reach of an
+# "and" that merely joins a noun phrase, and cutting there clipped the subject
+# out of the quoted evidence -- the §4.2 truncation, where the citation opened
+# mid-phrase at "support for Covered Software must result". So what follows
+# the conjunction must be shaped like a statement opening (SUBJECT_THEN_MODAL);
+# a comma directly after the conjunction marks an aside -- "and, upon request,
+# Customer will provide" -- which is looked across but never consumed, because
+# the aside belongs to the statement that follows and consuming it silently
+# deleted "in particular," from a quote. Measured over the 2,690 clauses in
+# the library: fragments opening on a clipped phrase tail fall 391 -> 161,
+# fragments carrying two acts rise 219 -> 261 -- the milder defect, since such
+# a quote is still a faithful, readable substring. An adversarial review of
+# all 196 changed clauses scored the change better in 187, and the recoverable
+# regressions ("nothing herein shall", consumed asides, enumerated subjects)
+# are folded into the pattern above.
 PROPOSITION_BREAK = re.compile(
     r"(?<=[a-z\)\"”])[.;]\s+(?=[A-Z“\"(])"
-    # The conjunction may be followed by its own aside -- "and, upon request,
-    # Customer will provide" -- so allow punctuation between it and the subject.
-    # The subject between the conjunction and its modal can be long: "... and a
-    # user allocated any other type of license may not have the allocation
-    # changed" puts seven words there. At a window of three that second statement
-    # stayed joined to the first. Measured over the 1,523 multi-act clauses in
-    # the library, fragments still holding more than one act fall 277 -> 225 as
-    # the window widens 3 -> 8, then flatten (215 at twelve, 205 at twenty),
-    # while "the Software and Documentation licensed to Licensee may be used"
-    # keeps its object list intact throughout. Eight buys most of the gain
-    # before the window starts reaching across genuine lists.
-    rf"|,?\s+(?:and|but|or)\s*,?\s+(?=(?:[\w'-]+[,\s]+){{0,8}}?{MODAL_VERB}\b)"
+    rf"|,?\s+(?:and|but|or),\s+(?=(?:[^,;.]{{0,60}},\s+)?{SUBJECT_THEN_MODAL})"
+    rf"|,?\s+(?:and|but|or)\s+(?={SUBJECT_THEN_MODAL})"
     # A list of duties is punctuated with commas alone -- "to hold ..., not to
     # disclose ..., and not to use ...". Only the limb carrying the conjunction
     # would otherwise separate, leaving the rest joined to the first duty.

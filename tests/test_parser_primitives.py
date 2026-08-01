@@ -1115,6 +1115,61 @@ class ConjunctionAsideTests(unittest.TestCase):
         self.assertEqual(len(operative_propositions(text)), 1)
 
 
+class ConjunctionSubjectGateTests(unittest.TestCase):
+    """A conjunction splits only where a new statement actually starts."""
+
+    def test_a_noun_phrase_conjunction_does_not_split(self) -> None:
+        # "maintenance and support must" put a modal within reach of an "and"
+        # that joins a noun phrase; cutting there clipped the subject out of
+        # the quoted evidence and welded the next sentence's condition onto
+        # the wrong statement (the §4.2 Reductions truncation).
+        text = (
+            "Any renewal of maintenance and support for Covered Software must "
+            "result in all licenses being covered by a plan. If you cancel "
+            "maintenance and support for a portion of any Software product or "
+            "related modules, you will be required to cancel the licenses for "
+            "the unsupported software."
+        )
+        fragments = operative_propositions(text)
+        self.assertEqual(len(fragments), 2)
+        self.assertTrue(fragments[0].startswith("Any renewal"))
+        self.assertTrue(fragments[1].startswith("If you cancel"))
+
+    def test_nothing_opens_a_statement(self) -> None:
+        text = (
+            "The parties shall be independent contractors under this "
+            "Agreement, and nothing herein shall constitute either party as "
+            "the employer of the other."
+        )
+        self.assertEqual(len(operative_propositions(text)), 2)
+
+    def test_an_aside_is_looked_across_but_never_consumed(self) -> None:
+        # The aside belongs to the statement that follows: consuming it
+        # silently deleted "if applicable," from the quoted evidence and
+        # turned a conditional duty into an unconditional one.
+        text = (
+            "Customer shall pay the VAT due and, if applicable, Customer "
+            "shall provide proof of such payment."
+        )
+        fragments = operative_propositions(text)
+        self.assertEqual(len(fragments), 2)
+        self.assertTrue(fragments[1].startswith("if applicable, Customer"))
+
+    def test_an_enumerated_statement_still_splits(self) -> None:
+        text = (
+            "Okta may suspend the Service for non-payment, and (ii) Okta "
+            "will have the right to charge interest on late amounts."
+        )
+        self.assertEqual(len(operative_propositions(text)), 2)
+
+    def test_a_bare_modal_after_the_conjunction_still_splits(self) -> None:
+        text = (
+            "Licensee may copy the Software for backup purposes but must not "
+            "distribute it to any third party."
+        )
+        self.assertEqual(len(operative_propositions(text)), 2)
+
+
 class SupersededDefinitionTests(unittest.TestCase):
     """The term means what the edition in force says it means."""
 
