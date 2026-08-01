@@ -142,8 +142,9 @@ Removing a document removes what was extracted from it.
 `APP_MODE=public-demo` gives each visitor an ephemeral, cookie-isolated family
 library of their own: the shipped sample bundles arrive pre-enriched and
 read-only, the visitor can create a few families beside them, and everything
-expires together after `SESSION_TTL_HOURS`. `data/` is gitignored; never
-commit it.
+expires together after `SESSION_TTL_HOURS`. An independent cleanup worker
+removes expired workspaces even if no visitor makes another request; the
+interval defaults to 30 seconds. `data/` is gitignored; never commit it.
 
 ## Configuration
 
@@ -154,6 +155,7 @@ The safe default is `APP_MODE=local`. Relevant values are documented in
 |---|---:|---|
 | `LIBRARY_ROOT` | `data/library` | Where local mode stores agreement families (persistent) |
 | `SESSION_TTL_HOURS` | `6` | Visitor-workspace lifetime, **public-demo only** |
+| `SESSION_CLEANUP_INTERVAL_SECONDS` | `30` | Maximum delay between expiry cleanup passes |
 | `MAX_FILES_PER_SESSION` | `12` | Agreement-family file limit |
 | `MAX_SESSION_BYTES` | `52428800` | Total source-file allowance |
 | `LMSTUDIO_BASE_URL` | `http://127.0.0.1:1234/v1` | Server-side model endpoint |

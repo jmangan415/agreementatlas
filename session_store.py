@@ -161,7 +161,20 @@ class SessionStore:
         expired: list[str] = []
         for session_id, candidate, lock in candidates:
             with lock:
-                shutil.rmtree(candidate, ignore_errors=True)
+                try:
+                    shutil.rmtree(candidate)
+                except FileNotFoundError:
+                    pass
+                except OSError as exc:
+                    # Keep the session eligible for the next cleanup pass. A
+                    # failed filesystem deletion must never be reported as a
+                    # successful expiry -- but a workspace that fails every
+                    # pass needs an operator signal, not a silent retry loop.
+                    print(
+                        f"[sessions] Could not delete expired workspace "
+                        f"{session_id[:8]}…: {type(exc).__name__}: {exc}"
+                    )
+                    continue
             with self._guard:
                 self._locks.pop(session_id, None)
             expired.append(session_id)

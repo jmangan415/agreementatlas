@@ -111,7 +111,8 @@ details. Query adds build mode, retrieval components and `resolution_trace`.
 The previous visitor-isolation and security layer remains:
 
 - random 256-bit session IDs and one workspace per visitor;
-- absolute six-hour expiry and immediate whole-session deletion;
+- absolute six-hour expiry, an independent 30-second cleanup sweep, and
+  immediate whole-session deletion on request;
 - 12-file/50-MB limits, filename/type/archive checks and atomic uploads;
 - HTTP-only `SameSite=Strict` cookie (`Secure` required in public mode);
 - CSP/CSRF/framing/referrer/MIME controls and rate limits;

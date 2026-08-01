@@ -43,6 +43,7 @@ export PRIVACY_CONTACT_EMAIL="${PRIVACY_CONTACT_EMAIL:-privacy@agreementatlas.co
 
 # A public visitor should not be able to queue work indefinitely.
 export SESSION_TTL_HOURS="${SESSION_TTL_HOURS:-6}"
+export SESSION_CLEANUP_INTERVAL_SECONDS="${SESSION_CLEANUP_INTERVAL_SECONDS:-30}"
 export LMSTUDIO_MAX_CONCURRENT_JOBS="${LMSTUDIO_MAX_CONCURRENT_JOBS:-1}"
 
 exec "$ROOT/.venv/bin/python" app.py

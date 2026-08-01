@@ -155,10 +155,23 @@ class AgreementAtlasAPITests(unittest.TestCase):
         return f"?family={json.loads(payload)['id']}"
 
     def test_security_headers_and_csrf_guard(self) -> None:
-        status, headers, _ = self.request("GET", "/")
+        status, headers, payload = self.request("GET", "/")
         self.assertEqual(status, 200)
         self.assertIn("content-security-policy", headers)
         self.assertIn("HttpOnly", headers["set-cookie"])
+        self.assertIn(b"A software licence is rarely one document", payload)
+
+        status, _, payload = self.request("GET", "/workbench/")
+        self.assertEqual(status, 200)
+        self.assertIn(b'id="familyList"', payload)
+        self.assertIn(b'id="familyWorkspace" class="family-workspace" hidden', payload)
+        self.assertIn(b'id="graphGate"', payload)
+        self.assertIn(b'id="chatGate"', payload)
+        self.assertIn(b"STEP 1 \xc2\xb7 LIBRARY", payload)
+        self.assertIn(b'class="graph-search" hidden', payload)
+        self.assertIn(b'id="enrichmentChoice"', payload)
+        self.assertIn(b"Start local AI enrichment", payload)
+
         status, _, payload = self.request(
             "POST",
             "/api/query",
@@ -770,6 +783,49 @@ class PublicDemoFamilyTests(unittest.TestCase):
         self.assertIn("Max-Age=0", headers["set-cookie"])
         session_id = cookie.split("=", 1)[1]
         self.assertFalse((Path(app.session_store.root) / session_id).exists())
+
+    def test_expiry_cleanup_removes_uploaded_and_generated_data(self) -> None:
+        cookie, _ = self.open_session()
+        status, _, payload = self.json_post(
+            "/api/families", {"name": "Expiring upload"}, cookie
+        )
+        self.assertEqual(status, 201, payload)
+        family = json.loads(payload)
+        content_type, body = multipart(
+            [("private.md", b"# Private\n\n1. Security\n\nKeep this confidential.")]
+        )
+        status, _, payload = self.request(
+            "POST",
+            f"/api/upload?family={family['id']}",
+            body=body,
+            headers={
+                "Content-Type": content_type,
+                "Content-Length": str(len(body)),
+                "X-AgreementAtlas-Request": "1",
+            },
+            cookie=cookie,
+        )
+        self.assertEqual(status, 201, payload)
+
+        session_id = cookie.split("=", 1)[1]
+        session_root = Path(app.session_store.root) / session_id
+        family_root = app.session_libraries[session_id].get(family["id"]).root
+        uploaded = family_root / "sources" / "private.md"
+        generated = family_root / "output" / "legal_relationship_graph.json"
+        self.assertTrue(uploaded.exists())
+        self.assertTrue(generated.exists())
+
+        metadata_path = session_root / ".session.json"
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["expires_at"] = 0
+        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+        expired = app.cleanup_expired_sessions(force=True)
+
+        self.assertIn(session_id, expired)
+        self.assertFalse(session_root.exists())
+        self.assertFalse(uploaded.exists())
+        self.assertFalse(generated.exists())
+        self.assertNotIn(session_id, app.session_libraries)
 
 
 if __name__ == "__main__":

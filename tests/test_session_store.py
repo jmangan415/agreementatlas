@@ -42,13 +42,21 @@ class SessionStoreTests(unittest.TestCase):
 
     def test_expiry_is_absolute_and_cleanup_removes_workspace(self) -> None:
         visitor, _ = self.store.get_or_create(None)
+        uploaded = visitor.root / "sources" / "agreement.txt"
+        generated = visitor.root / "output" / "legal_relationship_graph.json"
+        uploaded.write_text("confidential agreement", encoding="utf-8")
+        generated.write_text('{"nodes": []}', encoding="utf-8")
         self.clock.value += 119
         self.assertIsNotNone(self.store.get(visitor.id))
+        self.assertTrue(uploaded.exists())
+        self.assertTrue(generated.exists())
         self.clock.value += 1
         self.assertIsNone(self.store.get(visitor.id))
         expired = self.store.cleanup_expired(force=True)
         self.assertEqual(expired, [visitor.id])
         self.assertFalse(visitor.root.exists())
+        self.assertFalse(uploaded.exists())
+        self.assertFalse(generated.exists())
 
     def test_delete_removes_every_session_directory(self) -> None:
         visitor, _ = self.store.get_or_create(None)

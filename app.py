@@ -61,6 +61,7 @@ def env_bool(name: str, default: bool = False) -> bool:
 APP_MODE = os.environ.get("APP_MODE", "local").strip().lower()
 SESSION_COOKIE = "agreementatlas_session"
 SESSION_TTL_HOURS = env_int("SESSION_TTL_HOURS", 6)
+SESSION_CLEANUP_INTERVAL_SECONDS = env_int("SESSION_CLEANUP_INTERVAL_SECONDS", 30)
 MAX_FILES = env_int("MAX_FILES_PER_SESSION", 12)
 MAX_TOTAL_BYTES = env_int("MAX_SESSION_BYTES", 50 * 1024 * 1024)
 MAX_REQUEST_BYTES = MAX_TOTAL_BYTES + 2 * 1024 * 1024
@@ -117,6 +118,28 @@ def drop_visitor_libraries(session_ids: list[str]) -> None:
     with session_library_guard:
         for session_id in session_ids:
             session_libraries.pop(session_id, None)
+
+
+def cleanup_expired_sessions(*, force: bool = False) -> list[str]:
+    """Remove expired workspaces and their in-memory state as one operation."""
+
+    expired = session_store.cleanup_expired(force=force)
+    cancel_jobs(expired)
+    drop_visitor_libraries(expired)
+    return expired
+
+
+def session_cleanup_worker(stop_event: threading.Event) -> None:
+    """Sweep expired sessions even when no visitor makes another request."""
+
+    while not stop_event.wait(SESSION_CLEANUP_INTERVAL_SECONDS):
+        try:
+            cleanup_expired_sessions(force=True)
+        except Exception as exc:  # noqa: BLE001 - one bad pass must not end expiry
+            # Any escaping exception would kill this daemon thread permanently
+            # and silently, and on an idle server nothing else deletes expired
+            # visitor data. Log and let the next pass retry.
+            print(f"[cleanup] Session expiry pass failed: {type(exc).__name__}: {exc}")
 
 
 # name -> (mtime_ns, digest). Recomputed only when the file changes.
@@ -824,9 +847,7 @@ class Handler(BaseHTTPRequestHandler):
         return item.value if item else None
 
     def ensure_session(self) -> VisitorSession:
-        expired = session_store.cleanup_expired()
-        cancel_jobs(expired)
-        drop_visitor_libraries(expired)
+        cleanup_expired_sessions()
         visitor, created = session_store.get_or_create(self._cookie_value())
         self.visitor = visitor
         self.set_session_cookie = created
@@ -1501,10 +1522,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def serve_static(self, path: str) -> None:
         if path in {"/", ""}:
-            # One interface in both modes. The tool page reads as a working
-            # product in a way the essay page never did; the essay's job moves
-            # to the story page and the engineering log. demo.html stays
-            # reachable by name while the convergence settles.
+            # The public address introduces the project before asking a visitor
+            # to parse a dense three-column workbench. The application keeps a
+            # stable, descriptive route of its own; the old app.html remains
+            # reachable only for bookmarks while links converge on /workbench/.
+            path = "/welcome/index.html"
+        elif path in {"/workbench", "/workbench/"}:
             path = "/index.html"
         target = WEB / path.lstrip("/")
         # A section address ("/blog/") means that section's index, the same
@@ -1531,6 +1554,7 @@ class Handler(BaseHTTPRequestHandler):
                 "demo.js",
                 "demo.css",
                 "demo-graph.js",
+                "welcome.css",
             ):
                 digest = self.asset_version(asset)
                 if digest:
@@ -1586,6 +1610,15 @@ def create_server(
 def main() -> None:
     validate_public_configuration()
     server = create_server()
+    cleanup_expired_sessions(force=True)
+    cleanup_stop = threading.Event()
+    cleanup_thread = threading.Thread(
+        target=session_cleanup_worker,
+        args=(cleanup_stop,),
+        name="agreementatlas-session-cleanup",
+        daemon=True,
+    )
+    cleanup_thread.start()
     host, port = server.server_address[:2]
     mode = "public demo" if APP_MODE == "public-demo" else "local"
     print(f"AgreementAtlas ({mode}) is ready at http://{host}:{port}")
@@ -1594,6 +1627,8 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\nStopping AgreementAtlas.")
     finally:
+        cleanup_stop.set()
+        cleanup_thread.join(timeout=2)
         server.server_close()
 
 
