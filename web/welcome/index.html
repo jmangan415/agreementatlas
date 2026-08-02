@@ -32,7 +32,7 @@
       </span>
     </a>
     <nav aria-label="Welcome page">
-      <a href="#why-local">Why local</a>
+      <a href="#why-local">The approach</a>
       <a href="#workbench">The workbench</a>
       <a class="nav-cta" href="/workbench/">Try it out <span aria-hidden="true">→</span></a>
     </nav>
@@ -65,18 +65,30 @@
 
     <section class="local-section" id="why-local">
       <div class="section-heading dark-heading">
-        <p class="welcome-eyebrow">Why local?</p>
-        <h2>Frontier cloud models can do this kind of work today.</h2>
+        <p class="welcome-eyebrow">The approach</p>
+        <h2>Frontier models can do this work today. The hard part is context.</h2>
       </div>
       <div class="local-copy">
         <p>
-          But repeated analysis is expensive, and it can mean moving confidential
-          agreement text beyond an organisation’s firewall.
+          An answer is only as good as the clauses the model gets to read. One
+          agreement fits in a context window; a family of master terms, orders,
+          schedules, amendments and DPAs does not — and as the pile of related
+          documents grows, finding the handful of provisions that actually
+          control a question becomes the real work.
         </p>
         <p>
-          I built AgreementAtlas to learn how far the same work could be taken
-          with an <strong>open-weight model running locally on a MacBook Pro M5 Pro</strong>—without
-          sending the agreement text to a cloud model API, and while keeping every
+          AgreementAtlas builds that context deliberately: a
+          <strong>knowledge graph of every clause, definition, amendment and
+          precedence relationship</strong>, assembled before any model runs.
+          Retrieval walks the graph — which definition controls, which order
+          amends what, which document wins a conflict — and hands the model only
+          the provisions that govern, with the exact source text attached.
+        </p>
+        <p>
+          Context that good changes what the model needs to be. A small
+          open-weight model <strong>running locally on a MacBook Pro M5
+          Pro</strong> competes with frontier cloud models on these questions —
+          with confidential agreement text never leaving the machine, and every
           conclusion tied to the exact source clause.
         </p>
       </div>
