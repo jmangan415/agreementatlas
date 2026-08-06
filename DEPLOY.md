@@ -115,6 +115,27 @@ to anyone:
 
 ---
 
+## Rebuilding the venv
+
+The venv is native arm64, built with [uv](https://docs.astral.sh/uv/) against
+Python 3.14 and pinned by `requirements.lock` (committed). To rebuild from
+scratch:
+
+    cd ~/projects/graphrag_quickstart
+    uv venv .venv --python 3.14
+    uv pip install -r requirements.lock
+    uv pip install --no-deps -e .
+
+`requirements.lock` is regenerated after any deliberate dependency change with
+`uv pip freeze | grep -v agreementatlas > requirements.lock` — run the test
+suite and the safety checks above before the new set serves traffic.
+
+The Microsoft `graphrag` package (optional extra, unused at runtime) is *not*
+installed; it caps Python below 3.14, so installing `.[graphrag]` requires a
+3.12/3.13 venv.
+
+---
+
 ## Rollback — take the site down now
 
     launchctl unload ~/Library/LaunchAgents/com.agreementatlas.tunnel.plist
@@ -137,6 +158,8 @@ permanently:
 | Cloudflare cert | `~/.cloudflared/cert.pem` | no — **secret** |
 | tunnel credentials | `~/.cloudflared/<uuid>.json` | no — **secret** |
 | launchd services | `~/Library/LaunchAgents/com.agreementatlas.*.plist` | no |
+| cloudflared binary | `/opt/homebrew/bin/cloudflared` (native arm64, brew) | no |
+| dependency lock | `requirements.lock` | yes |
 | operator name / email | `.env` | no — gitignored |
 
 Nothing secret is inside the repository. The two scripts read operator details
