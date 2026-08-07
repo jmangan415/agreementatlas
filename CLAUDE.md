@@ -10,14 +10,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AgreementAtlas — a local-first legal GraphRAG application for families of software/cloud agreements (master terms, orders, amendments, DPAs, SLAs). A deterministic parser builds an evidence-backed legal graph immediately, with no model required; LM Studio (server-side, loopback-only) optionally enriches clause rules and answers questions with citations to exact clause text.
 
-Stack: Python stdlib at runtime — `ThreadingHTTPServer` in `app.py`, no web framework, no database. Only runtime deps are `markitdown` (document conversion) and `python-dotenv`. Frontend is framework-free static HTML/CSS/JS under `web/`. Microsoft GraphRAG is an optional research layer (`knowledge/`, extra `graphrag` dependency) and must never become a runtime requirement for upload, graph rendering or chat.
+Stack: Python stdlib at runtime — `ThreadingHTTPServer` in `app.py`, no web framework, no database; even the LM Studio calls go through `urllib`. Third-party runtime deps are document-conversion only (`pyproject.toml`): `markitdown[all]`, `pdfplumber`, `pandas`, `requests`, plus `python-dotenv`. Frontend is framework-free static HTML/CSS/JS under `web/`. Microsoft GraphRAG is an optional research layer (`knowledge/`, extra `graphrag` dependency) and must never become a runtime requirement for upload, graph rendering or chat.
 
 ## Commands
 
 ```bash
-# setup
-python3.12 -m venv .venv
-./.venv/bin/python -m pip install -e ".[dev]"
+# setup — .venv is native arm64, Python 3.14, built with uv and pinned by
+# requirements.lock (committed). Full rebuild procedure lives in DEPLOY.md.
+uv venv .venv --python 3.14
+uv pip install -r requirements.lock
+uv pip install --no-deps -e .
 cp .env.example .env
 
 # run locally (http://127.0.0.1:8000, APP_MODE=local, persistent data/library)
@@ -38,7 +40,9 @@ node --check web/app.js
 ./.venv/bin/python evaluation.py
 ```
 
-Tests and evaluation run without LM Studio (deterministic path only). API tests bind an ephemeral loopback port. Ruff: line-length 88, target py311, import sorting enabled (`I`), so let ruff order imports.
+Tests and evaluation run without LM Studio (deterministic path only). API tests bind an ephemeral loopback port. Ruff: line-length 88, target py312, rules `E4,E7,E9,F,I,B`, excluding `.venv`/`data`/`knowledge`/`tmp`. Import sorting (`I`) is on, so let ruff order imports; bugbear (`B`) catches mutable defaults, loop-variable capture and `except` shadowing. Broad `except Exception` handlers are deliberate at the ingest boundary — a malformed upload must fall back, not stop the build — and carry a `# noqa: BLE001` comment explaining why, though `BLE` itself is not currently selected.
+
+Python: `requires-python = ">=3.12"`, CI matrix is 3.12 and 3.14. The `graphrag` extra caps Python below 3.14 and is *not* installed in `.venv` — research work under `knowledge/` needs a separate 3.12/3.13 venv. Nothing at runtime may depend on it.
 
 ## The live site — agreementatlas.com runs on this machine
 
@@ -71,13 +75,20 @@ Two servers run side by side **on purpose** (see `DEPLOY.md`):
 Flat modules at repo root:
 
 - `app.py` — HTTP layer: routing, session cookies, CSRF header (`X-AgreementAtlas-Request` on mutations), CSP/security headers, rate limits, static serving + templating, public-demo fail-closed startup checks.
-- `legal_ingest.py` — deterministic parser: uploads → MarkItDown → canonical **schema-v3** JSONL (`legal/*.jsonl` per workspace: instruments, parties, clauses, evidence spans, defined terms, operative/precedence rules, cross-references, amendments, relationships). Emits real legal edges (`ENTERED_UNDER`, `REDEFINES`, `CONTROLLING_DEFINITION`, `CONTROLS_FOR_DEFINED_SCOPE`, `OVERRIDES`, `QUALIFIES`, `AMENDS`, …) plus deterministic operative-rule fallbacks.
+- `legal_ingest.py` — deterministic parser: uploads → text extraction → canonical **schema-v3** JSONL (`legal/*.jsonl` per workspace: instruments, parties, clauses, evidence spans, defined terms, operative/precedence rules, cross-references, amendments, relationships). Emits real legal edges (`ENTERED_UNDER`, `REDEFINES`, `CONTROLLING_DEFINITION`, `CONTROLS_FOR_DEFINED_SCOPE`, `OVERRIDES`, `QUALIFIES`, `AMENDS`, …) plus deterministic operative-rule fallbacks.
 - `legal_graph_service.py` — retrieval and resolution: BM25 + optional Nomic embeddings fused by reciprocal-rank fusion → relationship-specific traversal (never through family/document/party/scope/`CONTAINS` hubs) → controlling definition/scope/amendment/precedence resolution → typed resolution trace + exact evidence. Also deep-enrichment orchestration (context-budgeted, fingerprinted, checkpointed, resumable) and `answer_question`.
 - `legal_schema.py` — schema vocabulary/validation (effect, modality, polarity, scope).
 - `lmstudio_client.py` — the only model egress point: loopback LM Studio, allowlisted model IDs, native `/api/v1/models` for truly-loaded instances, strict JSON Schema extraction, reasoning disabled, Nomic `search_document:`/`search_query:` prefixes. Browser never talks to port 1234.
 - `library_store.py` — persistent agreement families (`data/library/`, local mode). Adding a document re-runs the deterministic build but keeps validated LM rules for existing clauses (clause identity is document-derived).
 - `session_store.py` — ephemeral visitor workspaces (`data/sessions/`, public-demo): 256-bit IDs, absolute 6-hour expiry, 12-file/50 MB quotas, atomic staged uploads.
 - `conversation.py` — chat-turn state; `evaluation.py` — fixture regression gate.
+
+Text extraction (`extract_source_text` in `legal_ingest.py`) is layout-aware, not a flat conversion:
+
+- `.txt`/`.md` are read directly; PDFs go to `pdf_text()` (pdfplumber); everything else — and any PDF that yields nothing — falls back to MarkItDown, which reads the Office formats pdfplumber cannot open.
+- `pdf_text()` finds table regions and emits prose bands and tables in page order, row by row. Flattening a page instead splices multi-column tables into single sentences that are quotable, plausible and wrong.
+- `detect_pdf_headings()` recovers hierarchy from PDF typography (font size vs. body median, running headers and dot-leader TOC rows excluded), because many agreements carry no section numbering and otherwise collapse into one "Preamble".
+- A malformed PDF returns `""` and falls back; it never breaks the build.
 
 Data invariants:
 
@@ -87,6 +98,17 @@ Data invariants:
 - Chapeau and list items are separate clauses/spans; item rules inherit chapeau actor, modality and negation.
 - Questions with no meaningful content-term match return `UNRESOLVED` without calling the LLM.
 - Schema-v2 workspaces are rebuilt from source, not migrated.
+
+## Operational scripts
+
+Parser and schema changes do **not** reach existing workspaces on their own — stored `legal/*.jsonl` is the output of the ingest code that was running the day the document was added. After changing `legal_ingest.py`, rebuild before judging the result, or you are reading yesterday's parse.
+
+- `scripts/reingest_library.py` — rebuild the deterministic layer of every library family (parsing, definitions, offerings, rules), keeping validated LM rules.
+- `scripts/enrich_library.py` — batch LM enrichment across families, concurrent between families and serial within one. Long-running; the full library is hours.
+- `scripts/parse_health.py` — did the documents *parse*? Ratio diagnostics over a tree of real agreements. The deterministic layer is regex-driven and fails silently: an unsupported numbering style still yields clauses, rules and a graph, just wrong ones. Run it before trusting a build.
+- `scripts/graph_audit.py` — does what was built on top *hold together*? Rules citing text that does not exist, self-contradicting rules, a precedence graph asserting both directions.
+- `scripts/build_demo_bundle.py` — build the pre-enriched sample bundle a public visitor gets on one click (enrichment is too slow and too rate-limited to run per visitor).
+- `scripts/reset_sessions.py` — delete leftover `data/sessions/` workspaces; they still hold uploaded agreements, so removal is deliberate rather than automatic.
 
 ## Hard rules
 

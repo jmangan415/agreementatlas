@@ -1,5 +1,7 @@
-# Python
-.venv/
+# Python. `.venv*/` and not `.venv/`, so alternate interpreters kept side by
+# side -- e.g. a 3.12 venv for the graphrag extra, which caps Python below the
+# 3.14 the main venv runs -- are ignored too rather than staged by `git add -A`.
+.venv*/
 __pycache__/
 *.py[cod]
 *.egg-info/
