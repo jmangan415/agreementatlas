@@ -66,15 +66,23 @@
     <section class="local-section" id="why-local">
       <div class="section-heading dark-heading">
         <p class="welcome-eyebrow">The approach</p>
-        <h2>Frontier models can do this work today. The hard part is context.</h2>
+        <h2>Frontier models can do some of this work today. The hard part is
+        context.</h2>
       </div>
       <div class="local-copy">
         <p>
           An answer is only as good as the clauses the model gets to read. One
           agreement fits in a context window; a family of master terms, orders,
-          schedules, amendments and DPAs does not — and as the pile of related
+          schedules, amendments and DPAs may not — and as the pile of related
           documents grows, finding the handful of provisions that actually
           control a question becomes the real work.
+        </p>
+        <p>
+          Handing the whole family to a frontier model works for a small stack.
+          The costs arrive as it grows: every document in the prompt is
+          confidential text leaving your control, and a complex enough family
+          will not fit the window at all. Either way the model reads a subset —
+          the question is whether anything chose it.
         </p>
         <p>
           AgreementAtlas builds that context deliberately: a
