@@ -197,6 +197,21 @@ a:focus-visible { outline: 3px solid rgba(27, 130, 149, .32); outline-offset: 3p
 .local-copy p { margin: 0; color: #bdcad3; font-size: clamp(17px, 1.55vw, 21px); line-height: 1.65; }
 .local-copy p + p { margin-top: 22px; }
 .local-copy strong { color: white; font-weight: 700; }
+/* The story page is the long form of this section's argument, so the invitation
+   belongs at the end of it -- not only in the footer beside Privacy and Terms,
+   where it reads as boilerplate. */
+.local-copy p.local-more { margin-top: 32px; }
+.local-more a {
+  color: #72bdc4;
+  font-size: clamp(15px, 1.2vw, 17px);
+  font-weight: 700;
+  line-height: 1.5;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(114, 189, 196, .38);
+  padding-bottom: 2px;
+  transition: color .18s ease, border-color .18s ease;
+}
+.local-more a:hover { color: white; border-bottom-color: white; }
 
 /* The sticky header would otherwise cover the heading an in-page nav link
    scrolls to. */
