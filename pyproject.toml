@@ -28,7 +28,11 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-  "markitdown[all]>=0.1.6,<0.2",
+  # Only the converters for the formats the upload endpoint accepts. `[all]`
+  # also pulls YouTube and audio transcription and three Azure cloud SDKs --
+  # one of them a beta -- which nothing here calls, and whose
+  # youtube-transcript-api pin has no installable distribution on CI.
+  "markitdown[docx,pdf,pptx,xls,xlsx]>=0.1.6,<0.2",
   "pandas>=2.3,<3",
   "pdfplumber>=0.11.10,<0.12",
   "python-dotenv>=1.0,<2",
