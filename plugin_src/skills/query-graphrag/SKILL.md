@@ -13,7 +13,7 @@ OpenAI API key.
 
 The default workspace is:
 
-`/Users/johnmangan/projects/graphrag_quickstart/knowledge`
+`$REPO_ROOT/knowledge`
 
 If the user identifies another GraphRAG root, pass it with `--root`.
 
@@ -22,9 +22,9 @@ If the user identifies another GraphRAG root, pass it with `--root`.
 1. Run the retrieval script with the user's question:
 
    ```bash
-   python3 /Users/johnmangan/plugins/graphrag-chat/scripts/query_graph.py \
+   python3 $PLUGIN_ROOT/scripts/query_graph.py \
      "USER QUESTION" \
-     --root /Users/johnmangan/projects/graphrag_quickstart/knowledge
+     --root $REPO_ROOT/knowledge
    ```
 
 2. Read the JSON result completely. It contains ranked evidence from
@@ -63,8 +63,8 @@ If the user identifies another GraphRAG root, pass it with `--root`.
 - To inspect available files and index state, run:
 
   ```bash
-  python3 /Users/johnmangan/plugins/graphrag-chat/scripts/query_graph.py --status \
-    --root /Users/johnmangan/projects/graphrag_quickstart/knowledge
+  python3 $PLUGIN_ROOT/scripts/query_graph.py --status \
+    --root $REPO_ROOT/knowledge
   ```
 
 Do not run `graphrag query`; that command invokes a configured model provider

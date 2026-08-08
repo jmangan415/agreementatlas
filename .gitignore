@@ -27,6 +27,19 @@ knowledge/logs/
 # Local review notes derived from non-redistributable agreements
 GRAPH_REBUILD_PLAN.md
 
+# The overnight goal loop and the head-to-head comparison it grew out of. Its
+# runs quote the agreements they are run against, so the question set, run
+# records and transcripts carry verbatim third-party clause text; its driver
+# and launchd job are wired to one specific machine by absolute path. All of it
+# is local research apparatus around the application, not part of it, and it
+# stays on disk without being tracked.
+goal/
+scripts/goal_driver.sh
+scripts/goal_harness.py
+scripts/head2head_*.py
+scripts/com.agreementatlas.goal.plist
+.claude/skills/goal/
+
 # Prebuilt demo bundles. These carry the vendors' own PDFs and their full
 # extracted text; the deployment builds them locally with
 # scripts/build_demo_bundle.py rather than the repository redistributing them.

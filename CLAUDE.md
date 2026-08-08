@@ -120,4 +120,6 @@ Parser and schema changes do **not** reach existing workspaces on their own — 
 
 ## Overnight goal loop
 
-`.claude/skills/goal` + `scripts/goal_driver.sh` run a headless graph-hardening loop against a frozen golden question set: state in `goal/GOAL_STATE.json`, questions in `goal/goldens.json`, narrative log in `goal/GOAL_LOG.md`, reports under `goal/reports/`. Benchmarks must exercise the shipped answering path (`answer_question`), not a parallel harness path.
+`.claude/skills/goal` + `scripts/goal_driver.sh` run a headless graph-hardening loop against a frozen golden question set: state in `goal/GOAL_STATE.json`, questions in `goal/goldens.json`, narrative log in `goal/GOAL_LOG.md`, reports under `goal/reports/`.
+
+**None of this is in git.** The loop's records quote the agreements they are run against, so the whole apparatus — `goal/`, `scripts/goal_driver.sh`, `scripts/goal_harness.py`, `scripts/head2head_*.py`, the launchd plist and this skill — is gitignored and lives only on this machine. It reads the application; it is not part of it. A fresh clone has the app and its tests, and none of the loop. Do not re-add these paths. Benchmarks must exercise the shipped answering path (`answer_question`), not a parallel harness path.
