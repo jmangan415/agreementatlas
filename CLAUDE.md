@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AgreementAtlas — a local-first legal GraphRAG application for families of software/cloud agreements (master terms, orders, amendments, DPAs, SLAs). A deterministic parser builds an evidence-backed legal graph immediately, with no model required; LM Studio (server-side, loopback-only) optionally enriches clause rules and answers questions with citations to exact clause text.
 
-Stack: Python stdlib at runtime — `ThreadingHTTPServer` in `app.py`, no web framework, no database; even the LM Studio calls go through `urllib`. Third-party runtime deps are document-conversion only (`pyproject.toml`): `markitdown[all]`, `pdfplumber`, `pandas`, `requests`, plus `python-dotenv`. Frontend is framework-free static HTML/CSS/JS under `web/`. Microsoft GraphRAG is an optional research layer (`knowledge/`, extra `graphrag` dependency) and must never become a runtime requirement for upload, graph rendering or chat.
+Stack: Python stdlib at runtime — `ThreadingHTTPServer` in `app.py`, no web framework, no database; even the LM Studio calls go through `urllib`. Third-party runtime deps are document-conversion only (`pyproject.toml`): `markitdown[docx,pdf,pptx,xls,xlsx]`, `pdfplumber`, `pandas`, `requests`, plus `python-dotenv`. Frontend is framework-free static HTML/CSS/JS under `web/`. Microsoft GraphRAG is an optional research layer (`knowledge/`, extra `graphrag` dependency) and must never become a runtime requirement for upload, graph rendering or chat.
 
 ## Commands
 

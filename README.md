@@ -97,12 +97,25 @@ See [Architecture](docs/architecture.md) for the exact boundary.
 
 ## Quick start
 
+This runs entirely on one machine. AgreementAtlas binds to `127.0.0.1`, needs
+no inbound port, no domain, no reverse proxy and no cloud account. The
+Cloudflare Tunnel and launchd material in [`DEPLOY.md`](DEPLOY.md) describes
+how the author publishes a demo site from one specific Mac — **you do not need
+any of it to run this locally, and nothing in the default configuration reaches
+the network.**
+
 Requirements:
 
-- Python 3.11 or 3.12
-- LM Studio 0.4+ with its local server enabled
-- Gemma 4 26B-A4B (tested extractor) and Nomic Embed Text v1.5 (tested
-  embedding baseline), or configured alternatives
+- **Python 3.12 or newer.** CI installs and tests on 3.12 and 3.14; 3.11 is
+  below `requires-python` and will refuse to install.
+- **LM Studio 0.4+ is optional to get started.** Without a model you still get
+  the complete deterministic legal graph — parsing, clauses, definitions,
+  precedence and evidence. A model adds rule enrichment and chat.
+- If you do run LM Studio: Gemma 4 26B-A4B QAT (the tested extractor — a 26B
+  mixture-of-experts model, so check LM Studio's own fit indicator before
+  downloading) and Nomic Embed Text v1.5 (the tested embedder), or configured
+  alternatives.
+- Node.js only if you want to run the `node --check web/app.js` lint step.
 
 ```bash
 git clone https://github.com/jmangan415/agreementatlas.git
@@ -112,20 +125,37 @@ python3.12 -m venv .venv
 ./.venv/bin/python -m pip install --upgrade pip
 ./.venv/bin/python -m pip install -e .
 
-cp .env.example .env
-lms server start --port 1234
-lms load google/gemma-4-26b-a4b-qat --context-length 32768
-lms load text-embedding-nomic-embed-text-v1.5 --context-length 2048
+cp .env.example .env        # the shipped defaults are already local-only
 ./.venv/bin/python app.py
 ```
 
-Open <http://127.0.0.1:8000>, then upload the six fictional Markdown agreements
-under `samples/`.
-Deterministic nodes appear immediately. Load a model in LM Studio to enable
-structured enrichment and chat.
+Then open **<http://127.0.0.1:8000/workbench/>** — that is the tool. The site
+root `/` serves the project's landing page in every mode, not the application.
 
-The application server—not browser JavaScript—calls LM Studio. Keep LM Studio
-bound to `127.0.0.1`; browser CORS is unnecessary.
+In the workbench, create an agreement family and upload the six fictional
+Markdown agreements under `samples/`. Deterministic nodes appear immediately,
+with no model loaded and nothing downloaded.
+
+To add enrichment and chat, start LM Studio's server and load the two models
+(the `lms` command-line tool ships with LM Studio):
+
+```bash
+lms server start --port 1234
+lms load google/gemma-4-26b-a4b-qat --context-length 32768
+lms load text-embedding-nomic-embed-text-v1.5 --context-length 2048
+```
+
+`pip install -e .` is the supported install path and the one CI exercises.
+`requirements.lock` additionally pins the exact versions resolved on the
+author's macOS/arm64 Python 3.14 machine; use it with
+`uv pip install -r requirements.lock` only when you want that exact
+reproduction, and expect to fall back to `pip install -e .` on other platforms.
+The `.venv/` directory is deliberately not in the repository — virtual
+environments are neither portable nor committable, so you build your own with
+the commands above.
+
+The application server — not browser JavaScript — calls LM Studio. Keep LM
+Studio bound to `127.0.0.1`; browser CORS is unnecessary.
 
 ## Storage
 
